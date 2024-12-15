@@ -14,7 +14,7 @@ const Home = () => {
     AOS.init({ duration: 1000 });
 
     // Simulate a loading delay, e.g., 5 seconds
-    const timer = setTimeout(() => setLoading(false), 5000);
+    const timer = setTimeout(() => setLoading(false), 2500);
 
     // Clean up the timer when the component is unmounted
     return () => clearTimeout(timer);
