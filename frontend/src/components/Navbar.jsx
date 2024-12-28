@@ -83,6 +83,7 @@ const Navbar = () => {
               <Link to="/phlebotomy" className="block w-full text-left px-4 py-2 hover:bg-teal-700 transition duration-300">Phlebotomy</Link>
               <Link to="/lab" className="block w-full text-left px-4 py-2 hover:bg-teal-700 transition duration-300">Laboratory</Link>
               <Link to="/clinical" className="block w-full text-left px-4 py-2 hover:bg-teal-700 transition duration-300">Clinical</Link>
+              <Link to="/radiology" className="block w-full text-left px-4 py-2 hover:bg-teal-700 transition duration-300">Radiology</Link>
             </div>
           </div>
 
@@ -182,6 +183,7 @@ const Navbar = () => {
                 <Link to="/phlebotomy" className="block text-white text-lg px-4 py-2 hover:bg-teal-700 transition duration-300">Phlebotomy</Link>
                 <Link to="/lab" className="block text-white text-lg px-4 py-2 hover:bg-teal-700 transition duration-300">Laboratory</Link>
                 <Link to="/clinical" className="block text-white text-lg px-4 py-2 hover:bg-teal-700 transition duration-300">Clinical</Link>
+                <Link to="/radiology" className="block text-white text-lg px-4 py-2 hover:bg-teal-700 transition duration-300">Radiology</Link>
               </div>
             </div>
 

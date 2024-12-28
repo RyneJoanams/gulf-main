@@ -4,7 +4,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import { usePatient } from '../../context/patientContext';
 import 'react-toastify/dist/ReactToastify.css';
 import img from '../../assets/logo1-removebg-preview.png';
-import { QRCodeCanvas } from 'qrcode.react'; // Import QRCodeCanvas
+import { QRCodeCanvas} from 'qrcode.react';
 
 const LabNumber = () => {
   const { patientData } = usePatient();
@@ -14,6 +14,7 @@ const LabNumber = () => {
   const [labNumber, setLabNumber] = useState('');
   const [submissionStatus, setSubmissionStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [qrCode, setQrCode] = useState('');
 
   const handleSearch = (e) => {
     const query = e.target.value.toLowerCase();
@@ -32,6 +33,7 @@ const LabNumber = () => {
     }
     const uniqueNumber = `LAB-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     setLabNumber(uniqueNumber);
+    setQrCode(uniqueNumber);
     setSubmissionStatus('');
   };
 
@@ -149,7 +151,9 @@ const LabNumber = () => {
                 <div className="p-6 bg-gray-900 rounded-lg shadow-lg border border-red-500 text-center">
                   <p className="text-2xl font-bold text-red-400 mb-2">Generated Lab Number:</p>
                   <p className="text-xl text-teal-300 font-mono">{labNumber}</p>
-                  <QRCodeCanvas value={labNumber} size={128} className="mt-4" /> {/* QR Code */}
+                  <div className="flex justify-center mt-4">
+                    <QRCodeCanvas value={qrCode} />
+                  </div>
                   <button
                     onClick={copyToClipboard}
                     className="mt-4 bg-gray-700 text-gray-300 font-semibold px-5 py-2 rounded-lg shadow-md hover:bg-gray-600 transition"

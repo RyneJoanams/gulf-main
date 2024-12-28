@@ -17,6 +17,7 @@ import UserAccount from './pages/Admin/UserAccount.jsx';
 import FinancialStatements from './pages/Admin/FinancialStatement.jsx';
 import AllUsers from './pages/Admin/AllUsers.jsx';
 import Clinical from './pages/Clinical/Clinical.jsx';
+import Radiology from './pages/Radiology/radiology.jsx';
 
 const App = () => {
 
@@ -32,6 +33,7 @@ const App = () => {
         <Route path='/accounts-login' element={<AccountsLogin/>}/>
         <Route path='/phlebotomy' element={<Phlebotomy/>}/>
         <Route path='/lab' element={<Lab/>}/>
+        <Route path ='/radiology' element={<Radiology/>}/>
         <Route path='/clinical' element={<Clinical/>}/>
         <Route path='/admin' element={<Admin/>}/>
         <Route path='/all-patients' element={<AllPatients/>}/>

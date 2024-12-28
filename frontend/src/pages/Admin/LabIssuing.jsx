@@ -2,17 +2,19 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import {toast, ToastContainer} from 'react-toastify';
 import { usePatient } from '../../context/patientContext';
-import { QRCodeCanvas } from 'qrcode.react'; // Import QRCodeCanvas
+import {QRCodeCanvas} from 'qrcode.react';
 
 const LabNumber = () => {
   const { patientData } = usePatient();
   const [selectedPatient, setSelectedPatient] = useState('Select Patient');
   const [labNumber, setLabNumber] = useState('');
   const [submissionStatus, setSubmissionStatus] = useState('');
+  const [qrCode, setQrCode] = useState('');
 
   const generateLabNumber = () => {
     const uniqueNumber = `LAB-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     setLabNumber(uniqueNumber);
+    setQrCode(uniqueNumber);
     setSubmissionStatus(''); // Reset submission status when a new number is generated
   };
 
@@ -74,10 +76,12 @@ const LabNumber = () => {
           </button>
 
           {labNumber && (
-            <div className="mt-4 p-6 bg-white rounded-xl shadow-lg border border-gray-200 text-center flex">
+            <div className="mt-4 p-6 bg-white rounded-xl shadow-lg border border-gray-200 text-center">
               <p className="text-2xl font-bold text-blue-700 mb-2">Generated Lab Number:</p>
               <p className="text-xl text-blue-600 font-mono">{labNumber}</p>
-              <QRCodeCanvas value={labNumber} size={128} className="mt-4" /> {/* QR Code */}
+              <div className="flex justify-center mt-4">
+                <QRCodeCanvas value={qrCode} />
+              </div>
               <button
                 onClick={submitLabNumber}
                 className="mt-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold px-5 py-3 rounded-lg shadow-lg hover:from-green-600 hover:to-green-700 transform hover:scale-105 transition duration-300"

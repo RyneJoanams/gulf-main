@@ -7,6 +7,7 @@ const labRoutes = require('./routes/labRoutes')
 const patientRoutes = require('./routes/patientRoutes');
 const userRoutes = require('./routes/userRoutes');
 const clinicalReportRoutes = require('./routes/clinicalReportRoutes');
+const radiologyRoutes = require('./routes/radiologyRoutes');
 require('dotenv').config();
 
 // Initialize the app 
@@ -40,6 +41,7 @@ app.use('/api/patient', patientRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/lab', clinicalReportRoutes);
 app.use('/api/clinicalReport', clinicalReportRoutes);
+app.use('/api/radiology', radiologyRoutes);
 
 // Example route for testing
 app.get('/', (req, res) => {

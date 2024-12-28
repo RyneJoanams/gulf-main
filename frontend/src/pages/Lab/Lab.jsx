@@ -334,7 +334,7 @@ const Lab = () => {
                 <div className="grid grid-cols-4 gap-2 mb-8 p-6 bg-gray-50 rounded-lg">
                   <h3 className='flex items-center gap-4 text-xl font-semibold mb-4 text-black'>
                     <label className="flex items-center gap-2 text-black">
-                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.area1 || false} onChange={() => handleUnitSelect('area1')} /><b>Area 1</b></label>
+                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.area1 || false} onChange={() => handleUnitSelect('area1')} /><b>Labaratory Test</b></label>
                     {selectedUnits.area1 && (
                       <label> <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectAll.area1 || false} onChange={() => handleSelectAllTests('area1')} />Select All</label>)}
                   </h3>
