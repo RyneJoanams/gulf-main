@@ -114,6 +114,8 @@ const Clinical = () => {
                         <li>Urine Test: ${selectedReport.urineTest}</li>
                         <li>Blood Test: ${selectedReport.bloodTest}</li>
                         <li>General Examination: ${selectedReport.generalExamination}</li>
+                        <li>Systemic Examination: ${selectedReport.systemicExamination}</li>
+                        <li>Radiology Data: ${selectedReport.radiologyData}</li>
                         <li>Clinical Notes: ${selectedReport.clinicalNotes}</li>
                         <li>Clinical Officer Name: ${selectedReport.clinicalOfficerName}</li>
                     </ul>
@@ -242,6 +244,7 @@ const Clinical = () => {
                                 <ReportSection title="Renal Function" data={selectedReport.renalFunction} />
                                 <ReportSection title="Full Haemogram" data={selectedReport.fullHaemogram} />
                                 <ReportSection title="Liver Function" data={selectedReport.liverFunction} />
+                                <ReportSection title="Radiology Data" data={selectedReport.radiologyData} />
                                 <ReportSection title="Height" data={selectedReport.height} />
                                 <ReportSection title="Weight" data={selectedReport.weight} />
                                 <ReportSection title="Clinical Notes" data={selectedReport.clinicalNotes} />
