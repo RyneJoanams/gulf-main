@@ -18,6 +18,7 @@ import FinancialStatements from './pages/Admin/FinancialStatement.jsx';
 import AllUsers from './pages/Admin/AllUsers.jsx';
 import Clinical from './pages/Clinical/Clinical.jsx';
 import Radiology from './pages/Radiology/radiology.jsx';
+import Agent from './pages/Agent/Agent';
 
 const App = () => {
 
@@ -40,6 +41,7 @@ const App = () => {
         <Route path='/user-account' element={<UserAccount/>}/>
         <Route path='/financial-statements' element={<FinancialStatements/>}/>
         <Route path='/all-users' element={<AllUsers/>}/>
+        <Route path='/agent' element={<Agent/>}/>
 
         {/* Add more routes as needed */}
       </Routes>

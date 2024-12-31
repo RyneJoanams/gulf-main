@@ -95,6 +95,13 @@ const Navbar = () => {
             <span className="absolute bottom-0 left-0 w-[0px] h-[2px] bg-white group-hover:w-full transition-all duration-500 ease-in-out"></span>
           </Link>
           <Link
+            to="/agent"
+            className="text-white w-1/6 text-center hover:text-gray-200 relative group transition-all duration-300"
+          >
+            Agent
+            <span className="absolute bottom-0 left-0 w-[0px] h-[2px] bg-white group-hover:w-full transition-all duration-500 ease-in-out"></span>
+          </Link>
+          <Link
             to="/admin"
             className="text-white w-1/6 text-center hover:text-gray-200 relative group transition-all duration-300"
           >
