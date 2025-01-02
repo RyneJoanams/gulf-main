@@ -19,7 +19,9 @@ exports.createReport = async (req, res) => {
             weight: req.body.weight,
             generalExamination: req.body.generalExamination,
             systemicExamination: req.body.systemicExamination,
-            otherTests: req.body.otherTests
+            otherTests: req.body.otherTests,
+            historyOfPastIllness: req.body.historyOfPastIllness,
+            allergy: req.body.allergy
         });
         const savedReport = await newReport.save();
         res.status(201).json({ data: savedReport });
@@ -54,7 +56,9 @@ exports.updateReport = async (req, res) => {
             weight: req.body.weight,
             generalExamination: req.body.generalExamination,
             systemicExamination: req.body.systemicExamination,
-            otherTests: req.body.otherTests
+            otherTests: req.body.otherTests,
+            historyOfPastIllness: req.body.historyOfPastIllness,
+            allergy: req.body.allergy
         }, { new: true });
         if (!updatedReport) {
             return res.status(404).json({ message: 'Report not found' });

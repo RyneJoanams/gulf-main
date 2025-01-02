@@ -34,7 +34,9 @@ const ClinicalReportSchema = new mongoose.Schema({
     clinicalNotes: { type: String },
     clinicalOfficerName: { type: String, required: true },
     height: { type: Number },
-    weight: { type: Number }
+    weight: { type: Number },
+    historyOfPastIllness: { type: String },
+    allergy: { type: String }
 });
 
 module.exports = mongoose.model('ClinicalReport', ClinicalReportSchema);
