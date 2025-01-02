@@ -1,4 +1,4 @@
-const ClinicalReport = require('../models/clinicalReport');
+const ClinicalReport = require('../models/ClinicalReport');
 
 exports.getAllReports = async (req, res) => {
     try {
@@ -16,7 +16,10 @@ exports.createReport = async (req, res) => {
             clinicalNotes: req.body.clinicalNotes,
             clinicalOfficerName: req.body.clinicalOfficerName,
             height: req.body.height,
-            weight: req.body.weight
+            weight: req.body.weight,
+            generalExamination: req.body.generalExamination,
+            systemicExamination: req.body.systemicExamination,
+            otherTests: req.body.otherTests
         });
         const savedReport = await newReport.save();
         res.status(201).json({ data: savedReport });
@@ -48,7 +51,10 @@ exports.updateReport = async (req, res) => {
             clinicalNotes: req.body.clinicalNotes,
             clinicalOfficerName: req.body.clinicalOfficerName,
             height: req.body.height,
-            weight: req.body.weight
+            weight: req.body.weight,
+            generalExamination: req.body.generalExamination,
+            systemicExamination: req.body.systemicExamination,
+            otherTests: req.body.otherTests
         }, { new: true });
         if (!updatedReport) {
             return res.status(404).json({ message: 'Report not found' });

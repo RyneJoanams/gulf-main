@@ -272,136 +272,79 @@ const Lab = () => {
                     )}
                   </div>
 
-                  {/* GeneralExam Test Section */}
-                  <div className="mb-8 p-6 bg-gray-50 rounded-lg">
+                  {/* Area 1 Section */}
+                  <div className="grid grid-cols-4 gap-2 mb-8 p-6 bg-gray-50 rounded-lg">
                     <h3 className='flex items-center gap-4 text-xl font-semibold mb-4 text-black'>
                       <label className="flex items-center gap-2 text-black">
-                        <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.generalExamination || false} onChange={() => handleUnitSelect('generalExamination')} /><b>General Examination</b></label>
-                      {selectedUnits.generalExamination && (
-                        <label className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectAll.generalExamination || false} onChange={() => handleSelectAllTests('generalExamination')} />Select All</label>)}
+                        <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.area1 || false} onChange={() => handleUnitSelect('area1')} /><b>Labaratory Test</b></label>
+                      {selectedUnits.area1 && (
+                        <label> <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectAll.area1 || false} onChange={() => handleSelectAllTests('area1')} />Select All</label>)}
                     </h3>
-                    {selectedUnits.generalExamination && (
-                      <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                          <label className="flex items-center gap-2 text-black"><input type="checkbox" className='w-4 h-4 rounded border-gray-300 text-black' checked={selectedTests.generalExamination?.hernia || false} onChange={() => handleTestSelect('generalExamination', 'hernia')} /> Hernia:</label>
-                          {selectedTests.generalExamination?.hernia && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="generalExamination.hernia" type="text" />)}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                          <label className="flex items-center gap-2 text-black"><input type="checkbox" className='w-4 h-4 rounded border-gray-300 text-black' checked={selectedTests.generalExamination?.varicoseVein || false} onChange={() => handleTestSelect('generalExamination', 'varicoseVein')} /> Vericosevein:</label>
-                          {selectedTests.generalExamination?.varicoseVein && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="generalExamination.varicoseVein" type="text" />)}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                          <label className="flex items-center gap-2 text-black"><input type="checkbox" className='w-4 h-4 rounded border-gray-300 text-black' checked={selectedTests.generalExamination?.rightEye || false} onChange={() => handleTestSelect('generalExamination', 'rightEye')} /> Right Eye:</label>
-                          {selectedTests.generalExamination?.rightEye && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="generalExamination.rightEye" type="text" />)}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                          <label className="flex items-center gap-2 text-black"><input type="checkbox" className='w-4 h-4 rounded border-gray-300 text-black' checked={selectedTests.generalExamination?.leftEye || false} onChange={() => handleTestSelect('generalExamination', 'leftEye')} /> Left Eye:</label>
-                          {selectedTests.generalExamination?.leftEye && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="generalExamination.leftEye" type="text" />)}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* systemicexam Test Section */}
-                  <div className="mb-8 p-6 bg-gray-50 rounded-lg">
-                    <h3 className='flex items-center gap-4 text-xl font-semibold mb-4 text-black'>
-                      <label className="flex items-center gap-2 text-black">
-                        <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.systemicExamination || false} onChange={() => handleUnitSelect('systemicExamination')} /><b>Systemic Examination</b></label>
-                      {selectedUnits.systemicExamination && (
-                        <label className=' className="flex items-center gap-2 text-black"'> <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectAll.systemicExamination || false} onChange={() => handleSelectAllTests('systemicExamination')} />Select All</label>)}
-                    </h3>
-                    {selectedUnits.systemicExamination && (
-                      <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                          <label className="flex items-center gap-2 text-black"><input type="checkbox" className='w-4 h-4 rounded border-gray-300 text-black' checked={selectedTests.systemicExamination?.heart || false} onChange={() => handleTestSelect('systemicExamination', 'heart')} /> Heart:</label>
-                          {selectedTests.systemicExamination?.heart && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="systemicExamination.heart" type="text" />)}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                          <label className="flex items-center gap-2 text-black"><input type="checkbox" className='w-4 h-4 rounded border-gray-300 text-black' checked={selectedTests.systemicExamination?.bloodPressure || false} onChange={() => handleTestSelect('systemicExamination', 'bloodPressure')} /> Blood Pressure:</label>
-                          {selectedTests.systemicExamination?.bloodPressure && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="systemicExamination.bloodPressure" type="text" />)}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                          <label className="flex items-center gap-2 text-black"><input type="checkbox" className='w-4 h-4 rounded border-gray-300 text-black' checked={selectedTests.systemicExamination?.pulseRate || false} onChange={() => handleTestSelect('systemicExamination', 'pulseRate')} /> Pulse Rate:</label>
-                          {selectedTests.systemicExamination?.pulseRate && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="systemicExamination.pulseRate" type="text" />)}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* systemicexam Test Section */}
-                <div className="grid grid-cols-4 gap-2 mb-8 p-6 bg-gray-50 rounded-lg">
-                  <h3 className='flex items-center gap-4 text-xl font-semibold mb-4 text-black'>
-                    <label className="flex items-center gap-2 text-black">
-                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.area1 || false} onChange={() => handleUnitSelect('area1')} /><b>Labaratory Test</b></label>
                     {selectedUnits.area1 && (
-                      <label> <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectAll.area1 || false} onChange={() => handleSelectAllTests('area1')} />Select All</label>)}
-                  </h3>
-                  {selectedUnits.area1 && (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.stoolConsistency || false} onChange={() => handleTestSelect('area1', 'stoolConsistency')} /> stool Consistency:</label>
-                        {selectedTests.area1?.stoolConsistency && (<Field name="area1.stoolConsistency" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.stoolMicroscopy || false} onChange={() => handleTestSelect('area1', 'stoolMicroscopy')} /> stoolMicroscopy:</label>
-                        {selectedTests.area1?.stoolMicroscopy && (<Field name="area1.stoolMicroscopy" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.tpha || false} onChange={() => handleTestSelect('area1', 'tpha')} /> TPHA:</label>
-                        {selectedTests.area1?.tpha && (<Field name="area1.tpha" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.vdrlTest || false} onChange={() => handleTestSelect('area1', 'vdrlTest')} /> VDRL Test:</label>
-                        {selectedTests.area1?.vdrlTest && (<Field name="area1.vdrlTest" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.venerealDisease || false} onChange={() => handleTestSelect('area1', 'venerealDisease')} /> venereal Disease:</label>
-                        {selectedTests.area1?.venerealDisease && (<Field name="area1.venerealDisease" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.pregnancyTest || false} onChange={() => handleTestSelect('area1', 'pregnancyTest')} /> Pregnancy Test:</label>
-                        {selectedTests.area1?.pregnancyTest && (<Field name="area1.pregnancyTest" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.typhoid || false} onChange={() => handleTestSelect('area1', 'typhoid')} /> Typhoid:</label>
-                        {selectedTests.area1?.typhoid && (<Field name="area1.typhoid" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.hydrocele || false} onChange={() => handleTestSelect('area1', 'hydrocele')} /> Hydrocele:</label>
-                        {selectedTests.area1?.hydrocele && (<Field name="area1.hydrocele" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.otherDeformities || false} onChange={() => handleTestSelect('area1', 'otherDeformities')} /> Other Deformities:</label>
-                        {selectedTests.area1?.otherDeformities && (<Field name="area1.otherDeformities" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.earRight || false} onChange={() => handleTestSelect('area1', 'earRight')} /> Ear Right:</label>
-                        {selectedTests.area1?.earRight && (<Field name="area1.earRight" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.earLeft || false} onChange={() => handleTestSelect('area1', 'earLeft')} /> Ear Left:</label>
-                        {selectedTests.area1?.earLeft && (<Field name="area1.earLeft" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.lungs || false} onChange={() => handleTestSelect('area1', 'lungs')} /> Lungs:</label>
-                        {selectedTests.area1?.lungs && (<Field name="area1.lungs" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.liver || false} onChange={() => handleTestSelect('area1', 'liver')} /> Liver:</label>
-                        {selectedTests.area1?.liver && (<Field name="area1.liver" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.spleen || false} onChange={() => handleTestSelect('area1', 'spleen')} /> spleen:</label>
-                        {selectedTests.area1?.spleen && (<Field name="area1.spleen" type="text" />)}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                        <label><input type="checkbox" checked={selectedTests.area1?.bloodGroup || false} onChange={() => handleTestSelect('area1', 'bloodGroup')} /> Blood Group:</label>
-                        {selectedTests.area1?.bloodGroup && (<Field name="area1.bloodGroup" type="text" />)}
-                      </div>
-                    </>
-                  )}
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.stoolConsistency || false} onChange={() => handleTestSelect('area1', 'stoolConsistency')} /> stool Consistency:</label>
+                          {selectedTests.area1?.stoolConsistency && (<Field name="area1.stoolConsistency" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.stoolMicroscopy || false} onChange={() => handleTestSelect('area1', 'stoolMicroscopy')} /> stoolMicroscopy:</label>
+                          {selectedTests.area1?.stoolMicroscopy && (<Field name="area1.stoolMicroscopy" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.tpha || false} onChange={() => handleTestSelect('area1', 'tpha')} /> TPHA:</label>
+                          {selectedTests.area1?.tpha && (<Field name="area1.tpha" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.vdrlTest || false} onChange={() => handleTestSelect('area1', 'vdrlTest')} /> VDRL Test:</label>
+                          {selectedTests.area1?.vdrlTest && (<Field name="area1.vdrlTest" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.venerealDisease || false} onChange={() => handleTestSelect('area1', 'venerealDisease')} /> venereal Disease:</label>
+                          {selectedTests.area1?.venerealDisease && (<Field name="area1.venerealDisease" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.pregnancyTest || false} onChange={() => handleTestSelect('area1', 'pregnancyTest')} /> Pregnancy Test:</label>
+                          {selectedTests.area1?.pregnancyTest && (<Field name="area1.pregnancyTest" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.typhoid || false} onChange={() => handleTestSelect('area1', 'typhoid')} /> Typhoid:</label>
+                          {selectedTests.area1?.typhoid && (<Field name="area1.typhoid" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.hydrocele || false} onChange={() => handleTestSelect('area1', 'hydrocele')} /> Hydrocele:</label>
+                          {selectedTests.area1?.hydrocele && (<Field name="area1.hydrocele" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.otherDeformities || false} onChange={() => handleTestSelect('area1', 'otherDeformities')} /> Other Deformities:</label>
+                          {selectedTests.area1?.otherDeformities && (<Field name="area1.otherDeformities" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.earRight || false} onChange={() => handleTestSelect('area1', 'earRight')} /> Ear Right:</label>
+                          {selectedTests.area1?.earRight && (<Field name="area1.earRight" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.earLeft || false} onChange={() => handleTestSelect('area1', 'earLeft')} /> Ear Left:</label>
+                          {selectedTests.area1?.earLeft && (<Field name="area1.earLeft" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.lungs || false} onChange={() => handleTestSelect('area1', 'lungs')} /> Lungs:</label>
+                          {selectedTests.area1?.lungs && (<Field name="area1.lungs" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.liver || false} onChange={() => handleTestSelect('area1', 'liver')} /> Liver:</label>
+                          {selectedTests.area1?.liver && (<Field name="area1.liver" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.spleen || false} onChange={() => handleTestSelect('area1', 'spleen')} /> spleen:</label>
+                          {selectedTests.area1?.spleen && (<Field name="area1.spleen" type="text" />)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                          <label><input type="checkbox" checked={selectedTests.area1?.bloodGroup || false} onChange={() => handleTestSelect('area1', 'bloodGroup')} /> Blood Group:</label>
+                          {selectedTests.area1?.bloodGroup && (<Field name="area1.bloodGroup" type="text" />)}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Renal Function Test Section */}

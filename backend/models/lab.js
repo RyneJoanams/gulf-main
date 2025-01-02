@@ -26,17 +26,6 @@ const labSchema = new mongoose.Schema({
     hcv: String,
     esr: String,
   },
-  generalExamination: {
-    hernia: String,
-    varicoseVein: String,
-    rightEye: String,
-    leftEye: String,
-  },
-  systemicExamination: {
-    heart: String,
-    bloodPressure: String,
-    pulseRate: String,
-  },
   area1: {
     stoolConsistency: String,
     stoolMicroscopy: String,
@@ -45,13 +34,6 @@ const labSchema = new mongoose.Schema({
     venerealDisease: String,
     pregnancyTest: String,
     typhoid: String,
-    hydrocele: String,
-    otherDeformities: String,
-    earRight: String,
-    earLeft: String,
-    lungs: String,
-    liver: String,
-    spleen: String,
     bloodGroup: String,
   },
   renalFunction: {

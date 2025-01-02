@@ -396,6 +396,7 @@ const LabReports = () => {
                         <ReportSection title="Blood Test" data={report.bloodTest} />
                         <ReportSection title="General Examination" data={report.generalExamination} />
                         <ReportSection title="Systemic Examination" data={report.systemicExamination} />
+                        <ReportSection title="Other Tests" data={report.otherTests} />
                         <ReportSection title="Area 1" data={report.area1} />
                         <ReportSection title="Renal Function" data={report.renalFunction} />
                         <ReportSection title="Full Haemogram" data={report.fullHaemogram} />

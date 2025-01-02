@@ -6,6 +6,13 @@ import * as XLSX from "xlsx";
 import ReportSection from "../Admin/ReportSection";
 import "react-toastify/dist/ReactToastify.css";
 
+const TESTS_BY_UNIT = {
+    generalExamination: ["hernia", "varicoseVein", "rightEye", "leftEye"],
+    systemicExamination: ["heart", "bloodPressure", "pulseRate"],
+    otherTests: ["hydrocele", "earRight", "earLeft", "lungs", "liver", "spleen", "otherDeformities"],
+    // Add more units and tests as needed
+};
+
 const Clinical = () => {
     const [reports, setReports] = useState([]);
     const [filteredReports, setFilteredReports] = useState([]);
@@ -18,6 +25,11 @@ const Clinical = () => {
     const [clinicalOfficerName, setClinicalOfficerName] = useState("");
     const [height, setHeight] = useState("");
     const [weight, setWeight] = useState("");
+    const [historyOfPastIllness, setHistoryOfPastIllness] = useState("");
+    const [allergy, setAllergy] = useState("");
+    const [selectedUnits, setSelectedUnits] = useState({});
+    const [selectedTests, setSelectedTests] = useState({});
+    const [selectAll, setSelectAll] = useState({});
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -83,7 +95,9 @@ const Clinical = () => {
             clinicalRemarks: selectedReport.clinicalRemarks,
             date: new Date(selectedReport.timestamp).toLocaleString(),
             clinicalNotes: selectedReport.clinicalNotes,
-            clinicalOfficerName: selectedReport.clinicalOfficerName
+            clinicalOfficerName: selectedReport.clinicalOfficerName,
+            historyOfPastIllness: selectedReport.historyOfPastIllness,
+            allergy: selectedReport.allergy
         }];
 
         const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -115,9 +129,12 @@ const Clinical = () => {
                         <li>Blood Test: ${selectedReport.bloodTest}</li>
                         <li>General Examination: ${selectedReport.generalExamination}</li>
                         <li>Systemic Examination: ${selectedReport.systemicExamination}</li>
+                        <li>Other Tests: ${selectedReport.otherTests}</li>
                         <li>Radiology Data: ${selectedReport.radiologyData}</li>
                         <li>Clinical Notes: ${selectedReport.clinicalNotes}</li>
                         <li>Clinical Officer Name: ${selectedReport.clinicalOfficerName}</li>
+                        <li>History of Past Illness: ${selectedReport.historyOfPastIllness}</li>
+                        <li>Allergy: ${selectedReport.allergy}</li>
                     </ul>
                 </body>
             </html>
@@ -134,13 +151,51 @@ const Clinical = () => {
                 clinicalNotes,
                 clinicalOfficerName,
                 height,
-                weight
+                weight,
+                historyOfPastIllness,
+                allergy,
+                generalExamination: selectedTests.generalExamination,
+                systemicExamination: selectedTests.systemicExamination,
+                otherTests: selectedTests.otherTests
             };
             await axios.post("http://localhost:5000/api/lab", newReport);
             toast.success("Report successfully created");
         } catch (error) {
             toast.error("Error creating report");
         }
+    };
+
+    const handleUnitSelect = (unit) => {
+        setSelectedUnits((prev) => ({
+            ...prev,
+            [unit]: !prev[unit],
+        }));
+        if (selectedUnits[unit]) {
+            setSelectAll((prev) => ({ ...prev, [unit]: false }));
+            setSelectedTests((prev) => ({ ...prev, [unit]: {} }));
+        }
+    };
+
+    const handleTestSelect = (unit, test) => {
+        setSelectedTests((prev) => ({
+            ...prev,
+            [unit]: {
+                ...prev[unit],
+                [test]: !prev[unit]?.[test],
+            },
+        }));
+    };
+
+    const handleSelectAllTests = (unit) => {
+        const allTestsSelected = !selectAll[unit];
+        setSelectAll((prev) => ({ ...prev, [unit]: allTestsSelected }));
+
+        setSelectedTests((prev) => ({
+            ...prev,
+            [unit]: allTestsSelected
+                ? TESTS_BY_UNIT[unit].reduce((acc, test) => ({ ...acc, [test]: true }), {})
+                : {},
+        }));
     };
 
     const paginatedReports = filteredReports.slice(
@@ -240,6 +295,7 @@ const Clinical = () => {
                                 <ReportSection title="Blood Test" data={selectedReport.bloodTest} />
                                 <ReportSection title="General Examination" data={selectedReport.generalExamination} />
                                 <ReportSection title="Systemic Examination" data={selectedReport.systemicExamination} />
+                                <ReportSection title="Other Tests" data={selectedReport.otherTests} />
                                 <ReportSection title="Area 1" data={selectedReport.area1} />
                                 <ReportSection title="Renal Function" data={selectedReport.renalFunction} />
                                 <ReportSection title="Full Haemogram" data={selectedReport.fullHaemogram} />
@@ -249,6 +305,8 @@ const Clinical = () => {
                                 <ReportSection title="Weight" data={selectedReport.weight} />
                                 <ReportSection title="Clinical Notes" data={selectedReport.clinicalNotes} />
                                 <ReportSection title="Clinical Officer Name" data={selectedReport.clinicalOfficerName} />
+                                <ReportSection title="History of Past Illness" data={selectedReport.historyOfPastIllness} />
+                                <ReportSection title="Allergy" data={selectedReport.allergy} />
                             </div>
                             <div className="mt-4">
                                 <h2 className="text-xl font-bold">Clinical Notes</h2>
@@ -266,6 +324,128 @@ const Clinical = () => {
                                     value={weight}
                                     onChange={(e) => setWeight(e.target.value)}
                                 />
+                                <input
+                                    type="text"
+                                    placeholder="History of Past Illness"
+                                    className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                                    value={historyOfPastIllness}
+                                    onChange={(e) => setHistoryOfPastIllness(e.target.value)}
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Allergy"
+                                    className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                                    value={allergy}
+                                    onChange={(e) => setAllergy(e.target.value)}
+                                />
+                                <div className="mb-4">
+                                    <h3 className="text-lg font-bold">General Examination</h3>
+                                    <label className="flex items-center gap-4 text-black">
+                                        <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.generalExamination || false} onChange={() => handleUnitSelect('generalExamination')} /> <b>General Examination</b>
+                                    </label>
+                                    {selectedUnits.generalExamination && (
+                                        <>
+                                            <label className="flex items-center gap-2 text-sm text-black">
+                                                <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectAll.generalExamination || false} onChange={() => handleSelectAllTests('generalExamination')} />Select All
+                                            </label>
+                                            {TESTS_BY_UNIT.generalExamination.map((test) => (
+                                                <div key={test} className="mb-2">
+                                                    <label className="block text-gray-700 font-medium mb-1">
+                                                        <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedTests.generalExamination?.[test] || false} onChange={() => handleTestSelect('generalExamination', test)} /> {test.charAt(0).toUpperCase() + test.slice(1)}:
+                                                    </label>
+                                                    {selectedTests.generalExamination?.[test] && (
+                                                        <input
+                                                            type="text"
+                                                            className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                            value={selectedTests.generalExamination?.[test] || ""}
+                                                            onChange={(e) =>
+                                                                setSelectedTests((prev) => ({
+                                                                    ...prev,
+                                                                    generalExamination: {
+                                                                        ...prev.generalExamination,
+                                                                        [test]: e.target.value,
+                                                                    },
+                                                                }))
+                                                            }
+                                                        />
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </>
+                                    )}
+                                </div>
+                                <div className="mb-4">
+                                    <h3 className="text-lg font-bold">Systemic Examination</h3>
+                                    <label className="flex items-center gap-4 text-black">
+                                        <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.systemicExamination || false} onChange={() => handleUnitSelect('systemicExamination')} /> <b>Systemic Examination</b>
+                                    </label>
+                                    {selectedUnits.systemicExamination && (
+                                        <>
+                                            <label className="flex items-center gap-2 text-sm text-black">
+                                                <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectAll.systemicExamination || false} onChange={() => handleSelectAllTests('systemicExamination')} />Select All
+                                            </label>
+                                            {TESTS_BY_UNIT.systemicExamination.map((test) => (
+                                                <div key={test} className="mb-2">
+                                                    <label className="block text-gray-700 font-medium mb-1">
+                                                        <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedTests.systemicExamination?.[test] || false} onChange={() => handleTestSelect('systemicExamination', test)} /> {test.charAt(0).toUpperCase() + test.slice(1)}:
+                                                    </label>
+                                                    {selectedTests.systemicExamination?.[test] && (
+                                                        <input
+                                                            type="text"
+                                                            className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                            value={selectedTests.systemicExamination?.[test] || ""}
+                                                            onChange={(e) =>
+                                                                setSelectedTests((prev) => ({
+                                                                    ...prev,
+                                                                    systemicExamination: {
+                                                                        ...prev.systemicExamination,
+                                                                        [test]: e.target.value,
+                                                                    },
+                                                                }))
+                                                            }
+                                                        />
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </>
+                                    )}
+                                </div>
+                                <div className="mb-4">
+                                    <h3 className="text-lg font-bold">Other Tests</h3>
+                                    <label className="flex items-center gap-4 text-black">
+                                        <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.otherTests || false} onChange={() => handleUnitSelect('otherTests')} /> <b>Other Tests</b>
+                                    </label>
+                                    {selectedUnits.otherTests && (
+                                        <>
+                                            <label className="flex items-center gap-2 text-sm text-black">
+                                                <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectAll.otherTests || false} onChange={() => handleSelectAllTests('otherTests')} />Select All
+                                            </label>
+                                            {TESTS_BY_UNIT.otherTests.map((test) => (
+                                                <div key={test} className="mb-2">
+                                                    <label className="block text-gray-700 font-medium mb-1">
+                                                        <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedTests.otherTests?.[test] || false} onChange={() => handleTestSelect('otherTests', test)} /> {test.charAt(0).toUpperCase() + test.slice(1)}:
+                                                    </label>
+                                                    {selectedTests.otherTests?.[test] && (
+                                                        <input
+                                                            type="text"
+                                                            className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                            value={selectedTests.otherTests?.[test] || ""}
+                                                            onChange={(e) =>
+                                                                setSelectedTests((prev) => ({
+                                                                    ...prev,
+                                                                    otherTests: {
+                                                                        ...prev.otherTests,
+                                                                        [test]: e.target.value,
+                                                                    },
+                                                                }))
+                                                            }
+                                                        />
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </>
+                                    )}
+                                </div>
                                 <textarea
                                     placeholder="Clinical Notes"
                                     className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"

@@ -1,27 +1,14 @@
 export const TESTS_BY_UNIT = {
   urineTest: ['albumin', 'sugar', 'microscopic', 'reaction'],
   bloodTest: ['hivTest', 'hbsAg', 'hcv', 'esr'],
-  generalExamination: ['hernia', 'varicoseVein', 'rightEye', 'leftEye'],
-  systemicExamination: [ 'heart', 'bloodPressure', 'pulseRate'],
-  fullHaemogram: [],
-  liverFunction: [],
-  renalFunction: [],
   heafChestTest: ['heafMantouxTest', 'chestXray'],
   area1: ['stoolConsistency','stoolMicroscopy', 'tpha', 'vdrlTest', 'venerealDisease', 'pregnancyTest',
-     'typhoid', 'hydrocele', 'otherDeformities','earRight', 'earLeft', 'lungs', 'liver', 'spleen', 'bloodGroup']
+     'typhoid', 'bloodGroup']
 };
 
 export const initialValues = {
   albumin: '', sugar: '', microscopic: '', reaction: '', 
-bloodTest: { hivTest: '', hbsAg: '', hcv: '', esr: '',     
-},
-generalExamination: {hernia: '', varicoseVein: '', rightEye: '', leftEye: '',       
-},
-systemicExamination: { heart: '', bloodPressure: '', pulseRate: '',      
-},
-
-
-
+  bloodTest: { hivTest: '', hbsAg: '', hcv: '', esr: '', },
   fullHaemogram: {
     wbc:  { value: '', units: '', status: '', range: '' },
     lym:  { value: '', units: '', status: '', range: '' },
@@ -39,8 +26,6 @@ systemicExamination: { heart: '', bloodPressure: '', pulseRate: '',
     mpv:  { value: '', units: '', status: '', range: '' },
     pct:  { value: '', units: '', status: '', range: '' },
     pdw:  { value: '', units: '', status: '', range: '' }
-
-    
   },
   liverFunction: {
     totalBilirubin: { value: '', status: '', range: '' },
@@ -58,26 +43,17 @@ systemicExamination: { heart: '', bloodPressure: '', pulseRate: '',
     creatinine: { value: '', status: '', range: '' },
     fastingBloodSugar: { value: '', status: '', range: '' },
   },
-
   heafMantouxTest: '',
   chestXray: '',
-
-  // Added Area 1 Fields
-  stoolConsistency: '',
-  stoolMicroscopy: '',
-  tpha: '',
-  vdrlTest: '',
-  venerealDisease: '',
-  pregnancyTest: '',
-  typhoid: '',
-  hydrocele: '',
-  otherDeformities: '',
-  earRight: '',
-  earLeft: '',
-  lungs: '',
-  liver: '',
-  spleen: '',
-  bloodGroup: '',
+  area1: {
+    stoolConsistency: '',
+    stoolMicroscopy: '',
+    tpha: '',
+    vdrlTest: '',
+    venerealDisease: '',
+    pregnancyTest: '',
+    typhoid: '',
+    bloodGroup: '',
+  },
 };
-  
-  
+
