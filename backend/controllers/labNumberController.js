@@ -1,4 +1,4 @@
-const LabNumber = require("../models/LabNumber");
+const LabNumber = require("../models/labNumber");
 
 // Controller to handle lab number submission
 exports.createLabNumber = async (req, res) => {
