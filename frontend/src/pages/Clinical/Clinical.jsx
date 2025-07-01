@@ -340,9 +340,12 @@ const Clinical = () => {
                                         </div>
 
                                         <div className="w-full space-y-1 text-center">
-                                            <h3 className={`text-base font-semibold ${selectedReport?._id === report._id ? "text-white" : "text-gray-800 dark:text-gray-200"}`}>
+                                            <h3 className="text-base font-semibold">
                                                 Name: {report.patientName}
                                             </h3>
+                                            <p className="text-xs text-gray-600">
+                                                Medical Type: <span className="font-semibold">{report.medicalType || 'N/A'}</span>
+                                            </p>
                                             <div className={`text-xs ${selectedReport?._id === report._id ? "text-teal-100" : "text-gray-600 dark:text-gray-400"}`}>
                                                 <p>Lab Number: {report.labNumber}</p>
                                                 <p>Date: {new Date(report.timeStamp).toLocaleString()}</p>

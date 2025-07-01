@@ -230,6 +230,10 @@ const radiologySchema = new mongoose.Schema({
       name: { type: String },
     },
   },
+  medicalType: {
+    type: String,
+    required: false, // or true if you want to enforce it
+  },
 });
 
 module.exports = mongoose.model("RadiologyTest", radiologySchema);

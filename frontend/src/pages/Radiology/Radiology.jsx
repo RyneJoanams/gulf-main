@@ -163,9 +163,10 @@ const Radiology = () => {
                                         </div>
 
                                         <div className="w-full space-y-2 text-center">
-                                            <h3 className={`text-lg font-semibold tracking-wide ${selectedReport?._id === report._id ? "text-white" : "text-gray-800 dark:text-gray-200"}`}>
-                                                Name: {report.patientName}
-                                            </h3>
+                                            <h3 className="text-lg font-semibold tracking-wide">{report.patientName}</h3>
+                                            <p className="text-sm text-gray-600">
+                                                Medical Type: <span className="font-semibold">{report.medicalType || 'N/A'}</span>
+                                            </p>
                                             <div className={`text-sm space-y-1 ${selectedReport?._id === report._id ? "text-teal-100" : "text-gray-600 dark:text-gray-400"}`}>
                                                 <p className="flex items-center justify-center space-x-2">
                                                     <span className="font-medium">Lab Number: </span>
@@ -246,6 +247,12 @@ const Radiology = () => {
                                     <button onClick={handleSubmit} className="bg-blue-500 text-white px-4 py-2 rounded-lg mt-4">
                                         Submit Report
                                     </button>
+                                </div>
+
+                                <div className="mt-6">
+                                    <p className="text-lg font-medium">
+                                        Medical Type: <span className="font-semibold">{selectedReport.medicalType || 'N/A'}</span>
+                                    </p>
                                 </div>
 
                             </>

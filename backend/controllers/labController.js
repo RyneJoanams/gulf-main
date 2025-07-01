@@ -34,6 +34,7 @@ exports.createLabReport = async (req, res) => {
       patientName: req.body.patientName,
       timeStamp: req.body.timeStamp,
       labRemarks: req.body.labRemarks,
+      medicalType: req.body.medicalType, // <-- Add this line
       ...req.body.labData,
     };
 

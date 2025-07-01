@@ -33,10 +33,10 @@ exports.createPayment = async (req, res) => {
     });
 
     try {
-        const savedPayment = await newPayment.save(); // Save the new payment record to the database
-        res.status(201).json(savedPayment); // Return the saved record with a 201 status
+        const savedPayment = await newPayment.save(); 
+        res.status(201).json(savedPayment); 
     } catch (error) {
-        // Handle validation error or duplicate entry error (like duplicate accountNumber)
+        
         if (error.code === 11000) {
             return res.status(400).json({ message: 'Account number already exists.' });
         }

@@ -32,6 +32,7 @@ exports.createReport = async (req, res) => {
             historyOfPastIllness,
             allergy,
             radiologyData,
+            medicalType, // <-- Add this line
         } = req.body;
 
         const newReport = new clinical({
@@ -46,6 +47,7 @@ exports.createReport = async (req, res) => {
             historyOfPastIllness,
             allergy,
             radiologyData,
+            medicalType, // <-- Add this line
         });
 
         const savedReport = await newReport.save();

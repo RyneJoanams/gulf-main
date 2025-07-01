@@ -11,6 +11,7 @@ import logo from '../../assets/GULF HEALTHCARE KENYA LTD.png';
 import Footer from '../../components/Footer';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { Document as DocxDocument, Packer, Paragraph, Table, TableRow, TableCell, HeadingLevel, ImageRun } from "docx";
 
 const Accounts = () => {
   const { patientData, updatePatientData } = usePatient();
@@ -29,12 +30,14 @@ const Accounts = () => {
   const [expenseDescription, setExpenseDescription] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenses, setExpenses] = useState([]);
+  const [activeSection, setActiveSection] = useState('summary'); // sidebar navigation
 
   // Calculate financial totals
   const totalAmountPaid = paymentRecords.reduce((sum, record) => sum + parseFloat(record.amountPaid || 0), 0);
   const totalCommission = paymentRecords.reduce((sum, record) => sum + parseFloat(record.commission || 0), 0);
   const totalXrayPayment = paymentRecords.reduce((sum, record) => sum + parseFloat(record.xrayPayment || 0), 0);
-  const totalDeductions = totalCommission + totalXrayPayment;
+  const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+  const totalDeductions = totalCommission + totalXrayPayment + totalExpenses;
   const netAmount = totalAmountPaid - totalDeductions;
 
   useEffect(() => {
@@ -71,6 +74,20 @@ const Accounts = () => {
     }
   }, [currentRecord]);
 
+  useEffect(() => {
+    fetchExpenses();
+  }, [startDate, endDate]);
+
+  const fetchExpenses = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/expenses');
+      setExpenses(response.data);
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+      toast.error('Error fetching expenses. Please try again.');
+    }
+  };
+
   const handlePaymentSubmit = async () => {
     if (!selectedPatient || !modeOfPayment || !accountNumber || !amountPaid || !commission || !xrayPayment || !amountDue) {
       toast.error('Please enter all required fields.');
@@ -93,7 +110,8 @@ const Accounts = () => {
       const response = await axios.post('http://localhost:5000/api/patient/account', newPayment);
       const savedPayment = response.data;
 
-      toast.success(`Payment recorded: Due - ${amountDue}, Paid - ${amountPaid}, Account - ${accountNumber}`);
+      toast.success(`Payment recorded: Due - ${amountDue}, Paid - ${amountPaid}, Account - ${accountNumber},
+         Mode - ${modeOfPayment}, Commission - ${commission}, Xray - ${xrayPayment}`);
       setPaymentRecords([...paymentRecords, savedPayment]);
       updatePatientData({
         amountDue: parseFloat(amountDue),
@@ -104,31 +122,6 @@ const Accounts = () => {
     } catch (error) {
       toast.error('Error recording payment. Please try again.');
     }
-  };
-
-  const handleDelete = async (id) => {
-    if (!id) {
-      console.error('ID is undefined. Cannot proceed with deletion.');
-      toast.error('ID is undefined. Cannot proceed with deletion.');
-      return;
-    }
-
-    const confirmDelete = window.confirm('Are you sure you want to delete this payment record?');
-    if (!confirmDelete) return;
-
-    try {
-      await axios.delete(`http://localhost:5000/api/patient/account/${id}`);
-      setPaymentRecords(paymentRecords.filter((record) => record.id !== id));
-      toast.success('Payment record deleted successfully.');
-      window.location.reload();
-    } catch (error) {
-      console.error('Error deleting payment record:', error);
-      toast.error('Error deleting payment record. Please try again.');
-    }
-  };
-
-  const handleUpdate = (record) => {
-    setCurrentRecord(record);
   };
 
   const handleUpdateSubmit = async () => {
@@ -159,6 +152,35 @@ const Accounts = () => {
     } catch (error) {
       console.error('Error updating payment record:', error);
       toast.error('Error updating payment record. Please try again.');
+    }
+  };
+
+  const handleAddExpense = async () => {
+    if (!expenseDescription || !expenseAmount) {
+      toast.error('Please enter all required fields.');
+      return;
+    }
+    try {
+      const response = await axios.post('http://localhost:5000/api/expenses', {
+        description: expenseDescription,
+        amount: parseFloat(expenseAmount),
+      });
+      setExpenses([response.data, ...expenses]);
+      setExpenseDescription('');
+      setExpenseAmount('');
+      toast.success('Expense added.');
+    } catch (error) {
+      toast.error('Error adding expense.');
+    }
+  };
+
+  const handleDeleteExpense = async (id) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/expenses/${id}`);
+      setExpenses(expenses.filter(exp => exp._id !== id));
+      toast.success('Expense deleted.');
+    } catch (error) {
+      toast.error('Error deleting expense.');
     }
   };
 
@@ -199,63 +221,208 @@ const Accounts = () => {
       'Total Amount Paid': totalAmountPaid,
       'Total Commission': totalCommission,
       'Total Xray Payment': totalXrayPayment,
+      'Total Expenses': totalExpenses,
       'Total Deductions': totalDeductions,
       'Net Amount': netAmount,
       'Date Range': `${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`,
     }];
 
+    const expensesData = expenses.map(exp => ({
+      'Description': exp.description,
+      'Amount': exp.amount,
+      'Date': new Date(exp.date).toLocaleDateString(),
+    }));
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentData), 'Payments');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expensesData), 'Expenses');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'Summary');
     XLSX.writeFile(wb, `Financial_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const exportToWord = () => {
+    const filteredPayments = filterRecordsByDate(paymentRecords);
+
+    // Payment Table Rows
+    const paymentRows = [
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Patient Name")] }),
+          new TableCell({ children: [new Paragraph("Mode of Payment")] }),
+          new TableCell({ children: [new Paragraph("REF NO.")] }),
+          new TableCell({ children: [new Paragraph("Amount Paid")] }),
+          new TableCell({ children: [new Paragraph("Commission")] }),
+          new TableCell({ children: [new Paragraph("Xray Payment")] }),
+          new TableCell({ children: [new Paragraph("Amount Due")] }),
+          new TableCell({ children: [new Paragraph("Payment Status")] }),
+          new TableCell({ children: [new Paragraph("Date")] }),
+        ],
+      }),
+      ...filteredPayments.map((record) =>
+        new TableRow({
+          children: [
+            new TableCell({ children: [new Paragraph(record.patientName || "")] }),
+            new TableCell({ children: [new Paragraph(record.modeOfPayment || "")] }),
+            new TableCell({ children: [new Paragraph(record.accountNumber || "")] }),
+            new TableCell({ children: [new Paragraph(String(record.amountPaid || ""))] }),
+            new TableCell({ children: [new Paragraph(String(record.commission || ""))] }),
+            new TableCell({ children: [new Paragraph(String(record.xrayPayment || ""))] }),
+            new TableCell({ children: [new Paragraph(String(record.amountDue || ""))] }),
+            new TableCell({ children: [new Paragraph(record.paymentStatus || "")] }),
+            new TableCell({ children: [new Paragraph(record.paymentDate ? new Date(record.paymentDate).toLocaleDateString() : "")] }),
+          ],
+        })
+      ),
+    ];
+
+    // Expenses Table Rows
+    const expenseRows = [
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Description")] }),
+          new TableCell({ children: [new Paragraph("Amount")] }),
+          new TableCell({ children: [new Paragraph("Date")] }),
+        ],
+      }),
+      ...filteredExpenses.map((exp) =>
+        new TableRow({
+          children: [
+            new TableCell({ children: [new Paragraph(exp.description || "")] }),
+            new TableCell({ children: [new Paragraph(String(exp.amount || ""))] }),
+            new TableCell({ children: [new Paragraph(exp.date ? new Date(exp.date).toLocaleDateString() : "")] }),
+          ],
+        })
+      ),
+    ];
+
+    // Summary Table
+    const summaryRows = [
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Total Amount Paid")] }),
+          new TableCell({ children: [new Paragraph(`KES ${totalAmountPaid.toFixed(2)}`)] }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Total Commission")] }),
+          new TableCell({ children: [new Paragraph(`KES ${totalCommission.toFixed(2)}`)] }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Total Xray Payment")] }),
+          new TableCell({ children: [new Paragraph(`KES ${totalXrayPayment.toFixed(2)}`)] }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Total Expenses")] }),
+          new TableCell({ children: [new Paragraph(`KES ${totalExpenses.toFixed(2)}`)] }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Total Deductions")] }),
+          new TableCell({ children: [new Paragraph(`KES ${totalDeductions.toFixed(2)}`)] }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Net Amount")] }),
+          new TableCell({ children: [new Paragraph(`KES ${netAmount.toFixed(2)}`)] }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Date Range")] }),
+          new TableCell({ children: [new Paragraph(`${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`)] }),
+        ],
+      }),
+    ];
+
+    const doc = new DocxDocument({
+      sections: [
+        {
+          children: [
+            new Paragraph({
+              text: "Health Center - Financial Report",
+              heading: HeadingLevel.TITLE,
+              alignment: "center",
+            }),
+            new Paragraph({
+              text: `Date Range: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`,
+              alignment: "center",
+            }),
+            new Paragraph({ text: "" }),
+            new Paragraph({ text: "Summary", heading: HeadingLevel.HEADING_2 }),
+            new Table({ rows: summaryRows }),
+            new Paragraph({ text: "" }),
+            new Paragraph({ text: "Payment Records", heading: HeadingLevel.HEADING_2 }),
+            new Table({ rows: paymentRows }),
+            new Paragraph({ text: "" }),
+            new Paragraph({ text: "Expenses", heading: HeadingLevel.HEADING_2 }),
+            new Table({ rows: expenseRows }),
+            new Paragraph({ text: "" }),
+            new Paragraph({
+              text: "Thank you for choosing our health center!",
+              alignment: "center",
+            }),
+          ],
+        },
+      ],
+    });
+
+    Packer.toBlob(doc).then((blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Financial_Report_${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    });
   };
 
   const filteredPayments = filterRecordsByDate(paymentRecords);
   const filteredExpenses = filterRecordsByDate(expenses);
 
-  const fetchExpenses = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/api/expenses');
-      setExpenses(response.data);
-    } catch (error) {
-      console.error('Error fetching expenses:', error);
-      toast.error('Error fetching expenses. Please try again.');
-    }
-  }  
-
-  const handleAddExpense = async () => {
-    if (!expenseDescription || !expenseAmount) {
-      toast.error('Please enter all required fields.');
-      return;
-    }
-  }
-
-  const handleDeleteExpense = async (id) => {
-    if (!id) {
-      toast.error('Invalid expense ID.');
-      return;
-    }
-    try {
-      toast.success('Expense deleted successfully.');
-    } catch (error) {
-      console.error('Error deleting expense:', error);
-      toast.error('Error deleting expense. Please try again.');
-    }
-  }
-
+  // Sidebar + Main Content Layout
   return (
     <div className="min-h-screen bg-gray-50">
       <TopBar />
-      <div className="flex">
-        <div className="flex-1 p-8">
+      <div className="flex min-h-screen">
+        {/* Sidebar */}
+        <aside className="w-64 bg-teal-900 text-white flex flex-col py-8 px-4">
+          <h2 className="text-2xl font-bold mb-8 text-center">Accounts Menu</h2>
+          <nav className="flex flex-col space-y-4">
+            <button
+              className={`text-left px-4 py-2 rounded ${activeSection === 'summary' ? 'bg-teal-700 font-bold' : 'hover:bg-teal-800'}`}
+              onClick={() => setActiveSection('summary')}
+            >
+              Financial Summary
+            </button>
+            <button
+              className={`text-left px-4 py-2 rounded ${activeSection === 'payments' ? 'bg-teal-700 font-bold' : 'hover:bg-teal-800'}`}
+              onClick={() => setActiveSection('payments')}
+            >
+              Payments
+            </button>
+            <button
+              className={`text-left px-4 py-2 rounded ${activeSection === 'expenses' ? 'bg-teal-700 font-bold' : 'hover:bg-teal-800'}`}
+              onClick={() => setActiveSection('expenses')}
+            >
+              Expenses
+            </button>
+          </nav>
+        </aside>
+        {/* Main Content */}
+        <main className="flex-1 p-8">
           <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-2xl p-8 space-y-8">
             <ToastContainer />
-
             <div className="border-b border-gray-200 pb-6">
               <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Accounts Office</h1>
               <div className="w-24 h-1 bg-blue-600 mx-auto rounded-full"></div>
             </div>
-
             {/* Date Range Selector */}
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
               <h2 className="text-xl font-semibold mb-4 text-gray-700">Date Range Filter</h2>
@@ -285,35 +452,35 @@ const Accounts = () => {
                 </div>
               </div>
             </div>
-
-            {/* Financial Summary */}
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-              <h2 className="text-xl font-semibold mb-4 text-blue-800">Financial Summary</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-3 rounded shadow">
-                  <p className="text-gray-600">Total Payments</p>
-                  <p className="text-2xl font-bold text-green-600">KES {totalAmountPaid.toFixed(2)}</p>
-                </div>
-                <div className="bg-white p-3 rounded shadow">
-                  <p className="text-gray-600">Total Deductions</p>
-                  <p className="text-2xl font-bold text-red-600">KES {totalDeductions.toFixed(2)}</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    (Commission: KES {totalCommission.toFixed(2)} + Xray: KES {totalXrayPayment.toFixed(2)})
-                  </p>
-                </div>
-                <div className="bg-white p-3 rounded shadow">
-                  <p className="text-gray-600">Net Amount</p>
-                  <p className={`text-2xl font-bold ${netAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    KES {netAmount.toFixed(2)}
-                  </p>
+            {/* Conditional Sections */}
+            {activeSection === 'summary' && (
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <h2 className="text-xl font-semibold mb-4 text-blue-800">Financial Summary</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white p-3 rounded shadow">
+                    <p className="text-gray-600">Total Payments</p>
+                    <p className="text-2xl font-bold text-green-600">KES {totalAmountPaid.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded shadow">
+                    <p className="text-gray-600">Total Deductions</p>
+                    <p className="text-2xl font-bold text-red-600">KES {totalDeductions.toFixed(2)}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      (Commission: KES {totalCommission.toFixed(2)} + Xray: KES {totalXrayPayment.toFixed(2)} + Expenses: KES {totalExpenses.toFixed(2)})
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 rounded shadow">
+                    <p className="text-gray-600">Net Amount</p>
+                    <p className={`text-2xl font-bold ${netAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      KES {netAmount.toFixed(2)}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            {patientData ? (
-              <div className="space-y-8">
+            )}
+            {activeSection === 'payments' && (
+              <div>
                 {/* Patient Payment Form */}
-                <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-8">
                   <h2 className="text-xl font-semibold mb-4 text-gray-700">Patient Payment</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
@@ -340,7 +507,6 @@ const Accounts = () => {
                           )}
                         </select>
                       </div>
-
                       <div>
                         <label className="block text-gray-700 font-semibold mb-2" htmlFor="modeOfPayment">
                           Mode of Payment
@@ -357,7 +523,6 @@ const Accounts = () => {
                           <option value="Invoice">Invoice</option>
                         </select>
                       </div>
-
                       <div>
                         <label className="block text-gray-700 font-semibold mb-2" htmlFor="accountNumber">
                           REF NO.
@@ -372,7 +537,6 @@ const Accounts = () => {
                         />
                       </div>
                     </div>
-
                     <div className="space-y-4">
                       <div>
                         <label className="block text-gray-700 font-semibold mb-2" htmlFor="amountPaid">
@@ -387,7 +551,6 @@ const Accounts = () => {
                           placeholder="Enter amount paid"
                         />
                       </div>
-
                       <div>
                         <label className="block text-gray-700 font-semibold mb-2" htmlFor="commission">
                           Commission
@@ -401,7 +564,6 @@ const Accounts = () => {
                           placeholder="Enter commission"
                         />
                       </div>
-
                       <div>
                         <label className="block text-gray-700 font-semibold mb-2" htmlFor="xrayPayment">
                           Xray Payment
@@ -417,7 +579,6 @@ const Accounts = () => {
                       </div>
                     </div>
                   </div>
-
                   <div className="mt-4">
                     <label className="block text-gray-700 font-semibold mb-2" htmlFor="amountDue">
                       Amount Due
@@ -431,7 +592,6 @@ const Accounts = () => {
                       placeholder="Enter amount due"
                     />
                   </div>
-
                   <button
                     onClick={currentRecord ? handleUpdateSubmit : handlePaymentSubmit}
                     className="w-full mt-4 bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -439,83 +599,6 @@ const Accounts = () => {
                     {currentRecord ? 'Update Payment' : 'Record Payment'}
                   </button>
                 </div>
-
-                {/* Expenses Section */}
-                {/* <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                  <h2 className="text-xl font-semibold mb-4 text-gray-700">Daily Expenses</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="col-span-2">
-                      <label className="block text-gray-700 font-semibold mb-2" htmlFor="expenseDescription">
-                        Description
-                      </label>
-                      <input
-                        type="text"
-                        id="expenseDescription"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
-                        value={expenseDescription}
-                        onChange={(e) => setExpenseDescription(e.target.value)}
-                        placeholder="Enter expense description"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 font-semibold mb-2" htmlFor="expenseAmount">
-                        Amount
-                      </label>
-                      <input
-                        type="number"
-                        id="expenseAmount"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
-                        value={expenseAmount}
-                        onChange={(e) => setExpenseAmount(e.target.value)}
-                        placeholder="Enter amount"
-                      />
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleAddExpense}
-                    className="mt-4 bg-green-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                  >
-                    Add Expense
-                  </button>
-
-                  {filteredExpenses.length > 0 && (
-                    <div className="mt-6">
-                      <h3 className="text-lg font-semibold mb-3">Recent Expenses</h3>
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredExpenses.map((expense) => (
-                              <tr key={expense._id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.description}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.amount}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                  {new Date(expense.date).toLocaleDateString()}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                  <button
-                                    onClick={() => handleDeleteExpense(expense._id)}
-                                    className="text-red-600 hover:text-red-900"
-                                  >
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div> */}
-
                 {/* Payment Records Section */}
                 <div className="mt-8">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
@@ -537,9 +620,14 @@ const Accounts = () => {
                       >
                         Export to Excel
                       </button>
+                      <button
+                        onClick={exportToWord}
+                        className="bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-600 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                      >
+                        Export to Word
+                      </button>
                     </div>
                   </div>
-
                   {filteredPayments.length > 0 ? (
                     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                       <div ref={componentRef} className="printable">
@@ -621,26 +709,13 @@ const Accounts = () => {
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {new Date(record.paymentDate).toLocaleDateString()}
                                   </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                    <button
-                                      onClick={() => handleUpdate(record)}
-                                      className="bg-yellow-500 text-white rounded-lg px-3 py-1.5 hover:bg-yellow-600 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      onClick={() => handleDelete(record._id)}
-                                      className="bg-red-500 text-white rounded-lg px-3 py-1.5 hover:bg-red-600 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                                    >
-                                      Delete
-                                    </button>
-                                  </td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
 
+                        {/* Printable Summary */}
                         <footer className="mt-8 text-center p-6 border-t border-gray-200">
                           <div className="flex flex-col items-center justify-center space-y-4">
                             <QRCodeCanvas
@@ -654,8 +729,11 @@ const Accounts = () => {
                                 <p className="text-green-600 font-bold">KES {totalAmountPaid.toFixed(2)}</p>
                               </div>
                               <div className="bg-gray-100 p-4 rounded">
-                                <p className="font-semibold">Total Expenses</p>
+                                <p className="font-semibold">Total Deductions</p>
                                 <p className="text-red-600 font-bold">KES {totalDeductions.toFixed(2)}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  (Commission: KES {totalCommission.toFixed(2)} + Xray: KES {totalXrayPayment.toFixed(2)} + Expenses: KES {totalExpenses.toFixed(2)})
+                                </p>
                               </div>
                               <div className="bg-gray-100 p-4 rounded">
                                 <p className="font-semibold">Net Amount</p>
@@ -677,13 +755,82 @@ const Accounts = () => {
                   )}
                 </div>
               </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-md p-8 text-center">
-                <p className="text-gray-700 text-lg">No patient data available.</p>
+            )}
+            {activeSection === 'expenses' && (
+              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <h2 className="text-xl font-semibold mb-4 text-gray-700">Expenses</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-gray-700 font-semibold mb-2" htmlFor="expenseDescription">
+                      Description
+                    </label>
+                    <input
+                      type="text"
+                      id="expenseDescription"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm"
+                      value={expenseDescription}
+                      onChange={(e) => setExpenseDescription(e.target.value)}
+                      placeholder="Enter expense description"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2" htmlFor="expenseAmount">
+                      Amount
+                    </label>
+                    <input
+                      type="number"
+                      id="expenseAmount"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm"
+                      value={expenseAmount}
+                      onChange={(e) => setExpenseAmount(e.target.value)}
+                      placeholder="Enter amount"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={handleAddExpense}
+                  className="mt-4 bg-green-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-700 transition-all duration-200"
+                >
+                  Add Expense
+                </button>
+                {expenses.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold mb-3">Recent Expenses</h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {expenses.map((expense) => (
+                            <tr key={expense._id}>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.description}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.amount}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.date ? new Date(expense.date).toLocaleDateString() : ''}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button
+                                  onClick={() => handleDeleteExpense(expense._id)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        </div>
+        </main>
       </div>
       <Footer />
     </div>

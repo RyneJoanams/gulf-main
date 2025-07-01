@@ -26,6 +26,7 @@ exports.createRadiologyTest = async (req, res) => {
         patientImage,
         timestamp,
         area1,
+        medicalType, // <-- Add this line
     } = req.body;
 
     console.log(req.body);
@@ -39,7 +40,7 @@ exports.createRadiologyTest = async (req, res) => {
 
     // Create a new radiology test object
     const newTest = new RadiologyTest({
-        patientId: patientId || null, // Handle optional patientId
+        patientId: patientId || null,
         patientName,
         labNumber,
         chestXRayTest,
@@ -105,7 +106,8 @@ exports.createRadiologyTest = async (req, res) => {
             },
         },
         patientImage,
-        timeStamp: timestamp || Date.now(), // Use provided timestamp or default to current time
+        timeStamp: timestamp || Date.now(),
+        medicalType, // <-- Add this line
     });
 
     try {

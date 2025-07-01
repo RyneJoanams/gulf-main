@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { FaChevronCircleLeft, FaPrint, FaChevronCircleRight, FaFileExport } from "react-icons/fa";
+import { FaChevronCircleLeft, FaPrint, FaChevronCircleRight } from "react-icons/fa";
 import { toast } from "react-toastify";
-import * as XLSX from "xlsx";
 import ReportSection from "../Admin/ReportSection";
 import "react-toastify/dist/ReactToastify.css";
 import TopBar from "../../components/TopBar";
+import { Document as DocxDocument, Packer, Paragraph, Table, TableRow, TableCell, HeadingLevel, ImageRun } from "docx";
 
+const logoBase64 = "data:image/png;base64,..."; // Replace ... with your actual base64 string
 
 const Agent = () => {
     const [reports, setReports] = useState([]);
@@ -14,8 +15,8 @@ const Agent = () => {
     const [selectedReport, setSelectedReport] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-    const [testTypeFilter, setTestTypeFilter] = useState("All");
-    const [dateRange, setDateRange] = useState({ start: "", end: "" });
+    const [testTypeFilter] = useState("All"); // Remove if not used
+    const [dateRange] = useState({ start: "", end: "" }); // Remove if not used
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -68,57 +69,6 @@ const Agent = () => {
 
         setFilteredReports(filtered);
     }, [reports, searchTerm, testTypeFilter, dateRange]);
-
-    const exportToExcel = () => {
-        if (!selectedReport) {
-            toast.error("No report selected for export");
-            return;
-        }
-
-        // Create a more comprehensive dataset for export
-        const exportData = [{
-            'Patient Name': selectedReport.patientName || 'N/A',
-            'Lab Number': selectedReport.labNumber || 'N/A',
-            'Date': new Date(selectedReport.timestamp).toLocaleString(),
-            'Height (cm)': selectedReport.height || 'N/A',
-            'Weight (kg)': selectedReport.weight || 'N/A',
-            'Clinical Officer': selectedReport.clinicalOfficerName || 'N/A',
-            'Clinical Notes': selectedReport.clinicalNotes || 'N/A',
-            'History of Past Illness': selectedReport.historyOfPastIllness || 'N/A',
-            'Allergies': selectedReport.allergy || 'N/A',
-            'General Examination': selectedReport.generalExamination || 'N/A',
-            'Systemic Examination': selectedReport.systemicExamination || 'N/A',
-            'Blood Test Results': selectedReport.bloodTest || 'N/A',
-            'Urine Test Results': selectedReport.urineTest || 'N/A',
-            'Other Tests': selectedReport.otherTests || 'N/A',
-            'Lab Remarks': selectedReport.labRemarks || 'N/A',
-            'Renal Function': selectedReport.renalFunction || 'N/A',
-            'Full Haemogram': selectedReport.fullHaemogram || 'N/A',
-            'Liver Function': selectedReport.liverFunction || 'N/A',
-            'Radiology Data': selectedReport.radiologyData || 'N/A'
-        }];
-
-        // Configure worksheet options for better formatting
-        const ws = XLSX.utils.json_to_sheet(exportData, {
-            header: Object.keys(exportData[0]),
-            skipHeader: false
-        });
-
-        // Set column widths
-        const colWidths = Object.keys(exportData[0]).map(() => ({ wch: 30 }));
-        ws['!cols'] = colWidths;
-
-        // Create workbook and append worksheet
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Clinical Report");
-
-        // Generate filename with patient name and date
-        const filename = `Clinical_Report_${selectedReport.patientName}_${new Date().toISOString().split('T')[0]}.xlsx`;
-
-        // Write file and download
-        XLSX.writeFile(wb, filename);
-        toast.success("Report exported successfully");
-    };
 
     const printReport = () => {
         if (!selectedReport) {
@@ -478,8 +428,6 @@ const Agent = () => {
         };
     };
 
-
-
     const paginatedReports = filteredReports.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
@@ -549,13 +497,12 @@ const Agent = () => {
                                         </div>
 
                                         <div className="w-full space-y-2 text-center">
-                                            <h3 className={`text-lg font-semibold tracking-wide ${selectedReport?._id === report._id
-                                                ? "text-white"
-                                                : "text-gray-800 dark:text-gray-200"
-                                                }`}>
+                                            <h3 className="text-lg font-semibold tracking-wide">
                                                 Name: {report.selectedReport.patientName}
                                             </h3>
-
+                                            <p className="text-sm text-gray-600">
+                                                Medical Type: <span className="font-semibold">{report.selectedReport.medicalType || 'N/A'}</span>
+                                            </p>
                                             <div className={`text-sm space-y-1 ${selectedReport?._id === report._id
                                                 ? "text-teal-100"
                                                 : "text-gray-600 dark:text-gray-400"
@@ -616,15 +563,6 @@ const Agent = () => {
                                                 <FaPrint className="mr-2" />
                                                 Print
                                             </button>
-                                           {/*
-                                            <button
-                                                onClick={exportToExcel}
-                                                className="bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition-all duration-200"
-                                            >
-                                                <FaFileExport className="mr-2" />
-                                                Export to Excel
-                                            </button>
-                                            */}
                                         </div>
 
                                         {/* Patient Information */}
@@ -632,6 +570,9 @@ const Agent = () => {
                                             <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-3">Patient Information</h3>
                                             <p className="text-lg text-gray-800 dark:text-gray-200"><strong>Name:</strong> {selectedReport.selectedReport.patientName || "Not Available"}</p>
                                             <p className="text-lg text-gray-800 dark:text-gray-200"><strong>Lab Number:</strong> {selectedReport.selectedReport.labNumber || "Not Available"}</p>
+                                            <p className="text-lg font-medium">
+                                                Medical Type: <span className="font-semibold">{selectedReport.selectedReport.medicalType || 'N/A'}</span>
+                                            </p>
                                         </div>
                                     </div>
 

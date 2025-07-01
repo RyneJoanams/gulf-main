@@ -237,6 +237,9 @@ const Lab = () => {
                             <p className="text-gray-500 text-sm italic">
                               Lab Number: <span className="font-semibold">{selectedLabNumber}</span>
                             </p>
+                            <p className="text-gray-500 text-sm italic">
+                              Medical Type: <span className="font-semibold">{selectedPatientData?.medicalType || 'N/A'}</span>
+                            </p>
                           </div>
                         ))
                     ) : (

@@ -232,6 +232,10 @@ const labSchema = new mongoose.Schema({
       },
     },
   },
+  medicalType: {
+    type: String,
+    required: false, // or true if you want to enforce it
+  },
 });
 
 module.exports = mongoose.model("Lab", labSchema);

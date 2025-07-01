@@ -9,6 +9,7 @@ const userRoutes = require('./routes/userRoutes');
 const labNumberRoutes = require('./routes/labNumberRoutes');
 const radiologyRoutes = require('./routes/radiologyRoutes');
 const clinicalRoute = require('./routes/clinicalRoutes');
+const expenseRoutes = require('./routes/expenses');
 require('dotenv').config();
 
 // Initialize the app 
@@ -35,11 +36,12 @@ mongoose.connect(process.env.MONGO)
 
 // Import routes
 app.use('/api/lab', labRoutes);
-app.use('/api/number', labNumberRoutes)
+app.use('/api/number', labNumberRoutes);
 app.use('/api/patient', patientRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/radiology', radiologyRoutes);
 app.use('/api/clinical', clinicalRoute);
+app.use('/api/expenses', expenseRoutes);
 
 // Example route for testing
 app.get('/', (req, res) => {

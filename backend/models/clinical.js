@@ -12,6 +12,10 @@ const clinicalSchema = new mongoose.Schema({
     },
     height: { type: String },
     historyOfPastIllness: { type: String },
+    medicalType: {
+        type: String,
+        required: false, // or true if you want to enforce it
+    },
     otherTests: {
         earLeft: { type: String },
         liver: { type: String },
