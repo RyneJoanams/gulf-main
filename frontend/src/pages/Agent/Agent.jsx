@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { FaChevronCircleLeft, FaPrint, FaChevronCircleRight } from "react-icons/fa";
+import { FaChevronCircleLeft, FaPrint, FaChevronCircleRight, FaDownload } from "react-icons/fa";
 import { toast } from "react-toastify";
 import ReportSection from "../Admin/ReportSection";
 import "react-toastify/dist/ReactToastify.css";
 import TopBar from "../../components/TopBar";
-import { Document as DocxDocument, Packer, Paragraph, Table, TableRow, TableCell, HeadingLevel, ImageRun } from "docx";
-
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const Agent = () => {
     const [reports, setReports] = useState([]);
@@ -427,6 +427,203 @@ const Agent = () => {
         };
     };
 
+    const generatePDF = () => {
+        if (!selectedReport) {
+            toast.error("No report selected for PDF generation");
+            return;
+        }
+
+        try {
+            const doc = new jsPDF();
+            const pageWidth = doc.internal.pageSize.width;
+            const pageHeight = doc.internal.pageSize.height;
+            let yPosition = 20;
+
+            const formatData = (data) => {
+                return data || 'Not Available';
+            };
+
+            const addSection = (title, yPos) => {
+                if (yPos > pageHeight - 30) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                doc.setFontSize(14);
+                doc.setFont(undefined, 'bold');
+                doc.text(title, 20, yPos);
+                doc.setLineWidth(0.5);
+                doc.line(20, yPos + 2, pageWidth - 20, yPos + 2);
+                return yPos + 10;
+            };
+
+            const addText = (label, value, yPos, indent = 20) => {
+                if (yPos > pageHeight - 20) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.text(`${label}:`, indent, yPos);
+                doc.setFont(undefined, 'normal');
+                const textWidth = doc.getTextWidth(`${label}: `);
+                doc.text(formatData(value), indent + textWidth, yPos);
+                return yPos + 6;
+            };
+
+            // Header
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('Clinical Report', pageWidth / 2, yPosition, { align: 'center' });
+            yPosition += 10;
+
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+            doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPosition, { align: 'center' });
+            yPosition += 15;
+
+            // Patient Image (if available)
+            if (selectedReport.selectedReport.patientImage) {
+                try {
+                    const imgData = `data:image/jpeg;base64,${selectedReport.selectedReport.patientImage}`;
+                    doc.addImage(imgData, 'JPEG', pageWidth / 2 - 15, yPosition, 30, 30);
+                    yPosition += 35;
+                } catch (error) {
+                    console.warn('Could not add patient image to PDF:', error);
+                }
+            }
+
+            // Patient Information
+            yPosition = addSection('Patient Information', yPosition);
+            yPosition = addText('Patient Name', selectedReport.selectedReport.patientName, yPosition);
+            yPosition = addText('Lab Number', selectedReport.selectedReport.labNumber, yPosition);
+            yPosition = addText('Medical Type', selectedReport.selectedReport.medicalType, yPosition);
+            yPosition = addText('Date', new Date(selectedReport.selectedReport.timeStamp).toLocaleString(), yPosition);
+            yPosition += 5;
+
+            // Basic Information
+            yPosition = addSection('Basic Information', yPosition);
+            yPosition = addText('Height', `${formatData(selectedReport.height)} cm`, yPosition);
+            yPosition = addText('Weight', `${formatData(selectedReport.weight)} kg`, yPosition);
+            yPosition = addText('Clinical Officer', selectedReport.clinicalOfficerName, yPosition);
+            yPosition = addText('Clinical Notes', selectedReport.clinicalNotes, yPosition);
+            yPosition = addText('History of Past Illness', selectedReport.historyOfPastIllness, yPosition);
+            yPosition = addText('Allergy', selectedReport.allergy, yPosition);
+            yPosition += 5;
+
+            // General Examination
+            if (selectedReport.generalExamination) {
+                yPosition = addSection('General Examination', yPosition);
+                yPosition = addText('Left Eye', selectedReport.generalExamination.leftEye, yPosition);
+                yPosition = addText('Right Eye', selectedReport.generalExamination.rightEye, yPosition);
+                yPosition = addText('Hernia', selectedReport.generalExamination.hernia, yPosition);
+                yPosition = addText('Varicose Vein', selectedReport.generalExamination.varicoseVein, yPosition);
+                yPosition += 5;
+            }
+
+            // Systemic Examination
+            if (selectedReport.systemicExamination) {
+                yPosition = addSection('Systemic Examination', yPosition);
+                yPosition = addText('Blood Pressure', selectedReport.systemicExamination.bloodPressure, yPosition);
+                yPosition = addText('Heart', selectedReport.systemicExamination.heart, yPosition);
+                yPosition = addText('Pulse Rate', selectedReport.systemicExamination.pulseRate, yPosition);
+                yPosition += 5;
+            }
+
+            // Area 1 Tests
+            if (selectedReport.selectedReport.area1) {
+                yPosition = addSection('Area 1 Tests', yPosition);
+                yPosition = addText('Blood Group', selectedReport.selectedReport.area1.bloodGroup, yPosition);
+                yPosition = addText('Pregnancy Test', selectedReport.selectedReport.area1.pregnancyTest, yPosition);
+                yPosition = addText('VDRL Test', selectedReport.selectedReport.area1.vdrlTest, yPosition);
+                yPosition += 5;
+            }
+
+            // Blood Tests
+            if (selectedReport.selectedReport.bloodTest) {
+                yPosition = addSection('Blood Tests', yPosition);
+                yPosition = addText('ESR', selectedReport.selectedReport.bloodTest.esr, yPosition);
+                yPosition = addText('HBsAg', selectedReport.selectedReport.bloodTest.hbsAg, yPosition);
+                yPosition = addText('HCV', selectedReport.selectedReport.bloodTest.hcv, yPosition);
+                yPosition = addText('HIV Test', selectedReport.selectedReport.bloodTest.hivTest, yPosition);
+                yPosition += 5;
+            }
+
+            // Full Haemogram Table
+            if (selectedReport.selectedReport.fullHaemogram) {
+                yPosition = addSection('Full Haemogram', yPosition);
+                
+                const haemogramData = [];
+                const haemogram = selectedReport.selectedReport.fullHaemogram;
+                
+                Object.keys(haemogram).forEach(key => {
+                    if (haemogram[key] && typeof haemogram[key] === 'object') {
+                        haemogramData.push([
+                            key.toUpperCase(),
+                            formatData(haemogram[key].value),
+                            formatData(haemogram[key].units),
+                            formatData(haemogram[key].status),
+                            formatData(haemogram[key].range)
+                        ]);
+                    }
+                });
+
+                if (haemogramData.length > 0) {
+                    doc.autoTable({
+                        startY: yPosition,
+                        head: [['Parameter', 'Value', 'Units', 'Status', 'Range']],
+                        body: haemogramData,
+                        theme: 'grid',
+                        headStyles: { fillColor: [45, 212, 191] },
+                        styles: { fontSize: 8 },
+                        margin: { left: 20, right: 20 }
+                    });
+                    yPosition = doc.lastAutoTable.finalY + 10;
+                }
+            }
+
+            // Urine Test
+            if (selectedReport.selectedReport.urineTest) {
+                yPosition = addSection('Urine Test', yPosition);
+                yPosition = addText('Albumin', selectedReport.selectedReport.urineTest.albumin, yPosition);
+                yPosition = addText('Sugar', selectedReport.selectedReport.urineTest.sugar, yPosition);
+                yPosition = addText('Reaction', selectedReport.selectedReport.urineTest.reaction, yPosition);
+                yPosition = addText('Microscopic', selectedReport.selectedReport.urineTest.microscopic, yPosition);
+                yPosition += 5;
+            }
+
+            // Lab Remarks
+            if (selectedReport.selectedReport.labRemarks) {
+                yPosition = addSection('Lab Remarks', yPosition);
+                if (selectedReport.selectedReport.labRemarks.fitnessEvaluation) {
+                    yPosition = addText('Overall Status', selectedReport.selectedReport.labRemarks.fitnessEvaluation.overallStatus, yPosition);
+                    yPosition = addText('Other Aspects Fit', selectedReport.selectedReport.labRemarks.fitnessEvaluation.otherAspectsFit, yPosition);
+                }
+                if (selectedReport.selectedReport.labRemarks.labSuperintendent) {
+                    yPosition = addText('Lab Superintendent', selectedReport.selectedReport.labRemarks.labSuperintendent.name, yPosition);
+                }
+            }
+
+            // Footer
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setFont(undefined, 'normal');
+                doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+                doc.text('This is a computer-generated report. No signature required.', pageWidth / 2, pageHeight - 5, { align: 'center' });
+            }
+
+            // Save the PDF
+            const fileName = `Clinical_Report_${selectedReport.selectedReport.patientName}_${selectedReport.selectedReport.labNumber}.pdf`;
+            doc.save(fileName);
+            toast.success('PDF generated successfully!');
+
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            toast.error('Error generating PDF. Please try again.');
+        }
+    };
+
     const paginatedReports = filteredReports.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
@@ -556,11 +753,11 @@ const Agent = () => {
                                         <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">{selectedReport.selectedReport.patientName}' Details</h2>
                                         <div className="mt-8 flex justify-end space-x-6">
                                             <button
-                                                onClick={printReport}
-                                                className="bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition-all duration-200"
+                                                onClick={generatePDF}
+                                                className="bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition-all duration-200 flex items-center"
                                             >
-                                                <FaPrint className="mr-2" />
-                                                Print
+                                                <FaDownload className="mr-2" />
+                                                Download PDF
                                             </button>
                                         </div>
 
