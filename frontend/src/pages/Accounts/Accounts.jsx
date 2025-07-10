@@ -12,6 +12,9 @@ import Footer from '../../components/Footer';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Document as DocxDocument, Packer, Paragraph, Table, TableRow, TableCell, HeadingLevel, ImageRun } from "docx";
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "pdfmake/build/vfs_fonts";
+pdfMake.vfs = pdfFonts.vfs;
 
 const Accounts = () => {
   const { patientData, updatePatientData } = usePatient();
@@ -24,7 +27,7 @@ const Accounts = () => {
   const [selectedPatient, setSelectedPatient] = useState("Select Patient");
   const [paymentRecords, setPaymentRecords] = useState([]);
   const [currentRecord, setCurrentRecord] = useState(null);
-  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)));
+  const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const componentRef = useRef();
   const [expenseDescription, setExpenseDescription] = useState('');
@@ -196,9 +199,15 @@ const Accounts = () => {
   };
 
   const filterRecordsByDate = (records) => {
+    // Set time to 00:00:00 for start, and 23:59:59 for end to include the whole day
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
     return records.filter(record => {
       const recordDate = new Date(record.paymentDate || record.date);
-      return recordDate >= startDate && recordDate <= endDate;
+      return recordDate >= start && recordDate <= end;
     });
   };
 
@@ -240,8 +249,19 @@ const Accounts = () => {
     XLSX.writeFile(wb, `Financial_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  const exportToWord = () => {
+  const exportToWord = async () => {
     const filteredPayments = filterRecordsByDate(paymentRecords);
+    const filteredExpenses = filterRecordsByDate(expenses);
+
+    // Fetch logo as Uint8Array
+    const getLogoUint8Array = async () => {
+      const response = await fetch(logo);
+      const blob = await response.blob();
+      const arrayBuffer = await blob.arrayBuffer();
+      return new Uint8Array(arrayBuffer);
+    };
+
+    const logoUint8Array = await getLogoUint8Array();
 
     // Payment Table Rows
     const paymentRows = [
@@ -345,6 +365,16 @@ const Accounts = () => {
       sections: [
         {
           children: [
+            // Add logo at the top
+            new Paragraph({
+              children: [
+                new ImageRun({
+                  data: logoUint8Array,
+                  transformation: { width: 200, height: 60 },
+                }),
+              ],
+              alignment: "center",
+            }),
             new Paragraph({
               text: "Health Center - Financial Report",
               heading: HeadingLevel.TITLE,
@@ -381,6 +411,134 @@ const Accounts = () => {
       a.click();
       window.URL.revokeObjectURL(url);
     });
+  };
+
+  const printPDF = async () => {
+    const filteredPayments = filterRecordsByDate(paymentRecords);
+    const filteredExpenses = filterRecordsByDate(expenses);
+
+    // Convert logo to base64
+    const getLogoBase64 = async () => {
+      const response = await fetch(logo);
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    };
+    const logoBase64 = await getLogoBase64();
+
+    // Calculate totals for filtered payments and expenses
+    const totalPayments = filteredPayments.reduce((sum, record) => sum + parseFloat(record.amountPaid || 0), 0);
+    const totalExpensesFiltered = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+
+    // Payment Table
+    const paymentTable = [
+      [
+        "Patient Name", "Mode of Payment", "REF NO.", "Amount Paid", "Commission", "Xray Payment", "Amount Due", "Payment Status", "Date"
+      ],
+      ...filteredPayments.map(record => [
+        record.patientName || "",
+        record.modeOfPayment || "",
+        record.accountNumber || "",
+        record.amountPaid || "",
+        record.commission || "",
+        record.xrayPayment || "",
+        record.amountDue || "",
+        record.paymentStatus || "",
+        record.paymentDate ? new Date(record.paymentDate).toLocaleDateString() : ""
+      ])
+    ];
+
+    // Expenses Table
+    const expenseTable = [
+      ["Description", "Amount", "Date"],
+      ...filteredExpenses.map(exp => [
+        exp.description || "",
+        exp.amount || "",
+        exp.date ? new Date(exp.date).toLocaleDateString() : ""
+      ]),
+    ];
+
+    // Summary Table
+    const summaryTable = [
+      ["Total Amount Paid", `KES ${totalAmountPaid.toFixed(2)}`],
+      ["Total Commission", `KES ${totalCommission.toFixed(2)}`],
+      ["Total Xray Payment", `KES ${totalXrayPayment.toFixed(2)}`],
+      ["Total Expenses", `KES ${totalExpenses.toFixed(2)}`],
+      ["Total Deductions", `KES ${totalDeductions.toFixed(2)}`],
+      ["Net Amount", `KES ${netAmount.toFixed(2)}`],
+      ["Date Range", `${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`],
+    ];
+
+    // PDF Document Definition
+    const docDefinition = {
+      pageSize: 'A4',
+      pageMargins: [40, 40, 40, 40],
+      defaultStyle: {
+        fontSize: 8 // Reduce the default font size for all content
+      },
+      content: [
+        {
+          image: logoBase64,
+          width: 200,
+          alignment: 'center',
+          margin: [0, 0, 0, 10]
+        },
+        { text: "Financial Report", style: "header", alignment: "center" },
+        { text: `Date Range: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`, alignment: "center", margin: [0, 0, 0, 10] },
+        { text: "Summary", style: "subheader" },
+        { table: { body: summaryTable }, margin: [0, 0, 0, 10] },
+        { text: "Payment Records", style: "subheader" },
+        { table: { body: paymentTable }, margin: [0, 0, 0, 10] },
+        {
+          columns: [
+            { width: '*', text: '' },
+            {
+              width: 'auto',
+              table: {
+                body: [
+                  [
+                    { text: 'Total Payments:', bold: true, alignment: 'right' },
+                    { text: `KES ${totalPayments.toFixed(2)}`, bold: true }
+                  ]
+                ]
+              },
+              layout: 'noBorders',
+              margin: [0, 0, 0, 10]
+            }
+          ]
+        },
+        { text: "Expenses", style: "subheader" },
+        { table: { body: expenseTable }, margin: [0, 0, 0, 10] },
+        {
+          columns: [
+            { width: '*', text: '' },
+            {
+              width: 'auto',
+              table: {
+                body: [
+                  [
+                    { text: 'Total Expenses:', bold: true, alignment: 'right' },
+                    { text: `KES ${totalExpensesFiltered.toFixed(2)}`, bold: true }
+                  ]
+                ]
+              },
+              layout: 'noBorders',
+              margin: [0, 0, 0, 10]
+            }
+          ]
+        },
+        { text: "Thank you for choosing our health center!", alignment: "center", margin: [0, 20, 0, 0] }
+      ],
+      styles: {
+        header: { fontSize: 12, bold: true, margin: [0, 0, 0, 10] },
+        subheader: { fontSize: 10, bold: true, margin: [0, 10, 0, 5] }
+      }
+    };
+
+    pdfMake.createPdf(docDefinition).print();
   };
 
   const filteredPayments = filterRecordsByDate(paymentRecords);
@@ -604,16 +762,7 @@ const Accounts = () => {
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
                     <h2 className="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Payment Records</h2>
                     <div className="space-x-2">
-                      {filteredPayments.length > 0 && (
-                        <ReactToPrint
-                          trigger={() => (
-                            <button className="bg-green-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-600 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-                              Print Records
-                            </button>
-                          )}
-                          content={() => componentRef.current}
-                        />
-                      )}
+                      
                       <button
                         onClick={exportToExcel}
                         className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -621,10 +770,10 @@ const Accounts = () => {
                         Export to Excel
                       </button>
                       <button
-                        onClick={exportToWord}
-                        className="bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-600 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                        onClick={printPDF}
+                        className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
-                        Export to Word
+                        Print 
                       </button>
                     </div>
                   </div>
@@ -796,6 +945,17 @@ const Accounts = () => {
                 {expenses.length > 0 && (
                   <div className="mt-6">
                     <h3 className="text-lg font-semibold mb-3">Recent Expenses</h3>
+                    {/* Totals for daily expenses */}
+                    <div className="mb-3">
+                      <span className="font-semibold text-gray-700">
+                        Total Expenses for {startDate.toLocaleDateString()}
+                        {startDate.toLocaleDateString() !== endDate.toLocaleDateString() && ` to ${endDate.toLocaleDateString()}`}
+                        : 
+                      </span>
+                      <span className="ml-2 text-green-700 font-bold">
+                        KES {filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0).toFixed(2)}
+                      </span>
+                    </div>
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
@@ -803,23 +963,16 @@ const Accounts = () => {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            {/* Removed Actions column */}
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {expenses.map((expense) => (
+                          {filteredExpenses.map((expense) => (
                             <tr key={expense._id}>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.description}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.amount}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.date ? new Date(expense.date).toLocaleDateString() : ''}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <button
-                                  onClick={() => handleDeleteExpense(expense._id)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  Delete
-                                </button>
-                              </td>
+                              {/* Removed Delete button */}
                             </tr>
                           ))}
                         </tbody>

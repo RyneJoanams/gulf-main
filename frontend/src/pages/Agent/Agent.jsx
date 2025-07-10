@@ -7,7 +7,6 @@ import "react-toastify/dist/ReactToastify.css";
 import TopBar from "../../components/TopBar";
 import { Document as DocxDocument, Packer, Paragraph, Table, TableRow, TableCell, HeadingLevel, ImageRun } from "docx";
 
-const logoBase64 = "data:image/png;base64,..."; // Replace ... with your actual base64 string
 
 const Agent = () => {
     const [reports, setReports] = useState([]);

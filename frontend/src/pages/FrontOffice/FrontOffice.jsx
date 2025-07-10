@@ -13,6 +13,8 @@ import { Country, State, City } from 'country-state-city';
 import axios from 'axios';
 import TopBar from '../../components/TopBar'
 import Footer from '../../components/Footer';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { QRCodeCanvas } from 'qrcode.react';
 import logo from '../../assets/GULF HEALTHCARE KENYA LTD.png';
 
@@ -56,6 +58,7 @@ const FrontOffice = () => {
   const [patients, setPatients] = useState([]);
   const [loadingPatients, setLoadingPatients] = useState(true);
   const [showWebcam, setShowWebcam] = useState(false);
+  const [selectedMedicalType, setSelectedMedicalType] = useState('ALL');
   const [formValues, setFormValues] = useState({
     _id: '',
     name: '',
@@ -69,6 +72,7 @@ const FrontOffice = () => {
     photo: null,
     medicalType: '',
   });
+  const [hideQr, setHideQr] = useState(false);
 
   const webcamRef = useRef(null);
   const tableRef = useRef(null); // Reference to the table for printing
@@ -378,21 +382,139 @@ const FrontOffice = () => {
     }
   };
 
-  if (loading || loadingPatients) {
-    return (
-      <Container maxWidth="sm" className="flex items-center justify-center h-screen">
-        <div className="text-center space-y-4">
-          <CircularProgress size={48} className="text-blue-600" />
-          <Typography variant="h6" className="text-gray-700">Loading patient data...</Typography>
-        </div>
-      </Container>
+  // PDF Print Handler
+  const handlePdfPrint = async () => {
+    setHideQr(true); // Hide QR code
+    await new Promise((resolve) => setTimeout(resolve, 100)); // Wait for DOM update
+
+    const input = tableRef.current;
+    if (!input) return;
+
+    // Wait for all images to load, but continue if any image fails
+    const images = input.querySelectorAll('img');
+    const promises = Array.from(images).map(
+      img =>
+        new Promise((resolve) => {
+          if (img.complete && img.naturalWidth !== 0) {
+            resolve();
+          } else {
+            img.onload = () => resolve();
+            img.onerror = () => {
+              // Replace broken image with a transparent 1x1 PNG
+              img.src =
+                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+Xb9wAAAAASUVORK5CYII=';
+              resolve();
+            };
+          }
+        })
     );
-  }
+    await Promise.all(promises);
+
+    // Use html2canvas with useCORS enabled
+    const canvas = await html2canvas(input, { scale: 2, useCORS: true });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'pt',
+      format: 'a4',
+    });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pageWidth - 40;
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    pdf.addImage(imgData, 'PNG', 20, 20, pdfWidth, pdfHeight, undefined, 'FAST');
+    pdf.save(`patients-list-${new Date().toISOString().slice(0,10)}.pdf`);
+
+    setHideQr(false); // Show QR code again
+  };
+
+  // Filter patients based on selected medical type
+  const filteredPatients = selectedMedicalType === 'ALL' 
+    ? patients 
+    : patients.filter(patient => patient.medicalType === selectedMedicalType);
+
+  // Get patient counts for each medical type
+  const getPatientCount = (medicalType) => {
+    if (medicalType === 'ALL') return patients.length;
+    return patients.filter(patient => patient.medicalType === medicalType).length;
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
       <TopBar />
       <div className="flex">
+        {/* Sidebar */}
+        <div className="w-80 bg-teal-500 shadow-lg min-h-screen p-6 border-r border-teal-600">
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold text-white mb-6">Medical Types</h3>
+            
+            {/* All Patients Filter */}
+            <div 
+              className={`flex items-center justify-between p-4 rounded-lg mb-3 cursor-pointer transition-all duration-200 ${
+                selectedMedicalType === 'ALL' 
+                  ? 'bg-white text-teal-700 shadow-md' 
+                  : 'bg-teal-400 hover:bg-teal-300 text-white'
+              }`}
+              onClick={() => setSelectedMedicalType('ALL')}
+            >
+              <div className="flex items-center space-x-3">
+                <div className={`w-3 h-3 rounded-full ${
+                  selectedMedicalType === 'ALL' ? 'bg-teal-500' : 'bg-white'
+                }`}></div>
+                <span className="font-medium">All Patients</span>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                selectedMedicalType === 'ALL' 
+                  ? 'bg-teal-100 text-teal-700' 
+                  : 'bg-white bg-opacity-20 text-white'
+              }`}>
+                {getPatientCount('ALL')}
+              </span>
+            </div>
+
+            {/* Medical Type Filters */}
+            {medicalTypes.map((type) => (
+              <div
+                key={type}
+                className={`flex items-center justify-between p-4 rounded-lg mb-3 cursor-pointer transition-all duration-200 ${
+                  selectedMedicalType === type 
+                    ? 'bg-white text-teal-700 shadow-md' 
+                    : 'bg-teal-400 hover:bg-teal-300 text-white'
+                }`}
+                onClick={() => setSelectedMedicalType(type)}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className={`w-3 h-3 rounded-full ${
+                    selectedMedicalType === type ? 'bg-teal-500' : 'bg-white'
+                  }`}></div>
+                  <span className="font-medium">{type}</span>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  selectedMedicalType === type 
+                    ? 'bg-teal-100 text-teal-700' 
+                    : 'bg-white bg-opacity-20 text-white'
+                }`}>
+                  {getPatientCount(type)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Summary Stats */}
+          <div className="bg-teal-400 rounded-lg p-4">
+            <h4 className="font-semibold text-white mb-3">Summary</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-teal-100">Total Patients:</span>
+                <span className="font-medium text-white">{patients.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-teal-100">Currently Viewing:</span>
+                <span className="font-medium text-white">{filteredPatients.length}</span>
+              </div>
+            </div>
+          </div>
+        </div>
         
         <div className="flex-1 px-6 py-8">
           <Container maxWidth="lg" className="bg-white rounded-xl shadow-lg">
@@ -471,7 +593,7 @@ const FrontOffice = () => {
                   </DialogActions>
                 </Dialog>
 
-                <div className="mb-6">
+                <div className="mb-6 flex gap-4">
                   <ReactToPrint
                     trigger={() => (
                       <button className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200 shadow-sm">
@@ -480,6 +602,12 @@ const FrontOffice = () => {
                     )}
                     content={() => tableRef.current}
                   />
+                  <button
+                    onClick={handlePdfPrint}
+                    className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200 shadow-sm"
+                  >
+                    Export as PDF
+                  </button>
                 </div>
 
                 <TableContainer 
@@ -538,11 +666,11 @@ const FrontOffice = () => {
                         <TableCell className="font-semibold">Issuing Country</TableCell>
                         <TableCell className="font-semibold">Occupation</TableCell>
                         <TableCell className="font-semibold">Medical Type</TableCell>
-                        <TableCell className="font-semibold">Actions</TableCell>
+                        {/* Removed Actions column */}
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {patients.map((p) => (
+                      {filteredPatients.map((p) => (
                         <TableRow 
                           key={p._id}
                           className="hover:bg-gray-50 transition-colors duration-150"
@@ -569,28 +697,22 @@ const FrontOffice = () => {
                           <TableCell>
                             <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                               {p.medicalType}
-                              </span>
+                            </span>
                           </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="contained"
-                              onClick={() => handleDialogOpen(p._id)}
-                              className="bg-red-500 hover:bg-red-600 text-white text-sm py-1 px-3 rounded-md transition-colors duration-200"
-                            >
-                              Delete
-                            </Button>
-                          </TableCell>
+                          {/* Removed Delete button */}
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                   
                   <div className="p-6 border-t bg-gray-50 flex justify-between items-center">
-                    <QRCodeCanvas 
-                      value={window.location.href} 
-                      size={100}
-                      className="rounded-lg shadow-sm bg-white p-2"
-                    />
+                    {!hideQr && (
+                      <QRCodeCanvas 
+                        value={window.location.href} 
+                        size={100}
+                        className="rounded-lg shadow-sm bg-white p-2"
+                      />
+                    )}
                     <p className="text-sm text-gray-500">
                       Generated on {new Date().toLocaleDateString()}
                     </p>
