@@ -16,7 +16,7 @@ const radiologySchema = new mongoose.Schema({
   },
   patientImage: {
     type: String, // Storing image as a base64 string
-    required: true,
+    required: false,
   },
   labNumber: {
     type: String,

@@ -124,17 +124,41 @@ const Lab = () => {
     try {
       console.log("Form values:", values);
       console.log("Patient data:", patientData);
+      
       // Check if patient data and selected patient are valid
       if (!patientData || !Array.isArray(patientData.patients)) {
         console.error("Patient data is not correctly loaded or structured.");
         toast.error("Patient data is not available. Please reload the page.");
         return;
       }
-      if (!selectedPatient) {
+      
+      if (!selectedPatient || selectedPatient === 'Select Patient') {
         console.error("No patient selected.");
         toast.error("Please select a patient before submitting.");
         return;
       }
+
+      if (!selectedLabNumber) {
+        toast.error("Please select a lab number before submitting.");
+        return;
+      }
+
+      // Validate required fields
+      if (!labSuperintendent) {
+        toast.error("Please enter Lab Superintendent name");
+        return;
+      }
+
+      if (!overallStatus) {
+        toast.error("Please select overall fitness status");
+        return;
+      }
+
+      if (!otherAspectsFit) {
+        toast.error("Please select if applicant appears fit in other respects");
+        return;
+      }
+      
       // Find the patientId based on the selected patient
       const patient = patientData.patients.find((patient) => patient.name === selectedPatient);
       if (!patient) {
@@ -142,28 +166,30 @@ const Lab = () => {
         toast.error("Please select a valid patient.");
         return;
       }
-      // Use the patient's photo URL directly (no conversion to Base64)
-      const patientImage = patient.photo;
-      // Construct the payload
+      
+      // Construct the payload to match backend expectations
       const payload = {
         patientId: patient.id,
         patientName: selectedPatient,
         labNumber: selectedLabNumber,
-        labData: values,
-        patientImage: patientImage, // Use the image URL directly
-        labRemarks: labRemarks,
-        selectedTests: selectedTests,
+        // Make patient image optional - only include if it exists
+        ...(patient.photo && { patientImage: patient.photo }),
         timeStamp: Date.now(),
+        medicalType: patient.medicalType || 'N/A',
+        labRemarks: labRemarks,
+        // Spread the form values directly (urineTest, bloodTest, etc.)
+        ...values,
       };
+      
       console.log("Payload:", payload);
+      
       // Send the payload to the server
       const response = await axios.post("http://localhost:5000/api/lab", payload);
       const data = response.data;
       console.log("Response data:", data);
+      
       if (data.success) {
         toast.success("Lab report submitted successfully");
-        //reload page
-        window.location.reload();
         resetForm();
         // Reset relevant states
         setSelectedUnits({});
@@ -172,13 +198,16 @@ const Lab = () => {
         setOverallStatus("");
         setOtherAspectsFit("");
         setLabSuperintendent("");
+        setSelectedPatient('Select Patient');
+        setSelectedLabNumber('');
+        // Don't reload the page, just reset the form
       } else {
         console.error("Lab report submission failed:", data.error);
         toast.error(data.error || "Lab report submission failed");
       }
     } catch (error) {
       console.error("Error submitting lab report:", error.response?.data || error.message);
-      toast.error("Error submitting lab report");
+      toast.error(error.response?.data?.error || "Error submitting lab report");
     }
   };
 

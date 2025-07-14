@@ -91,9 +91,14 @@ const Radiology = () => {
             liverFunction: selectedReport.liverFunction,
             renalFunction: selectedReport.renalFunction,
             labRemarks: selectedReport.labRemarks,
-            patientImage: selectedReport.patientImage,
-            timestamp: new Date().toISOString(), // Optionally include current timestamp
+            medicalType: selectedReport.medicalType,
+            timestamp: new Date().toISOString(),
         };
+
+        // Only include patientImage if it exists
+        if (selectedReport.patientImage) {
+            radiologyReport.patientImage = selectedReport.patientImage;
+        }
 
         console.log(radiologyReport);
         console.log(selectedReport);
@@ -101,6 +106,9 @@ const Radiology = () => {
         try {
             await axios.post("http://localhost:5000/api/radiology", radiologyReport);
             toast.success("Report successfully created");
+            // Clear form after successful submission
+            setChestXRayTest("");
+            setHeafMantouxTest("");
         } catch (error) {
             toast.error("Error creating report");
             console.error(error);

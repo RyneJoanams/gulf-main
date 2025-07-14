@@ -6,7 +6,7 @@ import ReportSection from "../Admin/ReportSection";
 import "react-toastify/dist/ReactToastify.css";
 import TopBar from "../../components/TopBar";
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const Agent = () => {
     const [reports, setReports] = useState([]);
@@ -14,12 +14,39 @@ const Agent = () => {
     const [selectedReport, setSelectedReport] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-    const [testTypeFilter] = useState("All"); // Remove if not used
-    const [dateRange] = useState({ start: "", end: "" }); // Remove if not used
+    const [testTypeFilter] = useState("All");
+    const [dateRange] = useState({ start: "", end: "" });
+    const [frontOfficeData, setFrontOfficeData] = useState({}); // Add this state
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+
+    // Helper function to get medical type
+    const getMedicalType = (report) => {
+        if (!report) return 'N/A';
+        
+        // Check multiple possible locations for medical type
+        return report?.selectedReport?.medicalType || 
+               report?.medicalType || 
+               frontOfficeData[report?.selectedReport?.labNumber]?.medicalType || 
+               'N/A';
+    };
+
+    // Function to fetch front office data for additional patient info
+    const fetchFrontOfficeData = async (labNumber) => {
+        try {
+            const response = await axios.get(`http://localhost:5000/api/frontoffice/${labNumber}`);
+            setFrontOfficeData(prev => ({
+                ...prev,
+                [labNumber]: response.data
+            }));
+            return response.data;
+        } catch (error) {
+            console.error("Error fetching front office data:", error);
+            return null;
+        }
+    };
 
     useEffect(() => {
         const fetchReports = async () => {
@@ -27,6 +54,16 @@ const Agent = () => {
                 const response = await axios.get("http://localhost:5000/api/clinical");
                 setReports(response.data);
                 setFilteredReports(response.data);
+                
+                // Fetch front office data for each report to get complete patient info
+                const labNumbers = response.data.map(report => report?.selectedReport?.labNumber).filter(Boolean);
+                const uniqueLabNumbers = [...new Set(labNumbers)];
+                
+                // Fetch front office data for all lab numbers
+                uniqueLabNumbers.forEach(labNumber => {
+                    fetchFrontOfficeData(labNumber);
+                });
+                
                 toast.success('Reports Successfully Fetched.')
                 console.log(response.data);
                 setIsLoading(false);
@@ -428,10 +465,14 @@ const Agent = () => {
     };
 
     const generatePDF = () => {
+        console.log("PDF generation started");
+        
         if (!selectedReport) {
             toast.error("No report selected for PDF generation");
             return;
         }
+
+        console.log("Selected report:", selectedReport);
 
         try {
             const doc = new jsPDF();
@@ -548,7 +589,7 @@ const Agent = () => {
                 yPosition += 5;
             }
 
-            // Full Haemogram Table
+            // Full Haemogram Table - Fixed autoTable usage
             if (selectedReport.selectedReport.fullHaemogram) {
                 yPosition = addSection('Full Haemogram', yPosition);
                 
@@ -568,7 +609,7 @@ const Agent = () => {
                 });
 
                 if (haemogramData.length > 0) {
-                    doc.autoTable({
+                    autoTable(doc, {
                         startY: yPosition,
                         head: [['Parameter', 'Value', 'Units', 'Status', 'Range']],
                         body: haemogramData,
@@ -615,6 +656,7 @@ const Agent = () => {
 
             // Save the PDF
             const fileName = `Clinical_Report_${selectedReport.selectedReport.patientName}_${selectedReport.selectedReport.labNumber}.pdf`;
+            console.log("Saving PDF with filename:", fileName);
             doc.save(fileName);
             toast.success('PDF generated successfully!');
 
@@ -843,3 +885,4 @@ const Agent = () => {
 };
 
 export default Agent;
+

@@ -9,9 +9,11 @@ const convertImageToBase64 = (filePath) => {
 
 exports.createLabReport = async (req, res) => {
   try {
+    console.log("Received request body:", req.body);
+    
     let patientImageBase64 = '';
 
-    // Check if `patientImage` is provided in the request body
+    // Check if `patientImage` is provided in the request body (optional)
     if (req.body.patientImage) {
       // If it's a file path, convert it to Base64
       if (fs.existsSync(req.body.patientImage)) {
@@ -29,14 +31,23 @@ exports.createLabReport = async (req, res) => {
 
     const labData = {
       patientId: req.body.patientId,
-      labNumber: req.body.labNumber,
-      patientImage: patientImageBase64, // Store image as Base64
       patientName: req.body.patientName,
-      timeStamp: req.body.timeStamp,
+      labNumber: req.body.labNumber,
+      // Only include patientImage if it exists
+      ...(patientImageBase64 && { patientImage: patientImageBase64 }),
+      timeStamp: req.body.timeStamp || Date.now(),
+      medicalType: req.body.medicalType || 'N/A',
       labRemarks: req.body.labRemarks,
-      medicalType: req.body.medicalType, // <-- Add this line
-      ...req.body.labData,
+      // Extract test data from request body
+      urineTest: req.body.urineTest,
+      bloodTest: req.body.bloodTest,
+      area1: req.body.area1,
+      renalFunction: req.body.renalFunction,
+      fullHaemogram: req.body.fullHaemogram,
+      liverFunction: req.body.liverFunction,
     };
+
+    console.log("Lab data to save:", labData);
 
     const lab = new Lab(labData);
     const savedLab = await lab.save();
@@ -46,6 +57,7 @@ exports.createLabReport = async (req, res) => {
       data: savedLab,
     });
   } catch (error) {
+    console.error("Error creating lab report:", error);
     res.status(400).json({
       success: false,
       error: error.message,

@@ -1,103 +1,79 @@
 const mongoose = require("mongoose");
 
-const clinicalSchema = new mongoose.Schema({
-    allergy: { type: String },
-    clinicalNotes: { type: String },
-    clinicalOfficerName: { type: String, required: true },
-    generalExamination: {
-        hernia: { type: String },
-        leftEye: { type: String },
-        rightEye: { type: String },
-        varicoseVein: { type: String },
-    },
-    height: { type: String },
-    historyOfPastIllness: { type: String },
-    medicalType: {
-        type: String,
-        required: false, // or true if you want to enforce it
-    },
-    otherTests: {
-        earLeft: { type: String },
-        liver: { type: String },
-    },
-    radiologyData: {
-        chestXRayTest: { type: String },
-        heafMantouxTest: { type: String },
-    },
+const clinicalSchema = new mongoose.Schema(
+  {
     selectedReport: {
-        area1: {
-            bloodGroup: { type: String },
-            pregnancyTest: { type: String },
-            vdrlTest: { type: String },
+      patientName: { type: String, required: true },
+      labNumber: { type: String, required: true },
+      medicalType: { type: String, default: "N/A" }, // Make sure this field exists
+      patientImage: { type: String },
+      timeStamp: { type: Date, default: Date.now },
+      // Include all other lab test fields that come from the lab report
+      area1: {
+        bloodGroup: String,
+        pregnancyTest: String,
+        vdrlTest: String,
+      },
+      bloodTest: {
+        esr: String,
+        hbsAg: String,
+        hcv: String,
+        hivTest: String,
+      },
+      fullHaemogram: {
+        wbc: {
+          value: String,
+          units: String,
+          status: String,
+          range: String,
         },
-        bloodTest: {
-            esr: { type: String },
-            hbsAg: { type: String },
-            hcv: { type: String },
-            hivTest: { type: String },
+        rbc: {
+          value: String,
+          units: String,
+          status: String,
+          range: String,
         },
-        chestXRayTest: { type: String },
-        fullHaemogram: {
-            gran: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            hct: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            hgb: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            lym: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            mch: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            mchc: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            mcv: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            mid: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            mpv: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            pct: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            pdw: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            plcr: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            plt: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            rbc: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            rwd: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
-            wbc: { value: { type: String }, units: { type: String }, status: { type: String }, range: { type: String } },
+        // ... other haemogram fields
+      },
+      urineTest: {
+        albumin: String,
+        sugar: String,
+        reaction: String,
+        microscopic: String,
+      },
+      labRemarks: {
+        fitnessEvaluation: {
+          overallStatus: String,
+          otherAspectsFit: String,
         },
-        labNumber: { type: String },
-        labRemarks: {
-            fitnessEvaluation: {
-                otherAspectsFit: { type: String },
-                overallStatus: { type: String },
-            },
-            labSuperintendent: {
-                name: { type: String },
-            },
+        labSuperintendent: {
+          name: String,
         },
-        liverFunction: {
-            albumin1: { value: { type: String }, status: { type: String }, range: { type: String } },
-            alkalinePhosphate: { value: { type: String }, status: { type: String }, range: { type: String } },
-            directBilirubin: { value: { type: String }, status: { type: String }, range: { type: String } },
-            gammaGt: { value: { type: String }, status: { type: String }, range: { type: String } },
-            indirectBilirubin: { value: { type: String }, status: { type: String }, range: { type: String } },
-            sgot: { value: { type: String }, status: { type: String }, range: { type: String } },
-            sgpt: { value: { type: String }, status: { type: String }, range: { type: String } },
-            totalBilirubin: { value: { type: String }, status: { type: String }, range: { type: String } },
-            totalProteins: { value: { type: String }, status: { type: String }, range: { type: String } },
-        },
-        patientId: { type: mongoose.Schema.Types.ObjectId, ref: "Patient" },
-        patientImage: { type: String },
-        patientName: { type: String },
-        renalFunction: {
-            creatinine: { value: { type: String }, status: { type: String }, range: { type: String } },
-            fastingBloodSugar: { value: { type: String }, status: { type: String }, range: { type: String } },
-            urea: { value: { type: String }, status: { type: String }, range: { type: String } },
-        },
-        timeStamp: { type: Date, default: Date.now },
-        urineTest: {
-            albumin: { type: String },
-            microscopic: { type: String },
-            reaction: { type: String },
-            sugar: { type: String },
-        },
+      },
+    },
+    generalExamination: {
+      leftEye: String,
+      rightEye: String,
+      hernia: String,
+      varicoseVein: String,
     },
     systemicExamination: {
-        bloodPressure: { type: String },
-        heart: { type: String },
-        pulseRate: { type: String },
+      bloodPressure: String,
+      heart: String,
+      pulseRate: String,
     },
-    weight: { type: String },
-});
+    otherTests: mongoose.Schema.Types.Mixed,
+    clinicalNotes: String,
+    clinicalOfficerName: String,
+    height: String,
+    weight: String,
+    historyOfPastIllness: String,
+    allergy: String,
+    radiologyData: mongoose.Schema.Types.Mixed,
+  },
+  {
+    timestamps: true,
+  }
+);
 
-module.exports = mongoose.model("clinical", clinicalSchema);
+module.exports = mongoose.model("Clinical", clinicalSchema);

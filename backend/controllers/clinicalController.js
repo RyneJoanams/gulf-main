@@ -32,11 +32,14 @@ exports.createReport = async (req, res) => {
             historyOfPastIllness,
             allergy,
             radiologyData,
-            medicalType, // <-- Add this line
+            medicalType,
         } = req.body;
 
         const newReport = new clinical({
-            selectedReport,
+            selectedReport: {
+                ...selectedReport,
+                medicalType: medicalType || selectedReport?.medicalType || 'N/A', // Ensure medicalType is included
+            },
             generalExamination,
             systemicExamination,
             otherTests,
@@ -47,7 +50,6 @@ exports.createReport = async (req, res) => {
             historyOfPastIllness,
             allergy,
             radiologyData,
-            medicalType, // <-- Add this line
         });
 
         const savedReport = await newReport.save();

@@ -444,7 +444,7 @@ const FrontOffice = () => {
       <TopBar />
       <div className="flex">
         {/* Sidebar */}
-        <div className="w-80 bg-teal-500 shadow-lg min-h-screen p-6 border-r border-teal-600">
+        <div className="w-80 bg-teal-900 shadow-lg min-h-screen p-6 border-r border-teal-600">
           <div className="mb-8">
             <h3 className="text-xl font-semibold text-white mb-6">Medical Types</h3>
             
@@ -453,19 +453,19 @@ const FrontOffice = () => {
               className={`flex items-center justify-between p-4 rounded-lg mb-3 cursor-pointer transition-all duration-200 ${
                 selectedMedicalType === 'ALL' 
                   ? 'bg-white text-teal-700 shadow-md' 
-                  : 'bg-teal-400 hover:bg-teal-300 text-white'
+                  : 'bg-teal-500 hover:bg-teal-300 text-white'
               }`}
               onClick={() => setSelectedMedicalType('ALL')}
             >
               <div className="flex items-center space-x-3">
                 <div className={`w-3 h-3 rounded-full ${
-                  selectedMedicalType === 'ALL' ? 'bg-teal-500' : 'bg-white'
+                  selectedMedicalType === 'ALL' ? 'bg-teal-600' : 'bg-white'
                 }`}></div>
                 <span className="font-medium">All Patients</span>
               </div>
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                 selectedMedicalType === 'ALL' 
-                  ? 'bg-teal-100 text-teal-700' 
+                  ? 'bg-teal-200 text-teal-800' 
                   : 'bg-white bg-opacity-20 text-white'
               }`}>
                 {getPatientCount('ALL')}
@@ -478,20 +478,20 @@ const FrontOffice = () => {
                 key={type}
                 className={`flex items-center justify-between p-4 rounded-lg mb-3 cursor-pointer transition-all duration-200 ${
                   selectedMedicalType === type 
-                    ? 'bg-white text-teal-700 shadow-md' 
-                    : 'bg-teal-400 hover:bg-teal-300 text-white'
+                    ? 'bg-white text-teal-900 shadow-md' 
+                    : 'bg-teal-500 hover:bg-teal-400 text-white'
                 }`}
                 onClick={() => setSelectedMedicalType(type)}
               >
                 <div className="flex items-center space-x-3">
                   <div className={`w-3 h-3 rounded-full ${
-                    selectedMedicalType === type ? 'bg-teal-500' : 'bg-white'
+                    selectedMedicalType === type ? 'bg-teal-600' : 'bg-white'
                   }`}></div>
                   <span className="font-medium">{type}</span>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                   selectedMedicalType === type 
-                    ? 'bg-teal-100 text-teal-700' 
+                    ? 'bg-teal-200 text-teal-800' 
                     : 'bg-white bg-opacity-20 text-white'
                 }`}>
                   {getPatientCount(type)}
@@ -501,15 +501,15 @@ const FrontOffice = () => {
           </div>
 
           {/* Summary Stats */}
-          <div className="bg-teal-400 rounded-lg p-4">
+          <div className="bg-teal-500 rounded-lg p-4">
             <h4 className="font-semibold text-white mb-3">Summary</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-teal-100">Total Patients:</span>
+                <span className="text-teal-200">Total Patients:</span>
                 <span className="font-medium text-white">{patients.length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-teal-100">Currently Viewing:</span>
+                <span className="text-teal-200">Currently Viewing:</span>
                 <span className="font-medium text-white">{filteredPatients.length}</span>
               </div>
             </div>
