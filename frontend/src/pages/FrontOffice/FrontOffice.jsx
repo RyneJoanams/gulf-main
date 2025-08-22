@@ -59,6 +59,11 @@ const FrontOffice = () => {
   const [loadingPatients, setLoadingPatients] = useState(true);
   const [showWebcam, setShowWebcam] = useState(false);
   const [selectedMedicalType, setSelectedMedicalType] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState({
+    startDate: '',
+    endDate: ''
+  });
   const [formValues, setFormValues] = useState({
     _id: '',
     name: '',
@@ -75,7 +80,7 @@ const FrontOffice = () => {
   const [hideQr, setHideQr] = useState(false);
 
   const webcamRef = useRef(null);
-  const tableRef = useRef(null); // Reference to the table for printing
+  const tableRef = useRef(null);
   const { patientId } = useParams();
 
   useEffect(() => {
@@ -98,10 +103,6 @@ const FrontOffice = () => {
     const fetchAllPatients = async () => {
       try {
         const response = await axios.get('http://localhost:5000/api/patient');
-        setPatients(response.data);
-      } catch (error) {
-        console.error('Error fetching patients:', error);
-        toast.error('Failed to fetch patients.');
       } finally {
         setLoadingPatients(false);
       }
@@ -428,15 +429,30 @@ const FrontOffice = () => {
     setHideQr(false); // Show QR code again
   };
 
-  // Filter patients based on selected medical type
-  const filteredPatients = selectedMedicalType === 'ALL' 
-    ? patients 
-    : patients.filter(patient => patient.medicalType === selectedMedicalType);
+  // Clear search function
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
 
-  // Get patient counts for each medical type
+  // Enhanced filter function that combines medical type and search query
+  const filteredPatients = patients.filter(patient => {
+    // Filter by medical type
+    const medicalTypeMatch = selectedMedicalType === 'ALL' || patient.medicalType === selectedMedicalType;
+    
+    // Filter by search query (case-insensitive search in name)
+    const searchMatch = searchQuery === '' || 
+      patient.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return medicalTypeMatch && searchMatch;
+  });
+
+  // Get patient counts for each medical type (considering search)
   const getPatientCount = (medicalType) => {
-    if (medicalType === 'ALL') return patients.length;
-    return patients.filter(patient => patient.medicalType === medicalType).length;
+    const baseFilter = searchQuery === '' ? patients : 
+      patients.filter(patient => patient.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    if (medicalType === 'ALL') return baseFilter.length;
+    return baseFilter.filter(patient => patient.medicalType === medicalType).length;
   };
 
   return (
@@ -445,6 +461,35 @@ const FrontOffice = () => {
       <div className="flex">
         {/* Sidebar */}
         <div className="w-80 bg-teal-900 shadow-lg min-h-screen p-6 border-r border-teal-600">
+          {/* Search Section */}
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Search Patients</h3>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search by patient name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border-0 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-teal-300 transition-all duration-200"
+              />
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {searchQuery && (
+              <p className="text-teal-200 text-sm mt-2">
+                Found {filteredPatients.length} patient{filteredPatients.length !== 1 ? 's' : ''} matching "{searchQuery}"
+              </p>
+            )}
+          </div>
+
           <div className="mb-8">
             <h3 className="text-xl font-semibold text-white mb-6">Medical Types</h3>
             
@@ -512,6 +557,12 @@ const FrontOffice = () => {
                 <span className="text-teal-200">Currently Viewing:</span>
                 <span className="font-medium text-white">{filteredPatients.length}</span>
               </div>
+              {searchQuery && (
+                <div className="flex justify-between border-t border-teal-400 pt-2 mt-2">
+                  <span className="text-teal-200">Search Results:</span>
+                  <span className="font-medium text-white">{filteredPatients.length}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -559,9 +610,32 @@ const FrontOffice = () => {
               </form>
 
               <div className="mt-16">
-                <Typography variant="h5" className="text-center text-gray-800 font-semibold mb-8">
-                  Patients List
-                </Typography>
+                <div className="flex justify-between items-center mb-8">
+                  <Typography variant="h5" className="text-gray-800 font-semibold">
+                    Patients List
+                    {searchQuery && (
+                      <span className="text-lg font-normal text-gray-600 ml-2">
+                        - Search: "{searchQuery}"
+                      </span>
+                    )}
+                  </Typography>
+                  
+                  {/* Additional search bar in main content area */}
+                  
+                </div>
+
+                {/* Show message when no results found */}
+                {filteredPatients.length === 0 && searchQuery && (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-lg mb-2">No patients found matching "{searchQuery}"</p>
+                    <button
+                      onClick={clearSearch}
+                      className="text-blue-500 hover:text-blue-700 underline"
+                    >
+                      Clear search to see all patients
+                    </button>
+                  </div>
+                )}
 
                 <Dialog 
                   open={openDialog} 

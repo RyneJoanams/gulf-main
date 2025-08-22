@@ -33,13 +33,38 @@ const Accounts = () => {
   const [expenseDescription, setExpenseDescription] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenses, setExpenses] = useState([]);
-  const [activeSection, setActiveSection] = useState('summary'); // sidebar navigation
+  const [activeSection, setActiveSection] = useState('summary');
+  const [searchPatientName, setSearchPatientName] = useState('');
 
-  // Calculate financial totals
-  const totalAmountPaid = paymentRecords.reduce((sum, record) => sum + parseFloat(record.amountPaid || 0), 0);
-  const totalCommission = paymentRecords.reduce((sum, record) => sum + parseFloat(record.commission || 0), 0);
-  const totalXrayPayment = paymentRecords.reduce((sum, record) => sum + parseFloat(record.xrayPayment || 0), 0);
-  const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+  // Filter function
+  const filterRecordsByDate = (records) => {
+    // Set time to 00:00:00 for start, and 23:59:59 for end to include the whole day
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    return records.filter(record => {
+      const recordDate = new Date(record.paymentDate || record.date);
+      const dateMatch = recordDate >= start && recordDate <= end;
+      
+      // Add patient name filter
+      const nameMatch = searchPatientName === '' || 
+        (record.patientName && record.patientName.toLowerCase().includes(searchPatientName.toLowerCase()));
+      
+      return dateMatch && nameMatch;
+    });
+  };
+
+  // Filter records by date range and search
+  const filteredPayments = filterRecordsByDate(paymentRecords);
+  const filteredExpenses = filterRecordsByDate(expenses);
+
+  // Calculate financial totals based on filtered data (date range)
+  const totalAmountPaid = filteredPayments.reduce((sum, record) => sum + parseFloat(record.amountPaid || 0), 0);
+  const totalCommission = filteredPayments.reduce((sum, record) => sum + parseFloat(record.commission || 0), 0);
+  const totalXrayPayment = filteredPayments.reduce((sum, record) => sum + parseFloat(record.xrayPayment || 0), 0);
+  const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
   const totalDeductions = totalCommission + totalXrayPayment + totalExpenses;
   const netAmount = totalAmountPaid - totalDeductions;
 
@@ -198,22 +223,7 @@ const Accounts = () => {
     setCurrentRecord(null);
   };
 
-  const filterRecordsByDate = (records) => {
-    // Set time to 00:00:00 for start, and 23:59:59 for end to include the whole day
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
-
-    return records.filter(record => {
-      const recordDate = new Date(record.paymentDate || record.date);
-      return recordDate >= start && recordDate <= end;
-    });
-  };
-
   const exportToExcel = () => {
-    const filteredPayments = filterRecordsByDate(paymentRecords);
-
     const paymentData = filteredPayments.map(payment => ({
       'Patient Name': payment.patientName,
       'Mode of Payment': payment.modeOfPayment,
@@ -236,7 +246,7 @@ const Accounts = () => {
       'Date Range': `${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`,
     }];
 
-    const expensesData = expenses.map(exp => ({
+    const expensesData = filteredExpenses.map(exp => ({
       'Description': exp.description,
       'Amount': exp.amount,
       'Date': new Date(exp.date).toLocaleDateString(),
@@ -249,10 +259,29 @@ const Accounts = () => {
     XLSX.writeFile(wb, `Financial_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  const exportToWord = async () => {
-    const filteredPayments = filterRecordsByDate(paymentRecords);
-    const filteredExpenses = filterRecordsByDate(expenses);
+  const exportExpensesToExcel = () => {
+    const expensesData = filteredExpenses.map(expense => ({
+      'Description': expense.description,
+      'Amount (KES)': parseFloat(expense.amount || 0).toFixed(2),
+      'Date': expense.date ? new Date(expense.date).toLocaleDateString() : '',
+    }));
 
+    const summaryData = [{
+      'Total Expenses': `KES ${filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0).toFixed(2)}`,
+      'Number of Records': filteredExpenses.length,
+      'Date Range': `${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`,
+      'Report Generated': new Date().toLocaleDateString(),
+    }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expensesData), 'Expenses');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'Summary');
+    XLSX.writeFile(wb, `Expenses_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    
+    toast.success('Expenses data exported to Excel successfully!');
+  };
+
+  const exportToWord = async () => {
     // Fetch logo as Uint8Array
     const getLogoUint8Array = async () => {
       const response = await fetch(logo);
@@ -414,9 +443,6 @@ const Accounts = () => {
   };
 
   const printPDF = async () => {
-    const filteredPayments = filterRecordsByDate(paymentRecords);
-    const filteredExpenses = filterRecordsByDate(expenses);
-
     // Convert logo to base64
     const getLogoBase64 = async () => {
       const response = await fetch(logo);
@@ -541,9 +567,6 @@ const Accounts = () => {
     pdfMake.createPdf(docDefinition).print();
   };
 
-  const filteredPayments = filterRecordsByDate(paymentRecords);
-  const filteredExpenses = filterRecordsByDate(expenses);
-
   // Sidebar + Main Content Layout
   return (
     <div className="min-h-screen bg-gray-50">
@@ -573,6 +596,7 @@ const Accounts = () => {
             </button>
           </nav>
         </aside>
+        
         {/* Main Content */}
         <main className="flex-1 p-8">
           <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-2xl p-8 space-y-8">
@@ -581,6 +605,7 @@ const Accounts = () => {
               <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Accounts Office</h1>
               <div className="w-24 h-1 bg-blue-600 mx-auto rounded-full"></div>
             </div>
+            
             {/* Date Range Selector */}
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
               <h2 className="text-xl font-semibold mb-4 text-gray-700">Date Range Filter</h2>
@@ -610,20 +635,31 @@ const Accounts = () => {
                 </div>
               </div>
             </div>
+
             {/* Conditional Sections */}
             {activeSection === 'summary' && (
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <h2 className="text-xl font-semibold mb-4 text-blue-800">Financial Summary</h2>
+                <h2 className="text-xl font-semibold mb-4 text-blue-800">
+                  Financial Summary
+                  <span className="text-sm font-normal text-gray-600 ml-2">
+                    ({startDate.toLocaleDateString()} to {endDate.toLocaleDateString()})
+                  </span>
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-white p-3 rounded shadow">
                     <p className="text-gray-600">Total Payments</p>
                     <p className="text-2xl font-bold text-green-600">KES {totalAmountPaid.toFixed(2)}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      From {filteredPayments.length} payment{filteredPayments.length !== 1 ? 's' : ''}
+                    </p>
                   </div>
                   <div className="bg-white p-3 rounded shadow">
                     <p className="text-gray-600">Total Deductions</p>
                     <p className="text-2xl font-bold text-red-600">KES {totalDeductions.toFixed(2)}</p>
                     <p className="text-sm text-gray-500 mt-1">
-                      (Commission: KES {totalCommission.toFixed(2)} + Xray: KES {totalXrayPayment.toFixed(2)} + Expenses: KES {totalExpenses.toFixed(2)})
+                      Commission: KES {totalCommission.toFixed(2)}<br/>
+                      Xray: KES {totalXrayPayment.toFixed(2)}<br/>
+                      Expenses: KES {totalExpenses.toFixed(2)} ({filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''})
                     </p>
                   </div>
                   <div className="bg-white p-3 rounded shadow">
@@ -631,6 +667,58 @@ const Accounts = () => {
                     <p className={`text-2xl font-bold ${netAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       KES {netAmount.toFixed(2)}
                     </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {netAmount >= 0 ? 'Profit' : 'Loss'} for selected period
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Additional breakdown section */}
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white p-4 rounded shadow">
+                    <h4 className="font-semibold text-gray-700 mb-2">Payment Summary</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span>Total Records:</span>
+                        <span className="font-medium">{filteredPayments.length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Paid Records:</span>
+                        <span className="font-medium text-green-600">
+                          {filteredPayments.filter(p => p.paymentStatus === 'Paid').length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Pending Records:</span>
+                        <span className="font-medium text-yellow-600">
+                          {filteredPayments.filter(p => p.paymentStatus === 'Pending').length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded shadow">
+                    <h4 className="font-semibold text-gray-700 mb-2">Period Analysis</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span>Days in Range:</span>
+                        <span className="font-medium">
+                          {Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Avg Daily Revenue:</span>
+                        <span className="font-medium">
+                          KES {(totalAmountPaid / (Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1)).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Avg Daily Expenses:</span>
+                        <span className="font-medium">
+                          KES {(totalExpenses / (Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1)).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -639,7 +727,7 @@ const Accounts = () => {
               <div>
                 {/* Patient Payment Form */}
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-8">
-                  <h2 className="text-xl font-semibold mb-4 text-gray-700">Patient Payment</h2>
+                  <h2 className="text-xl font-semibold mb-6 text-gray-700">Patient Payment</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <div>
@@ -654,7 +742,7 @@ const Accounts = () => {
                           disabled={!patientData.patients || patientData.patients.length === 0}
                         >
                           <option value="" disabled>Select Patient</option>
-                          {patientData.patients.length > 0 ? (
+                          {patientData.patients?.length > 0 ? (
                             patientData.patients.map((patient) => (
                               <option key={patient.labNumber} value={patient.name}>
                                 {patient.name}
@@ -737,7 +825,7 @@ const Accounts = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4">
+                  <div className="mt-6">
                     <label className="block text-gray-700 font-semibold mb-2" htmlFor="amountDue">
                       Amount Due
                     </label>
@@ -752,31 +840,74 @@ const Accounts = () => {
                   </div>
                   <button
                     onClick={currentRecord ? handleUpdateSubmit : handlePaymentSubmit}
-                    className="w-full mt-4 bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    className="w-full mt-6 bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   >
                     {currentRecord ? 'Update Payment' : 'Record Payment'}
                   </button>
                 </div>
+
+                {/* Search Filter for Payments - Moved after the record payment button */}
+                <div className="bg-blue-50 p-6 rounded-lg border border-blue-200 mb-6">
+                  <h3 className="text-xl font-semibold mb-4 text-blue-800">Search Payments</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-gray-700 font-semibold mb-2">Search by Patient Name</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+                        value={searchPatientName}
+                        onChange={(e) => setSearchPatientName(e.target.value)}
+                        placeholder="Enter patient name to search..."
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        onClick={() => setSearchPatientName('')}
+                        className="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                      >
+                        Clear Search
+                      </button>
+                    </div>
+                  </div>
+                  {searchPatientName && (
+                    <div className="mt-3 p-3 bg-white rounded border border-blue-300">
+                      <p className="text-sm text-gray-700">
+                        Showing results for: <span className="font-bold text-blue-600">"{searchPatientName}"</span>
+                        {filteredPayments.length > 0 && (
+                          <span className="ml-2 text-green-600 font-semibold">({filteredPayments.length} record{filteredPayments.length !== 1 ? 's' : ''} found)</span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 {/* Payment Records Section */}
                 <div className="mt-8">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Payment Records</h2>
-                    <div className="space-x-2">
-                      
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4 md:mb-0">
+                      Payment Records
+                      {(searchPatientName || startDate.toDateString() !== endDate.toDateString()) && (
+                        <span className="text-base font-normal text-gray-600 ml-2">
+                          ({filteredPayments.length} record{filteredPayments.length !== 1 ? 's' : ''})
+                        </span>
+                      )}
+                    </h2>
+                    <div className="flex gap-3">
                       <button
                         onClick={exportToExcel}
-                        className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        className="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                       >
                         Export to Excel
                       </button>
                       <button
                         onClick={printPDF}
-                        className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                        className="bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
-                        Print 
+                        Print PDF
                       </button>
                     </div>
                   </div>
+                  
                   {filteredPayments.length > 0 ? (
                     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                       <div ref={componentRef} className="printable">
@@ -899,16 +1030,38 @@ const Accounts = () => {
                     </div>
                   ) : (
                     <div className="bg-white rounded-lg shadow-md p-8 text-center">
-                      <p className="text-gray-700 text-lg">No payment records available for the selected date range.</p>
+                      <div className="max-w-md mx-auto">
+                        <div className="mb-4">
+                          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Records Found</h3>
+                        <p className="text-gray-600 mb-4">
+                          {searchPatientName 
+                            ? `No payment records found for "${searchPatientName}" in the selected date range.`
+                            : 'No payment records available for the selected date range.'
+                          }
+                        </p>
+                        {searchPatientName && (
+                          <button
+                            onClick={() => setSearchPatientName('')}
+                            className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                          >
+                            Clear search and show all records
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
             )}
+
             {activeSection === 'expenses' && (
               <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <h2 className="text-xl font-semibold mb-4 text-gray-700">Expenses</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <h2 className="text-xl font-semibold mb-6 text-gray-700">Expenses Management</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   <div className="col-span-2">
                     <label className="block text-gray-700 font-semibold mb-2" htmlFor="expenseDescription">
                       Description
@@ -916,7 +1069,7 @@ const Accounts = () => {
                     <input
                       type="text"
                       id="expenseDescription"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
                       value={expenseDescription}
                       onChange={(e) => setExpenseDescription(e.target.value)}
                       placeholder="Enter expense description"
@@ -924,59 +1077,116 @@ const Accounts = () => {
                   </div>
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2" htmlFor="expenseAmount">
-                      Amount
+                      Amount (KES)
                     </label>
                     <input
                       type="number"
                       id="expenseAmount"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
                       value={expenseAmount}
                       onChange={(e) => setExpenseAmount(e.target.value)}
                       placeholder="Enter amount"
                     />
                   </div>
                 </div>
-                <button
-                  onClick={handleAddExpense}
-                  className="mt-4 bg-green-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-700 transition-all duration-200"
-                >
-                  Add Expense
-                </button>
-                {expenses.length > 0 && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-3">Recent Expenses</h3>
-                    {/* Totals for daily expenses */}
-                    <div className="mb-3">
-                      <span className="font-semibold text-gray-700">
-                        Total Expenses for {startDate.toLocaleDateString()}
-                        {startDate.toLocaleDateString() !== endDate.toLocaleDateString() && ` to ${endDate.toLocaleDateString()}`}
-                        : 
-                      </span>
-                      <span className="ml-2 text-green-700 font-bold">
-                        KES {filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0).toFixed(2)}
-                      </span>
+                
+                {/* Action buttons row */}
+                <div className="flex gap-4 mb-6">
+                  <button
+                    onClick={handleAddExpense}
+                    className="bg-green-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                  >
+                    Add Expense
+                  </button>
+                  
+                  {filteredExpenses.length > 0 && (
+                    <button
+                      onClick={exportExpensesToExcel}
+                      className="bg-green-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                      Export to Excel
+                    </button>
+                  )}
+                </div>
+
+                {filteredExpenses.length > 0 && (
+                  <div className="mt-8">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2 md:mb-0">
+                        Expense Records
+                        <span className="text-sm font-normal text-gray-600 ml-2">
+                          ({filteredExpenses.length} record{filteredExpenses.length !== 1 ? 's' : ''})
+                        </span>
+                      </h3>
+                      <div className="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+                        <span className="text-sm font-medium text-blue-800">
+                          Total for {startDate.toLocaleDateString()}
+                          {startDate.toLocaleDateString() !== endDate.toLocaleDateString() && ` to ${endDate.toLocaleDateString()}`}
+                          : 
+                        </span>
+                        <span className="ml-2 text-lg font-bold text-green-700">
+                          KES {filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0).toFixed(2)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            {/* Removed Actions column */}
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {filteredExpenses.map((expense) => (
-                            <tr key={expense._id}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.description}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.amount}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.date ? new Date(expense.date).toLocaleDateString() : ''}</td>
-                              {/* Removed Delete button */}
+                    
+                    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {filteredExpenses.map((expense) => (
+                              <tr key={expense._id} className="hover:bg-gray-50 transition-colors duration-150">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.description}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  KES {parseFloat(expense.amount || 0).toFixed(2)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  {expense.date ? new Date(expense.date).toLocaleDateString() : ''}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {expenses.length === 0 && (
+                  <div className="mt-8 bg-white rounded-lg shadow-md p-8 text-center">
+                    <div className="max-w-md mx-auto">
+                      <div className="mb-4">
+                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Expenses Found</h3>
+                      <p className="text-gray-600">
+                        No expense records available for the selected date range. Add your first expense above.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {expenses.length > 0 && filteredExpenses.length === 0 && (
+                  <div className="mt-8 bg-white rounded-lg shadow-md p-8 text-center">
+                    <div className="max-w-md mx-auto">
+                      <div className="mb-4">
+                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Expenses Found</h3>
+                      <p className="text-gray-600">
+                        No expense records found for the selected date range: {startDate.toLocaleDateString()} to {endDate.toLocaleDateString()}.
+                      </p>
                     </div>
                   </div>
                 )}

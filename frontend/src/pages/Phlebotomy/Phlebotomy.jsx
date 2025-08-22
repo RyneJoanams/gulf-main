@@ -74,8 +74,19 @@ const Phlebotomy = () => {
 
       setSubmissionStatus(`Lab number submitted successfully: ${response.data.labNumber}`);
       toast.success(`Lab number submitted successfully`);
-      setLabCounter((prev) => prev + 1); // Increment counter after successful submission
+      setLabCounter((prev) => prev + 1);
       setLabNumber('');
+      
+      // Dispatch custom event to notify other components
+      const event = new CustomEvent('labNumberSubmitted', {
+        detail: {
+          labNumber: response.data.labNumber.number,
+          patientName: selectedPatientData.name,
+          submittedData: response.data.labNumber
+        }
+      });
+      window.dispatchEvent(event);
+      
       fetchLabNumbers(); // Refresh list
     } catch (error) {
       toast.error('Failed to submit lab number. Please try again.');

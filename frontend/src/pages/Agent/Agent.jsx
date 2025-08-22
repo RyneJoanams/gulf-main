@@ -112,98 +112,161 @@ const Agent = () => {
             return;
         }
 
+        // Helper function to check if section has data
+        const hasData = (section) => {
+            if (!section) return false;
+            if (typeof section === 'string') return section.trim() !== '';
+            if (typeof section === 'object') {
+                return Object.values(section).some(value => {
+                    if (typeof value === 'string') return value.trim() !== '';
+                    if (typeof value === 'object' && value !== null) return hasData(value);
+                    return value !== null && value !== undefined && value !== '';
+                });
+            }
+            return false;
+        };
+
+        // Helper function to render only sections with data
+        const renderSectionIfHasData = (title, data, renderFunction) => {
+            if (!hasData(data)) return '';
+            return `
+                <div class="section">
+                    <h3 class="section-title">${title}</h3>
+                    <div class="section-content">
+                        ${renderFunction(data)}
+                    </div>
+                </div>
+            `;
+        };
+
         const printStyles = `
             <style>
                 @media print {
                     @page { 
-                        margin: 2cm;
+                        margin: 0.4cm;
                         size: A4;
+                    }
+                    * {
+                        box-sizing: border-box;
                     }
                     body {
                         font-family: 'Arial', sans-serif;
-                        line-height: 1.6;
+                        font-size: 7px;
+                        line-height: 1.1;
                         color: #333;
+                        margin: 0;
+                        padding: 0;
                     }
                     .report-container {
                         max-width: 100%;
-                        margin: 0 auto;
+                        height: 100vh;
+                        display: flex;
+                        flex-direction: column;
                     }
                     .header {
                         text-align: center;
-                        padding-bottom: 20px;
-                        border-bottom: 2px solid #2dd4bf;
-                        margin-bottom: 30px;
+                        padding: 3px 0;
+                        border-bottom: 1px solid #2dd4bf;
+                        margin-bottom: 8px;
                     }
                     .report-title {
-                        font-size: 24px;
+                        font-size: 12px;
                         font-weight: bold;
                         color: #0f766e;
-                        margin: 10px 0;
+                        margin: 1px 0;
+                    }
+                    .patient-image {
+                        width: 30px;
+                        height: 30px;
+                        border-radius: 50%;
+                        margin: 1px auto;
+                    }
+                    .patient-info-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 6px;
+                    }
+                    .patient-info-table td {
+                        border: 0.5px solid #e2e8f0;
+                        padding: 2px 4px;
+                        font-size: 6px;
+                        text-align: center;
+                    }
+                    .main-content {
+                        flex: 1;
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 6px;
+                        overflow: hidden;
+                    }
+                    .left-column, .right-column {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 4px;
                     }
                     .section {
-                        margin-bottom: 25px;
-                        page-break-inside: avoid;
+                        break-inside: avoid;
+                        margin-bottom: 4px;
                     }
                     .section-title {
-                        font-size: 18px;
+                        font-size: 8px;
                         font-weight: bold;
                         color: #0f766e;
-                        margin-bottom: 10px;
-                        padding-bottom: 5px;
-                        border-bottom: 1px solid #e2e8f0;
-                    }
-                    .subsection-title {
-                        font-size: 16px;
-                        font-weight: 600;
-                        color: #1f2937;
-                        margin: 15px 0 10px 0;
+                        margin-bottom: 2px;
+                        padding-bottom: 1px;
+                        border-bottom: 0.5px solid #e2e8f0;
                     }
                     .section-content {
-                        background-color: #f8fafc;
-                        padding: 15px;
-                        border-radius: 8px;
-                        margin-bottom: 15px;
+                        background-color: #f9fafb;
+                        padding: 2px;
+                        border-radius: 2px;
                     }
-                    .data-grid {
-                        display: grid;
-                        grid-template-columns: repeat(2, 1fr);
-                        gap: 15px;
-                        margin-bottom: 15px;
+                    .compact-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 5px;
                     }
-                    .data-item {
-                        padding: 10px;
-                        background-color: white;
-                        border: 1px solid #e2e8f0;
-                        border-radius: 4px;
+                    .compact-table th, .compact-table td {
+                        border: 0.3px solid #e2e8f0;
+                        padding: 1px 2px;
+                        text-align: left;
+                        vertical-align: top;
                     }
-                    .test-result {
-                        display: grid;
-                        grid-template-columns: 2fr 1fr 1fr 1fr;
-                        gap: 10px;
-                        padding: 8px;
-                        border-bottom: 1px solid #e2e8f0;
-                    }
-                    .test-result:last-child {
-                        border-bottom: none;
-                    }
-                    .test-header {
-                        font-weight: bold;
+                    .compact-table th {
                         background-color: #f1f5f9;
-                        padding: 8px;
-                    }
-                    .label {
                         font-weight: bold;
-                        color: #1f2937;
+                        font-size: 5px;
                     }
-                    .value {
-                        color: #4b5563;
+                    .compact-table .label {
+                        font-weight: bold;
+                        width: 45%;
+                        font-size: 5px;
+                    }
+                    .compact-table .value {
+                        width: 55%;
+                        font-size: 5px;
+                    }
+                    .haemogram-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 4px;
+                    }
+                    .haemogram-table th, .haemogram-table td {
+                        border: 0.3px solid #e2e8f0;
+                        padding: 0.5px 1px;
+                        text-align: center;
+                    }
+                    .haemogram-table th {
+                        background-color: #f1f5f9;
+                        font-weight: bold;
+                        font-size: 4px;
                     }
                     .footer {
-                        margin-top: 40px;
-                        padding-top: 20px;
-                        border-top: 2px solid #2dd4bf;
+                        margin-top: 3px;
+                        padding-top: 2px;
+                        border-top: 1px solid #2dd4bf;
                         text-align: center;
-                        font-size: 12px;
+                        font-size: 5px;
                         color: #64748b;
                     }
                 }
@@ -211,20 +274,228 @@ const Agent = () => {
         `;
 
         const formatData = (data) => {
-            return data || 'Not Available';
+            return data || 'N/A';
         };
 
-        const renderTestResult = (test) => {
-            if (!test) return '';
-            const { value, units, status, range } = test;
+        // Render functions for different sections using compact tables
+        const renderBasicInfo = (data) => {
+            const items = [
+                { label: 'Height', value: data.height ? `${formatData(data.height)} cm` : 'N/A' },
+                { label: 'Weight', value: data.weight ? `${formatData(data.weight)} kg` : 'N/A' },
+                { label: 'Officer', value: formatData(data.clinicalOfficerName) },
+                { label: 'Notes', value: formatData(data.clinicalNotes) }
+            ].filter(item => item.value !== 'N/A');
+
+            if (items.length === 0) return '';
+
             return `
-                <div class="test-result">
-                    <span class="value">${formatData(value)}</span>
-                    <span class="value">${formatData(units)}</span>
-                    <span class="value">${formatData(status)}</span>
-                    <span class="value">${formatData(range)}</span>
-                </div>
+                <table class="compact-table">
+                    ${items.map(item => `
+                        <tr>
+                            <td class="label">${item.label}</td>
+                            <td class="value">${item.value}</td>
+                        </tr>
+                    `).join('')}
+                </table>
             `;
+        };
+
+        const renderGeneralExam = (data) => {
+            const items = [
+                { label: 'Left Eye', value: formatData(data.leftEye) },
+                { label: 'Right Eye', value: formatData(data.rightEye) },
+                { label: 'Hernia', value: formatData(data.hernia) },
+                { label: 'Varicose Vein', value: formatData(data.varicoseVein) }
+            ].filter(item => item.value !== 'N/A');
+
+            if (items.length === 0) return '';
+
+            return `
+                <table class="compact-table">
+                    ${items.map(item => `
+                        <tr>
+                            <td class="label">${item.label}</td>
+                            <td class="value">${item.value}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+        };
+
+        const renderSystemicExam = (data) => {
+            const items = [
+                { label: 'Blood Pressure', value: formatData(data.bloodPressure) },
+                { label: 'Heart', value: formatData(data.heart) },
+                { label: 'Pulse Rate', value: formatData(data.pulseRate) }
+            ].filter(item => item.value !== 'N/A');
+
+            if (items.length === 0) return '';
+
+            return `
+                <table class="compact-table">
+                    ${items.map(item => `
+                        <tr>
+                            <td class="label">${item.label}</td>
+                            <td class="value">${item.value}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+        };
+
+        const renderBloodTests = (data) => {
+            const items = [
+                { label: 'ESR', value: formatData(data.esr) },
+                { label: 'HBsAg', value: formatData(data.hbsAg) },
+                { label: 'HCV', value: formatData(data.hcv) },
+                { label: 'HIV Test', value: formatData(data.hivTest) }
+            ].filter(item => item.value !== 'N/A');
+
+            if (items.length === 0) return '';
+
+            return `
+                <table class="compact-table">
+                    ${items.map(item => `
+                        <tr>
+                            <td class="label">${item.label}</td>
+                            <td class="value">${item.value}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+        };
+
+        const renderUrineTest = (data) => {
+            const items = [
+                { label: 'Albumin', value: formatData(data.albumin) },
+                { label: 'Sugar', value: formatData(data.sugar) },
+                { label: 'Reaction', value: formatData(data.reaction) },
+                { label: 'Microscopic', value: formatData(data.microscopic) }
+            ].filter(item => item.value !== 'N/A');
+
+            if (items.length === 0) return '';
+
+            return `
+                <table class="compact-table">
+                    ${items.map(item => `
+                        <tr>
+                            <td class="label">${item.label}</td>
+                            <td class="value">${item.value}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+        };
+
+        const renderHaemogram = (data) => {
+            const haemogramTests = [];
+            Object.keys(data).forEach(key => {
+                if (data[key] && typeof data[key] === 'object' && hasData(data[key].value)) {
+                    haemogramTests.push({
+                        test: key.toUpperCase(),
+                        value: formatData(data[key].value),
+                        units: formatData(data[key].units),
+                        status: formatData(data[key].status)
+                    });
+                }
+            });
+            
+            if (haemogramTests.length === 0) return '';
+            
+            return `
+                <table class="haemogram-table">
+                    <thead>
+                        <tr>
+                            <th>Test</th>
+                            <th>Value</th>
+                            <th>Units</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${haemogramTests.map(test => `
+                            <tr>
+                                <td>${test.test}</td>
+                                <td>${test.value}</td>
+                                <td>${test.units}</td>
+                                <td>${test.status}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        };
+
+        const renderArea1Tests = (data) => {
+            const items = [
+                { label: 'Blood Group', value: formatData(data.bloodGroup) },
+                { label: 'Pregnancy Test', value: formatData(data.pregnancyTest) },
+                { label: 'VDRL Test', value: formatData(data.vdrlTest) }
+            ].filter(item => item.value !== 'N/A');
+
+            if (items.length === 0) return '';
+
+            return `
+                <table class="compact-table">
+                    ${items.map(item => `
+                        <tr>
+                            <td class="label">${item.label}</td>
+                            <td class="value">${item.value}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+        };
+
+        const renderMedicalHistory = (selectedReport) => {
+            const items = [
+                { label: 'Past Illness', value: formatData(selectedReport.historyOfPastIllness) },
+                { label: 'Allergies', value: formatData(selectedReport.allergy) }
+            ].filter(item => item.value !== 'N/A');
+
+            if (items.length === 0) return '';
+
+            return `
+                <table class="compact-table">
+                    ${items.map(item => `
+                        <tr>
+                            <td class="label">${item.label}</td>
+                            <td class="value">${item.value}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+        };
+
+        const renderLabRemarks = (data) => {
+            const items = [];
+            if (data?.fitnessEvaluation?.overallStatus) {
+                items.push({ label: 'Overall Status', value: formatData(data.fitnessEvaluation.overallStatus) });
+            }
+            if (data?.labSuperintendent?.name) {
+                items.push({ label: 'Lab Superintendent', value: formatData(data.labSuperintendent.name) });
+            }
+
+            if (items.length === 0) return '';
+
+            return `
+                <table class="compact-table">
+                    ${items.map(item => `
+                        <tr>
+                            <td class="label">${item.label}</td>
+                            <td class="value">${item.value}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+        };
+
+        // Prepare sections data
+        const basicInfo = {
+            height: selectedReport.height,
+            weight: selectedReport.weight,
+            clinicalOfficerName: selectedReport.clinicalOfficerName,
+            clinicalNotes: selectedReport.clinicalNotes
         };
 
         const printContent = `
@@ -236,217 +507,56 @@ const Agent = () => {
                 <body>
                     <div class="report-container">
                         <div class="header">
-                            <h1 class="report-title">Full Clinical Report</h1>
-                            <div>
-<img 
-  src="data:image/jpeg;base64,${selectedReport.selectedReport.patientImage}" 
-  alt="img" 
-  style="width: 100px; height: 100px;">
+                            <h1 class="report-title">Clinical Report</h1>
+                            ${selectedReport.selectedReport.patientImage ? `
+                                <img 
+                                    src="data:image/jpeg;base64,${selectedReport.selectedReport.patientImage}" 
+                                    alt="Patient" 
+                                    class="patient-image">
+                            ` : ''}
+                            <table class="patient-info-table">
+                                <tr>
+                                    <td><strong>Name:</strong> ${formatData(selectedReport.selectedReport.patientName)}</td>
+                                    <td><strong>Lab #:</strong> ${formatData(selectedReport.selectedReport.labNumber)}</td>
+                                    <td><strong>Type:</strong> ${formatData(selectedReport.selectedReport.medicalType)}</td>
+                                    <td><strong>Date:</strong> ${new Date(selectedReport.selectedReport.timeStamp).toLocaleDateString()}</td>
+                                </tr>
+                            </table>
+                        </div>
 
+                        <div class="main-content">
+                            <div class="left-column">
+                                ${renderSectionIfHasData('Basic Info', basicInfo, renderBasicInfo)}
+                                ${renderSectionIfHasData('General Examination', selectedReport.generalExamination, renderGeneralExam)}
+                                ${renderSectionIfHasData('Systemic Examination', selectedReport.systemicExamination, renderSystemicExam)}
+                                ${renderSectionIfHasData('Blood Tests', selectedReport.selectedReport.bloodTest, renderBloodTests)}
+                                ${renderSectionIfHasData('Area 1 Tests', selectedReport.selectedReport.area1, renderArea1Tests)}
                             </div>
-                            <p>Date: ${new Date(selectedReport.selectedReport.timeStamp).toLocaleString()}</p>
-                            <p>Lab Number: ${formatData(selectedReport.selectedReport.labNumber)}</p>
-                        </div>
-    
-                        <div class="section">
-                            <h2 class="section-title">Patient Information</h2>
-                            <div class="section-content">
-                                <div class="data-grid">
-                                    <div class="data-item">
-                                        <span class="label">Patient Name:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.patientName)}</span>
+                            
+                            <div class="right-column">
+                                ${renderSectionIfHasData('Urine Test', selectedReport.selectedReport.urineTest, renderUrineTest)}
+                                ${renderSectionIfHasData('Full Haemogram', selectedReport.selectedReport.fullHaemogram, renderHaemogram)}
+                                ${hasData(selectedReport.historyOfPastIllness) || hasData(selectedReport.allergy) ? `
+                                    <div class="section">
+                                        <h3 class="section-title">Medical History</h3>
+                                        <div class="section-content">
+                                            ${renderMedicalHistory(selectedReport)}
+                                        </div>
                                     </div>
-                                    <div class="data-item">
-                                        <span class="label">Height:</span>
-                                        <span class="value">${formatData(selectedReport.height)}</span>
+                                ` : ''}
+                                ${hasData(selectedReport.selectedReport.labRemarks) ? `
+                                    <div class="section">
+                                        <h3 class="section-title">Lab Remarks</h3>
+                                        <div class="section-content">
+                                            ${renderLabRemarks(selectedReport.selectedReport.labRemarks)}
+                                        </div>
                                     </div>
-                                    <div class="data-item">
-                                        <span class="label">Weight:</span>
-                                        <span class="value">${formatData(selectedReport.weight)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Clinical Officer:</span>
-                                        <span class="value">${formatData(selectedReport.clinicalOfficerName)}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-    
-                        <div class="section">
-                            <h2 class="section-title">Clinical Information</h2>
-                            <div class="section-content">
-                                <div class="data-grid">
-                                    <div class="data-item">
-                                        <span class="label">Clinical Notes:</span>
-                                        <span class="value">${formatData(selectedReport.clinicalNotes)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">History of Past Illness:</span>
-                                        <span class="value">${formatData(selectedReport.historyOfPastIllness)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Allergy:</span>
-                                        <span class="value">${formatData(selectedReport.allergy)}</span>
-                                    </div>
-                                </div>
+                                ` : ''}
                             </div>
                         </div>
-    
-                        <div class="section">
-                            <h2 class="section-title">General Examination</h2>
-                            <div class="section-content">
-                                <div class="data-grid">
-                                    <div class="data-item">
-                                        <span class="label">Left Eye:</span>
-                                        <span class="value">${formatData(selectedReport.generalExamination?.leftEye)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Right Eye:</span>
-                                        <span class="value">${formatData(selectedReport.generalExamination?.rightEye)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Hernia:</span>
-                                        <span class="value">${formatData(selectedReport.generalExamination?.hernia)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Varicose Vein:</span>
-                                        <span class="value">${formatData(selectedReport.generalExamination?.varicoseVein)}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-    
-                        <div class="section">
-                            <h2 class="section-title">Systemic Examination</h2>
-                            <div class="section-content">
-                                <div class="data-grid">
-                                    <div class="data-item">
-                                        <span class="label">Blood Pressure:</span>
-                                        <span class="value">${formatData(selectedReport.systemicExamination?.bloodPressure)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Heart:</span>
-                                        <span class="value">${formatData(selectedReport.systemicExamination?.heart)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Pulse Rate:</span>
-                                        <span class="value">${formatData(selectedReport.systemicExamination?.pulseRate)}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-    
-                        <div class="section">
-                            <h2 class="section-title">Laboratory Tests</h2>
-                            <div class="section-content">
-                                <h3 class="subsection-title">Area 1 Tests</h3>
-                                <div class="data-grid">
-                                    <div class="data-item">
-                                        <span class="label">Blood Group:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.area1?.bloodGroup)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Pregnancy Test:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.area1?.pregnancyTest)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">VDRL Test:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.area1?.vdrlTest)}</span>
-                                    </div>
-                                </div>
-    
-                                <h3 class="subsection-title">Blood Tests</h3>
-                                <div class="data-grid">
-                                    <div class="data-item">
-                                        <span class="label">ESR:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.bloodTest?.esr)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">HBsAg:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.bloodTest?.hbsAg)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">HCV:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.bloodTest?.hcv)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">HIV Test:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.bloodTest?.hivTest)}</span>
-                                    </div>
-                                </div>
-    
-                                <h3 class="subsection-title">Full Haemogram</h3>
-                                <div class="test-header test-result">
-                                    <span>Parameter</span>
-                                    <span>Value</span>
-                                    <span>Status</span>
-                                    <span>Range</span>
-                                </div>
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.wbc)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.rbc)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.hgb)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.hct)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.mcv)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.mch)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.mchc)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.plt)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.lym)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.mid)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.gran)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.mpv)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.pdw)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.pct)}
-                                ${renderTestResult(selectedReport.selectedReport.fullHaemogram?.plcr)}
-                            </div>
-                        </div>
-    
-                        <div class="section">
-                            <h2 class="section-title">Urine Test</h2>
-                            <div class="section-content">
-                                <div class="data-grid">
-                                    <div class="data-item">
-                                        <span class="label">Albumin:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.urineTest?.albumin)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Sugar:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.urineTest?.sugar)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Reaction:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.urineTest?.reaction)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Microscopic:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.urineTest?.microscopic)}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-    
-                        <div class="section">
-                            <h2 class="section-title">Lab Remarks</h2>
-                            <div class="section-content">
-                                <div class="data-grid">
-                                    <div class="data-item">
-                                        <span class="label">Fitness Evaluation - Overall Status:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.labRemarks?.fitnessEvaluation?.overallStatus)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Other Aspects Fit:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.labRemarks?.fitnessEvaluation?.otherAspectsFit)}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="label">Lab Superintendent:</span>
-                                        <span class="value">${formatData(selectedReport.selectedReport.labRemarks?.labSuperintendent?.name)}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-    
+
                         <div class="footer">
-                            <p>This is a computer-generated report. No signature required.</p>
-                            <p>Report generated on: ${new Date().toLocaleString()}</p>
+                            <p>Computer-generated report • ${new Date().toLocaleDateString()}</p>
                         </div>
                     </div>
                 </body>
