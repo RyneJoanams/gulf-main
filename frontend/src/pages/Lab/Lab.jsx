@@ -424,6 +424,17 @@ const Lab = () => {
       console.log("Response data:", data);
       
       if (data.success) {
+        // Mark the lab number as completed
+        try {
+          await axios.put("http://localhost:5000/api/number/complete", {
+            labNumber: selectedLabNumber
+          });
+          console.log("Lab number marked as completed successfully");
+        } catch (labNumberError) {
+          console.error("Error marking lab number as completed:", labNumberError);
+          // Continue with success message even if lab number update fails
+        }
+
         toast.success(existingLabData ? "Lab report updated successfully" : "Lab report submitted successfully");
         resetForm();
         // Reset relevant states
@@ -438,6 +449,15 @@ const Lab = () => {
         setExistingLabData(null);
         setIsViewMode(false);
         setIsEditMode(false);
+
+        // Dispatch event to refresh the lab numbers in LeftBar
+        const event = new CustomEvent('labReportSubmitted', {
+          detail: {
+            labNumber: selectedLabNumber,
+            patientName: selectedPatient
+          }
+        });
+        window.dispatchEvent(event);
       } else {
         console.error("Lab report submission failed:", data.error);
         toast.error(data.error || "Lab report submission failed");

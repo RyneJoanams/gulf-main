@@ -9,17 +9,17 @@ import TopBar from '../../components/TopBar';
 const Phlebotomy = () => {
   const { patientData } = usePatient();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredPatients, setFilteredPatients] = useState(patientData?.patients || []);
+  const [filteredPatients, setFilteredPatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState('');
   const [labNumber, setLabNumber] = useState('');
   const [submissionStatus, setSubmissionStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [labCounter, setLabCounter] = useState(1);
   const [submittedLabNumbers, setSubmittedLabNumbers] = useState([]);
-
-  useEffect(() => {
-    fetchLabNumbers();
-  }, []);
+  
+  // New states for direct patient data fetching
+  const [patients, setPatients] = useState([]);
+  const [loadingPatients, setLoadingPatients] = useState(true);
 
   const fetchLabNumbers = async () => {
     try {
@@ -33,18 +33,57 @@ const Phlebotomy = () => {
     }
   };
 
+  const fetchAllPatients = async () => {
+    try {
+      console.log('Fetching patients for Phlebotomy...');
+      const response = await axios.get('http://localhost:5000/api/patient');
+      console.log('Fetched patients response:', response.data);
+      
+      // Handle different response structures - backend returns array directly
+      const patientsData = Array.isArray(response.data) ? response.data : (response.data.patients || []);
+      console.log('Processed patients data:', patientsData);
+      
+      setPatients(patientsData);
+      setFilteredPatients(patientsData);
+      toast.success(`Loaded ${patientsData.length} patients for lab work`);
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+      toast.error('Failed to fetch patients data.');
+      setPatients([]);
+      setFilteredPatients([]);
+    } finally {
+      setLoadingPatients(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLabNumbers();
+    fetchAllPatients();
+
+    // Listen for lab report submissions to refresh the list
+    const handleLabReportSubmission = () => {
+      fetchLabNumbers();
+    };
+
+    window.addEventListener('labReportSubmitted', handleLabReportSubmission);
+
+    return () => {
+      window.removeEventListener('labReportSubmitted', handleLabReportSubmission);
+    };
+  }, []);
+
   const handleSearch = (e) => {
     const query = e.target.value.toLowerCase();
     setSearchQuery(query);
     setFilteredPatients(
-      patientData.patients.filter((patient) =>
+      patients.filter((patient) =>
         patient.name.toLowerCase().includes(query)
       )
     );
   };
 
   const selectedPatientData = selectedPatient
-    ? patientData.patients.find((p) => p.name === selectedPatient)
+    ? patients.find((p) => p.name === selectedPatient)
     : null;
 
   const generateLabNumber = () => {
@@ -183,20 +222,24 @@ const Phlebotomy = () => {
             <div>
               <input
                 type="text"
-                placeholder="Search patients..."
+                placeholder={loadingPatients ? "Loading patients..." : "Search patients..."}
                 value={searchQuery}
                 onChange={handleSearch}
                 className="w-full px-4 py-3 mb-4 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none"
+                disabled={loadingPatients}
               />
               <select
                 value={selectedPatient}
                 onChange={(e) => setSelectedPatient(e.target.value)}
                 className="w-full px-4 py-3 mb-6 rounded-lg bg-gray-800 border border-gray-700"
+                disabled={loadingPatients}
               >
-                <option value="">Select Patient</option>
+                <option value="">
+                  {loadingPatients ? 'Loading patients...' : 'Select Patient'}
+                </option>
                 {filteredPatients.map((p) => (
-                  <option key={p.id} value={p.name}>
-                    {p.name}
+                  <option key={p._id} value={p.name}>
+                    {p.name} - {p.passportNumber}
                   </option>
                 ))}
               </select>
@@ -265,6 +308,7 @@ const Phlebotomy = () => {
                       <th className="px-4 py-2 border-b border-gray-600">#</th>
                       <th className="px-4 py-2 border-b border-gray-600">Patient</th>
                       <th className="px-4 py-2 border-b border-gray-600">Lab Number</th>
+                      <th className="px-4 py-2 border-b border-gray-600">Status</th>
                       <th className="px-4 py-2 border-b border-gray-600">Actions</th>
                     </tr>
                   </thead>
@@ -275,9 +319,20 @@ const Phlebotomy = () => {
                         <td className="px-4 py-2 border-b border-gray-700">{entry.patient}</td>
                         <td className="px-4 py-2 border-b border-gray-700 font-mono">{entry.number}</td>
                         <td className="px-4 py-2 border-b border-gray-700">
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                            entry.status === 'completed' 
+                              ? 'bg-green-600 text-white' 
+                              : 'bg-yellow-600 text-black'
+                          }`}>
+                            {entry.status === 'completed' ? 'Completed' : 'Pending'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 border-b border-gray-700">
                           <button
                             onClick={() => deleteLabNumber(entry._id)}
                             className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded"
+                            disabled={entry.status === 'completed'}
+                            title={entry.status === 'completed' ? 'Cannot delete completed lab numbers' : 'Delete lab number'}
                           >
                             Delete
                           </button>

@@ -35,6 +35,12 @@ const Accounts = () => {
   const [expenses, setExpenses] = useState([]);
   const [activeSection, setActiveSection] = useState('summary');
   const [searchPatientName, setSearchPatientName] = useState('');
+  
+  // New states for direct patient data fetching
+  const [patients, setPatients] = useState([]);
+  const [loadingPatients, setLoadingPatients] = useState(true);
+  const [pendingPatients, setPendingPatients] = useState([]);
+  const [loadingPendingPatients, setLoadingPendingPatients] = useState(true);
 
   // Filter function
   const filterRecordsByDate = (records) => {
@@ -79,7 +85,49 @@ const Accounts = () => {
       }
     };
 
+    const fetchAllPatients = async () => {
+      try {
+        console.log('Fetching patients for Accounts...');
+        const response = await axios.get('http://localhost:5000/api/patient');
+        console.log('Fetched patients response:', response.data);
+        
+        // Handle different response structures - backend returns array directly
+        const patientsData = Array.isArray(response.data) ? response.data : (response.data.patients || []);
+        console.log('Processed patients data:', patientsData);
+        
+        setPatients(patientsData);
+        toast.success(`Loaded ${patientsData.length} patients for payments`);
+      } catch (error) {
+        console.error('Error fetching patients:', error);
+        toast.error('Failed to fetch patients data.');
+        setPatients([]);
+      } finally {
+        setLoadingPatients(false);
+      }
+    };
+
+    const fetchPendingPatients = async () => {
+      try {
+        console.log('Fetching pending patients...');
+        const response = await axios.get('http://localhost:5000/api/patient/pending-payment');
+        console.log('Fetched pending patients response:', response.data);
+        
+        const pendingPatientsData = Array.isArray(response.data) ? response.data : [];
+        console.log('Processed pending patients data:', pendingPatientsData);
+        
+        setPendingPatients(pendingPatientsData);
+      } catch (error) {
+        console.error('Error fetching pending patients:', error);
+        toast.error('Failed to fetch pending patients data.');
+        setPendingPatients([]);
+      } finally {
+        setLoadingPendingPatients(false);
+      }
+    };
+
     fetchPaymentRecords();
+    fetchAllPatients();
+    fetchPendingPatients();
 
     if (patientData && patientData.personalDetails) {
       setSelectedPatient(patientData.personalDetails.name);
@@ -138,6 +186,11 @@ const Accounts = () => {
       const response = await axios.post('http://localhost:5000/api/patient/account', newPayment);
       const savedPayment = response.data;
 
+      // Mark patient payment as recorded
+      await axios.put('http://localhost:5000/api/patient/mark-payment-recorded', {
+        patientName: selectedPatient
+      });
+
       toast.success(`Payment recorded: Due - ${amountDue}, Paid - ${amountPaid}, Account - ${accountNumber},
          Mode - ${modeOfPayment}, Commission - ${commission}, Xray - ${xrayPayment}`);
       setPaymentRecords([...paymentRecords, savedPayment]);
@@ -146,6 +199,10 @@ const Accounts = () => {
         amountPaid: parseFloat(amountPaid),
         paymentStatus: savedPayment.paymentStatus,
       });
+      
+      // Remove patient from pending list
+      setPendingPatients(pendingPatients.filter(patient => patient.name !== selectedPatient));
+      
       resetForm();
     } catch (error) {
       toast.error('Error recording payment. Please try again.');
@@ -573,9 +630,11 @@ const Accounts = () => {
       <TopBar />
       <div className="flex min-h-screen">
         {/* Sidebar */}
-        <aside className="w-64 bg-teal-900 text-white flex flex-col py-8 px-4">
+        <aside className="w-80 bg-teal-900 text-white flex flex-col py-8 px-4 overflow-y-auto max-h-screen">
           <h2 className="text-2xl font-bold mb-8 text-center">Accounts Menu</h2>
-          <nav className="flex flex-col space-y-4">
+          
+          {/* Navigation Menu */}
+          <nav className="flex flex-col space-y-4 mb-8">
             <button
               className={`text-left px-4 py-2 rounded ${activeSection === 'summary' ? 'bg-teal-700 font-bold' : 'hover:bg-teal-800'}`}
               onClick={() => setActiveSection('summary')}
@@ -583,10 +642,15 @@ const Accounts = () => {
               Financial Summary
             </button>
             <button
-              className={`text-left px-4 py-2 rounded ${activeSection === 'payments' ? 'bg-teal-700 font-bold' : 'hover:bg-teal-800'}`}
+              className={`text-left px-4 py-2 rounded flex items-center justify-between ${activeSection === 'payments' ? 'bg-teal-700 font-bold' : 'hover:bg-teal-800'}`}
               onClick={() => setActiveSection('payments')}
             >
-              Payments
+              <span>Payments</span>
+              {pendingPatients.length > 0 && (
+                <span className="bg-yellow-500 text-teal-900 text-xs px-2 py-1 rounded-full font-bold ml-2">
+                  {pendingPatients.length}
+                </span>
+              )}
             </button>
             <button
               className={`text-left px-4 py-2 rounded ${activeSection === 'expenses' ? 'bg-teal-700 font-bold' : 'hover:bg-teal-800'}`}
@@ -595,6 +659,65 @@ const Accounts = () => {
               Expenses
             </button>
           </nav>
+
+          {/* Pending Patients Section */}
+          <div className="border-t border-teal-700 pt-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
+              <span>Pending Payments</span>
+              <span className="bg-yellow-500 text-teal-900 text-xs px-2 py-1 rounded-full font-bold">
+                {pendingPatients.length}
+              </span>
+            </h3>
+            
+            {loadingPendingPatients ? (
+              <div className="text-center py-4">
+                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <p className="text-teal-200 text-sm mt-2">Loading...</p>
+              </div>
+            ) : pendingPatients.length > 0 ? (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {pendingPatients.map((patient, index) => (
+                  <div 
+                    key={patient._id} 
+                    className="bg-teal-800 p-3 rounded-lg cursor-pointer hover:bg-teal-700 transition-colors duration-200 border border-teal-600"
+                    onClick={() => {
+                      setSelectedPatient(patient.name);
+                      setActiveSection('payments');
+                      // Auto-scroll to payment form
+                      setTimeout(() => {
+                        document.getElementById('payment-form')?.scrollIntoView({ behavior: 'smooth' });
+                      }, 100);
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold text-white text-sm">{patient.name}</h4>
+                      <span className="text-xs px-2 py-1 bg-yellow-500 text-teal-900 rounded-full font-medium">
+                        #{index + 1}
+                      </span>
+                    </div>
+                    <div className="text-xs text-teal-200 space-y-1">
+                      <p><span className="font-medium">Passport:</span> {patient.passportNumber}</p>
+                      <p><span className="font-medium">Type:</span> {patient.medicalType}</p>
+                      <p><span className="font-medium">Age:</span> {patient.age}y</p>
+                      <p><span className="font-medium">Submitted:</span> {new Date(patient.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <div className="mt-2 text-xs text-yellow-300 font-medium flex items-center">
+                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                      Click to process
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-teal-200">
+                <div className="text-2xl mb-2">✅</div>
+                <p className="text-sm font-medium">All caught up!</p>
+                <p className="text-xs">No pending payments.</p>
+              </div>
+            )}
+          </div>
         </aside>
         
         {/* Main Content */}
@@ -726,32 +849,57 @@ const Accounts = () => {
             {activeSection === 'payments' && (
               <div>
                 {/* Patient Payment Form */}
-                <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-8">
-                  <h2 className="text-xl font-semibold mb-6 text-gray-700">Patient Payment</h2>
+                <div id="payment-form" className="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold text-gray-700">Patient Payment</h2>
+                    {selectedPatient && (
+                      <div className="bg-green-100 border border-green-400 rounded-lg px-4 py-2">
+                        <div className="flex items-center">
+                          <div className="h-2 w-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                          <span className="text-green-800 text-sm font-medium">
+                            Processing: {selectedPatient}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <div>
                         <label className="block text-gray-700 font-semibold mb-2" htmlFor="patientSelect">
                           Select Patient
                         </label>
-                        <select
-                          id="patientSelect"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out bg-white"
-                          value={selectedPatient}
-                          onChange={(e) => setSelectedPatient(e.target.value)}
-                          disabled={!patientData.patients || patientData.patients.length === 0}
-                        >
-                          <option value="" disabled>Select Patient</option>
-                          {patientData.patients?.length > 0 ? (
-                            patientData.patients.map((patient) => (
-                              <option key={patient.labNumber} value={patient.name}>
-                                {patient.name}
-                              </option>
-                            ))
-                          ) : (
-                            <option>No patients available</option>
+                        <div className="space-y-2">
+                          <select
+                            id="patientSelect"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out bg-white"
+                            value={selectedPatient}
+                            onChange={(e) => setSelectedPatient(e.target.value)}
+                            disabled={loadingPatients || patients.length === 0}
+                          >
+                            <option value="" disabled>
+                              {loadingPatients ? 'Loading patients...' : 'Select Patient'}
+                            </option>
+                            {patients.length > 0 ? (
+                              patients.map((patient) => (
+                                <option key={patient._id} value={patient.name}>
+                                  {patient.name} - {patient.passportNumber}
+                                </option>
+                              ))
+                            ) : (
+                              <option>No patients available</option>
+                            )}
+                          </select>
+                          {selectedPatient && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPatient('')}
+                              className="w-full px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition duration-150 ease-in-out"
+                            >
+                              Clear Selection
+                            </button>
                           )}
-                        </select>
+                        </div>
                       </div>
                       <div>
                         <label className="block text-gray-700 font-semibold mb-2" htmlFor="modeOfPayment">

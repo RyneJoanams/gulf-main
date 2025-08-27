@@ -1,6 +1,6 @@
 const express = require('express');
 const labNumberRoutes = express.Router();
-const { createLabNumber, getAllLabNumbers, deleteLabNumber } = require('../controllers/labNumberController')
+const { createLabNumber, getAllLabNumbers, deleteLabNumber, markLabNumberCompleted } = require('../controllers/labNumberController')
 
 labNumberRoutes.post('/', createLabNumber);
 labNumberRoutes.get('/', getAllLabNumbers);
@@ -19,6 +19,7 @@ labNumberRoutes.get('/counter', async (req, res) => {
         res.status(500).json({ success: false, message: 'Failed to fetch lab number counter' });
     }
 });
+labNumberRoutes.put('/complete', markLabNumberCompleted);
 labNumberRoutes.delete('/:id', deleteLabNumber);
 
 

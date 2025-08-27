@@ -60,3 +60,38 @@ exports.deleteLabNumber = async (req, res) => {
         res.status(500).json({ error: 'Server error while deleting' });
     }
 };
+
+// Controller to mark lab number as completed
+exports.markLabNumberCompleted = async (req, res) => {
+    const { labNumber } = req.body;
+
+    try {
+        const updatedLabNumber = await LabNumber.findOneAndUpdate(
+            { number: labNumber },
+            { 
+                status: 'completed',
+                completedAt: new Date()
+            },
+            { new: true }
+        );
+
+        if (!updatedLabNumber) {
+            return res.status(404).json({
+                success: false,
+                message: 'Lab number not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            labNumber: updatedLabNumber,
+            message: 'Lab number marked as completed'
+        });
+    } catch (error) {
+        console.error('Error marking lab number as completed:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to mark lab number as completed'
+        });
+    }
+};

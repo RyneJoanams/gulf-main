@@ -102,7 +102,20 @@ const FrontOffice = () => {
     };
     const fetchAllPatients = async () => {
       try {
+        console.log('Fetching patients...');
         const response = await axios.get('http://localhost:5000/api/patient');
+        console.log('Fetched patients response:', response.data);
+        
+        // Handle different response structures - backend returns array directly
+        const patientsData = Array.isArray(response.data) ? response.data : (response.data.patients || []);
+        console.log('Processed patients data:', patientsData);
+        
+        setPatients(patientsData);
+        toast.success(`Loaded ${patientsData.length} patients`);
+      } catch (error) {
+        console.error('Error fetching patients:', error);
+        toast.error('Failed to fetch patients data.');
+        setPatients([]);
       } finally {
         setLoadingPatients(false);
       }
@@ -744,38 +757,60 @@ const FrontOffice = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {filteredPatients.map((p) => (
-                        <TableRow 
-                          key={p._id}
-                          className="hover:bg-gray-50 transition-colors duration-150"
-                        >
-                          <TableCell>
-                            {p.photo ? (
-                              <img
-                                src={`data:image/jpeg;base64,${p.photo}` || `${p.photo}`}
-                                alt="Patient"
-                                className="w-16 h-16 object-cover rounded-lg shadow-sm"
-                              />
-                            ) : (
-                              <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <span className="text-gray-400">-</span>
-                              </div>
-                            )}
+                      {loadingPatients ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8">
+                            <CircularProgress size={40} />
+                            <Typography variant="body2" className="mt-2 text-gray-500">
+                              Loading patients...
+                            </Typography>
                           </TableCell>
-                          <TableCell className="font-medium text-gray-900">{p.name}</TableCell>
-                          <TableCell>{p.age}</TableCell>
-                          <TableCell>{p.sex}</TableCell>
-                          <TableCell>{p.passportNumber}</TableCell>
-                          <TableCell>{p.issuingCountry || '-'}</TableCell>
-                          <TableCell>{p.occupation || '-'}</TableCell>
-                          <TableCell>
-                            <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                              {p.medicalType}
-                            </span>
-                          </TableCell>
-                          {/* Removed Delete button */}
                         </TableRow>
-                      ))}
+                      ) : filteredPatients.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8">
+                            <Typography variant="body1" className="text-gray-500">
+                              {patients.length === 0 
+                                ? "No patients found. Start by adding a new patient." 
+                                : "No patients match your current filter criteria."
+                              }
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredPatients.map((p) => (
+                          <TableRow 
+                            key={p._id}
+                            className="hover:bg-gray-50 transition-colors duration-150"
+                          >
+                            <TableCell>
+                              {p.photo ? (
+                                <img
+                                  src={`data:image/jpeg;base64,${p.photo}` || `${p.photo}`}
+                                  alt="Patient"
+                                  className="w-16 h-16 object-cover rounded-lg shadow-sm"
+                                />
+                              ) : (
+                                <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                                  <span className="text-gray-400">-</span>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-medium text-gray-900">{p.name}</TableCell>
+                            <TableCell>{p.age}</TableCell>
+                            <TableCell>{p.sex}</TableCell>
+                            <TableCell>{p.passportNumber}</TableCell>
+                            <TableCell>{p.issuingCountry || '-'}</TableCell>
+                            <TableCell>{p.occupation || '-'}</TableCell>
+                            <TableCell>
+                              <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                {p.medicalType}
+                              </span>
+                            </TableCell>
+                            {/* Removed Delete button */}
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                   

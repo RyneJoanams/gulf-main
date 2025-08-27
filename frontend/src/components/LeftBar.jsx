@@ -35,8 +35,11 @@ const LeftBar = () => {
         const response = await axios.get('http://localhost:5000/api/number');
         const labNumbers = response.data.labNumbers || [];
         
+        // Filter to only show pending lab numbers (not completed)
+        const pendingLabNumbers = labNumbers.filter(lab => lab.status !== 'completed');
+        
         // Sort by most recent first
-        const sortedReports = labNumbers.sort((a, b) => 
+        const sortedReports = pendingLabNumbers.sort((a, b) => 
           new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp)
         );
         
@@ -68,10 +71,17 @@ const LeftBar = () => {
       fetchPhlebotomyReports();
     };
 
+    // Listen for lab report submissions to refresh the list
+    const handleLabReportSubmission = () => {
+      fetchPhlebotomyReports();
+    };
+
     window.addEventListener('labNumberSubmitted', handleLabNumberSubmission);
+    window.addEventListener('labReportSubmitted', handleLabReportSubmission);
 
     return () => {
       window.removeEventListener('labNumberSubmitted', handleLabNumberSubmission);
+      window.removeEventListener('labReportSubmitted', handleLabReportSubmission);
     };
   }, []);
 

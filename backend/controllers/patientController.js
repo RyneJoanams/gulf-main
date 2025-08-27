@@ -80,3 +80,29 @@ exports.deletePatient = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Get patients pending payment recording
+exports.getPatientsPendingPayment = async (req, res) => {
+  try {
+    const patients = await Patient.find({ paymentRecorded: { $ne: true } }).sort({ createdAt: -1 });
+    res.status(200).json(patients);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Mark patient payment as recorded
+exports.markPaymentRecorded = async (req, res) => {
+  try {
+    const { patientName } = req.body;
+    const patient = await Patient.findOneAndUpdate(
+      { name: patientName },
+      { paymentRecorded: true },
+      { new: true }
+    );
+    if (!patient) return res.status(404).json({ message: 'Patient not found' });
+    res.status(200).json(patient);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
