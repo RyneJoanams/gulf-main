@@ -2,7 +2,8 @@ import React from 'react';
 import PropTypes from 'prop-types';
 
 const ReportSection = ({ title, data }) => {
-  if (!data || Object.keys(data).length === 0) {
+  // Handle null, undefined, or non-object data
+  if (!data || typeof data !== 'object' || Array.isArray(data) || Object.keys(data).length === 0) {
     return (
       <SectionWrapper title={title}>
         <p className="text-gray-500">No data available.</p>
@@ -13,7 +14,7 @@ const ReportSection = ({ title, data }) => {
   const renderItem = (key, value) => {
     const formattedKey = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
 
-    if (typeof value === 'object' && !Array.isArray(value)) {
+    if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
       return (
         <div key={key} className="ml-3 pl-4 border-l-2 border-blue-100 space-y-1">
           <h4 className="text-sm font-semibold text-gray-700">{formattedKey}</h4>
@@ -56,6 +57,10 @@ SectionWrapper.propTypes = {
 ReportSection.propTypes = {
   title: PropTypes.string.isRequired,
   data: PropTypes.object,
+};
+
+ReportSection.defaultProps = {
+  data: null,
 };
 
 export default ReportSection;

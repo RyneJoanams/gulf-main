@@ -9,6 +9,7 @@ const patientSchema = new mongoose.Schema({
   age: { type: Number, required: true },
   photo: { type: String, required: false }, // Store image URL
   medicalType: { type: String, required: true },
+  agent: { type: String, required: false }, // Agent field
   paymentRecorded: { type: Boolean, default: false }, // Track if payment has been recorded
 }, { timestamps: true });
 

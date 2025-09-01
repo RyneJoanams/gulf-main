@@ -67,6 +67,15 @@ exports.updatePayment = async (req, res) => {
             return res.status(404).json({ message: 'Payment record not found' });
         }
 
+        // If payment status is updated to "Paid", mark patient payment as recorded
+        if (paymentStatus === 'Paid') {
+            const Patient = require('../models/Patient');
+            await Patient.findOneAndUpdate(
+                { name: patientName },
+                { paymentRecorded: true }
+            );
+        }
+
         res.status(200).json(updatedPayment);
     } catch (error) {
         console.error('Error in updatePayment:', error);

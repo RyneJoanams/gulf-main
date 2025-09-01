@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePatient } from '../../context/patientContext';
 import { ToastContainer, toast } from 'react-toastify';
 import axios from 'axios';
-import ReactToPrint from 'react-to-print';
+// import ReactToPrint from 'react-to-print';
 import { QRCodeCanvas } from 'qrcode.react';
 import * as XLSX from 'xlsx';
 import 'react-toastify/dist/ReactToastify.css';
@@ -74,6 +74,35 @@ const Accounts = () => {
   const totalDeductions = totalCommission + totalXrayPayment + totalExpenses;
   const netAmount = totalAmountPaid - totalDeductions;
 
+  // Calculate payment method breakdown
+  const cashPayments = filteredPayments.filter(record => record.modeOfPayment === 'Cash');
+  const paybillPayments = filteredPayments.filter(record => record.modeOfPayment === 'Paybill');
+  const invoicePayments = filteredPayments.filter(record => record.modeOfPayment === 'Invoice');
+  
+  const totalCashAmount = cashPayments.reduce((sum, record) => sum + parseFloat(record.amountPaid || 0), 0);
+  const totalPaybillAmount = paybillPayments.reduce((sum, record) => sum + parseFloat(record.amountPaid || 0), 0);
+  const totalInvoiceAmount = invoicePayments.reduce((sum, record) => sum + parseFloat(record.amountPaid || 0), 0);
+
+  // Helper function to fetch pending patients
+  const fetchPendingPatients = async () => {
+    try {
+      console.log('Fetching pending patients...');
+      const response = await axios.get('http://localhost:5000/api/patient/pending-payment');
+      console.log('Fetched pending patients response:', response.data);
+      
+      const pendingPatientsData = Array.isArray(response.data) ? response.data : [];
+      console.log('Processed pending patients data:', pendingPatientsData);
+      
+      setPendingPatients(pendingPatientsData);
+    } catch (error) {
+      console.error('Error fetching pending patients:', error);
+      toast.error('Failed to fetch pending patients data.');
+      setPendingPatients([]);
+    } finally {
+      setLoadingPendingPatients(false);
+    }
+  };
+
   useEffect(() => {
     const fetchPaymentRecords = async () => {
       try {
@@ -103,25 +132,6 @@ const Accounts = () => {
         setPatients([]);
       } finally {
         setLoadingPatients(false);
-      }
-    };
-
-    const fetchPendingPatients = async () => {
-      try {
-        console.log('Fetching pending patients...');
-        const response = await axios.get('http://localhost:5000/api/patient/pending-payment');
-        console.log('Fetched pending patients response:', response.data);
-        
-        const pendingPatientsData = Array.isArray(response.data) ? response.data : [];
-        console.log('Processed pending patients data:', pendingPatientsData);
-        
-        setPendingPatients(pendingPatientsData);
-      } catch (error) {
-        console.error('Error fetching pending patients:', error);
-        toast.error('Failed to fetch pending patients data.');
-        setPendingPatients([]);
-      } finally {
-        setLoadingPendingPatients(false);
       }
     };
 
@@ -232,6 +242,14 @@ const Accounts = () => {
       setPaymentRecords(paymentRecords.map(record =>
         record._id === currentRecord._id ? updatedPayment : record
       ));
+      
+      // If payment status is updated to "Paid", refresh pending patients list
+      if (updatedPayment.paymentStatus === 'Paid') {
+        fetchPendingPatients();
+        // Remove patient from pending list immediately in UI
+        setPendingPatients(pendingPatients.filter(patient => patient.name !== selectedPatient));
+      }
+      
       toast.success('Payment record updated successfully.');
       resetForm();
     } catch (error) {
@@ -301,6 +319,14 @@ const Accounts = () => {
       'Total Deductions': totalDeductions,
       'Net Amount': netAmount,
       'Date Range': `${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`,
+      '': '',
+      'Payment Method Breakdown': '',
+      'Cash Payments': totalCashAmount,
+      'Cash Records': cashPayments.length,
+      'Paybill Payments': totalPaybillAmount,
+      'Paybill Records': paybillPayments.length,
+      'Invoice Payments': totalInvoiceAmount,
+      'Invoice Records': invoicePayments.length,
     }];
 
     const expensesData = filteredExpenses.map(exp => ({
@@ -447,6 +473,42 @@ const Accounts = () => {
       }),
     ];
 
+    // Payment Method Breakdown Table
+    const paymentMethodRows = [
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Payment Method")] }),
+          new TableCell({ children: [new Paragraph("Amount")] }),
+          new TableCell({ children: [new Paragraph("Records Count")] }),
+          new TableCell({ children: [new Paragraph("Percentage")] }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Cash")] }),
+          new TableCell({ children: [new Paragraph(`KES ${totalCashAmount.toFixed(2)}`)] }),
+          new TableCell({ children: [new Paragraph(cashPayments.length.toString())] }),
+          new TableCell({ children: [new Paragraph(`${totalAmountPaid > 0 ? ((totalCashAmount / totalAmountPaid) * 100).toFixed(1) : 0}%`)] }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Paybill")] }),
+          new TableCell({ children: [new Paragraph(`KES ${totalPaybillAmount.toFixed(2)}`)] }),
+          new TableCell({ children: [new Paragraph(paybillPayments.length.toString())] }),
+          new TableCell({ children: [new Paragraph(`${totalAmountPaid > 0 ? ((totalPaybillAmount / totalAmountPaid) * 100).toFixed(1) : 0}%`)] }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("Invoice")] }),
+          new TableCell({ children: [new Paragraph(`KES ${totalInvoiceAmount.toFixed(2)}`)] }),
+          new TableCell({ children: [new Paragraph(invoicePayments.length.toString())] }),
+          new TableCell({ children: [new Paragraph(`${totalAmountPaid > 0 ? ((totalInvoiceAmount / totalAmountPaid) * 100).toFixed(1) : 0}%`)] }),
+        ],
+      }),
+    ];
+
     const doc = new DocxDocument({
       sections: [
         {
@@ -473,6 +535,9 @@ const Accounts = () => {
             new Paragraph({ text: "" }),
             new Paragraph({ text: "Summary", heading: HeadingLevel.HEADING_2 }),
             new Table({ rows: summaryRows }),
+            new Paragraph({ text: "" }),
+            new Paragraph({ text: "Payment Method Breakdown", heading: HeadingLevel.HEADING_2 }),
+            new Table({ rows: paymentMethodRows }),
             new Paragraph({ text: "" }),
             new Paragraph({ text: "Payment Records", heading: HeadingLevel.HEADING_2 }),
             new Table({ rows: paymentRows }),
@@ -555,6 +620,14 @@ const Accounts = () => {
       ["Date Range", `${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`],
     ];
 
+    // Payment Method Breakdown Table
+    const paymentMethodTable = [
+      ["Payment Method", "Amount", "Records", "Percentage"],
+      ["Cash", `KES ${totalCashAmount.toFixed(2)}`, cashPayments.length.toString(), `${totalAmountPaid > 0 ? ((totalCashAmount / totalAmountPaid) * 100).toFixed(1) : 0}%`],
+      ["Paybill", `KES ${totalPaybillAmount.toFixed(2)}`, paybillPayments.length.toString(), `${totalAmountPaid > 0 ? ((totalPaybillAmount / totalAmountPaid) * 100).toFixed(1) : 0}%`],
+      ["Invoice", `KES ${totalInvoiceAmount.toFixed(2)}`, invoicePayments.length.toString(), `${totalAmountPaid > 0 ? ((totalInvoiceAmount / totalAmountPaid) * 100).toFixed(1) : 0}%`],
+    ];
+
     // PDF Document Definition
     const docDefinition = {
       pageSize: 'A4',
@@ -573,6 +646,8 @@ const Accounts = () => {
         { text: `Date Range: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`, alignment: "center", margin: [0, 0, 0, 10] },
         { text: "Summary", style: "subheader" },
         { table: { body: summaryTable }, margin: [0, 0, 0, 10] },
+        { text: "Payment Method Breakdown", style: "subheader" },
+        { table: { body: paymentMethodTable }, margin: [0, 0, 0, 10] },
         { text: "Payment Records", style: "subheader" },
         { table: { body: paymentTable }, margin: [0, 0, 0, 10] },
         {
@@ -626,11 +701,11 @@ const Accounts = () => {
 
   // Sidebar + Main Content Layout
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <TopBar />
-      <div className="flex min-h-screen">
+      <div className="flex flex-1">
         {/* Sidebar */}
-        <aside className="w-80 bg-teal-900 text-white flex flex-col py-8 px-4 overflow-y-auto max-h-screen">
+        <aside className="w-80 bg-teal-900 text-white flex flex-col py-8 px-4 overflow-y-auto">
           <h2 className="text-2xl font-bold mb-8 text-center">Accounts Menu</h2>
           
           {/* Navigation Menu */}
@@ -720,8 +795,10 @@ const Accounts = () => {
           </div>
         </aside>
         
-        {/* Main Content */}
-        <main className="flex-1 p-8">
+        {/* Main Content Container */}
+        <div className="flex-1 flex flex-col">
+          {/* Main Content */}
+          <main className="flex-1 p-8">
           <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-2xl p-8 space-y-8">
             <ToastContainer />
             <div className="border-b border-gray-200 pb-6">
@@ -841,6 +918,80 @@ const Accounts = () => {
                           KES {(totalExpenses / (Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1)).toFixed(2)}
                         </span>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Method Breakdown Section */}
+                <div className="mt-6">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Payment Method Breakdown</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="font-semibold text-green-800">Cash Payments</h5>
+                        <div className="bg-green-100 px-2 py-1 rounded-full text-xs font-medium text-green-700">
+                          {cashPayments.length} record{cashPayments.length !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                      <p className="text-2xl font-bold text-green-700">KES {totalCashAmount.toFixed(2)}</p>
+                      <p className="text-sm text-green-600 mt-1">
+                        {totalAmountPaid > 0 ? ((totalCashAmount / totalAmountPaid) * 100).toFixed(1) : 0}% of total payments
+                      </p>
+                    </div>
+                    
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="font-semibold text-blue-800">Paybill Payments</h5>
+                        <div className="bg-blue-100 px-2 py-1 rounded-full text-xs font-medium text-blue-700">
+                          {paybillPayments.length} record{paybillPayments.length !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                      <p className="text-2xl font-bold text-blue-700">KES {totalPaybillAmount.toFixed(2)}</p>
+                      <p className="text-sm text-blue-600 mt-1">
+                        {totalAmountPaid > 0 ? ((totalPaybillAmount / totalAmountPaid) * 100).toFixed(1) : 0}% of total payments
+                      </p>
+                    </div>
+                    
+                    <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="font-semibold text-orange-800">Invoice Payments</h5>
+                        <div className="bg-orange-100 px-2 py-1 rounded-full text-xs font-medium text-orange-700">
+                          {invoicePayments.length} record{invoicePayments.length !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                      <p className="text-2xl font-bold text-orange-700">KES {totalInvoiceAmount.toFixed(2)}</p>
+                      <p className="text-sm text-orange-600 mt-1">
+                        {totalAmountPaid > 0 ? ((totalInvoiceAmount / totalAmountPaid) * 100).toFixed(1) : 0}% of total payments
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Visual representation */}
+                  <div className="mt-4 bg-white p-4 rounded-lg border border-gray-200">
+                    <h6 className="font-semibold text-gray-700 mb-3">Payment Distribution</h6>
+                    <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                      <div className="h-full flex">
+                        <div 
+                          className="bg-green-500 h-full"
+                          style={{ width: `${totalAmountPaid > 0 ? (totalCashAmount / totalAmountPaid) * 100 : 0}%` }}
+                          title={`Cash: ${totalAmountPaid > 0 ? ((totalCashAmount / totalAmountPaid) * 100).toFixed(1) : 0}%`}
+                        ></div>
+                        <div 
+                          className="bg-blue-500 h-full"
+                          style={{ width: `${totalAmountPaid > 0 ? (totalPaybillAmount / totalAmountPaid) * 100 : 0}%` }}
+                          title={`Paybill: ${totalAmountPaid > 0 ? ((totalPaybillAmount / totalAmountPaid) * 100).toFixed(1) : 0}%`}
+                        ></div>
+                        <div 
+                          className="bg-orange-500 h-full"
+                          style={{ width: `${totalAmountPaid > 0 ? (totalInvoiceAmount / totalAmountPaid) * 100 : 0}%` }}
+                          title={`Invoice: ${totalAmountPaid > 0 ? ((totalInvoiceAmount / totalAmountPaid) * 100).toFixed(1) : 0}%`}
+                        ></div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between mt-2 text-xs text-gray-600">
+                      <span>Cash</span>
+                      <span>Paybill</span>
+                      <span>Invoice</span>
                     </div>
                   </div>
                 </div>
@@ -1342,8 +1493,11 @@ const Accounts = () => {
             )}
           </div>
         </main>
+        
+        {/* Footer */}
+        <Footer />
       </div>
-      <Footer />
+    </div>
     </div>
   );
 };

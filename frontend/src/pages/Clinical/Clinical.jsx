@@ -15,6 +15,7 @@ const Clinical = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [testTypeFilter, setTestTypeFilter] = useState("All");
+    const [sourceFilter, setSourceFilter] = useState("All"); // New filter for report source
     const [dateRange, setDateRange] = useState({ start: "", end: "" });
     const [clinicalNotes, setClinicalNotes] = useState("");
     const [clinicalOfficerName, setClinicalOfficerName] = useState("");
@@ -45,21 +46,52 @@ const Clinical = () => {
     useEffect(() => {
         const fetchReports = async () => {
             try {
-                const response = await axios.get("http://localhost:5000/api/radiology");
-                const test = response.data.map(report => ({
+                // Fetch both lab reports and radiology reports
+                const [labResponse, radiologyResponse] = await Promise.all([
+                    axios.get("http://localhost:5000/api/lab"),
+                    axios.get("http://localhost:5000/api/radiology")
+                ]);
+
+                // Process lab reports (reports without radiology data)
+                const labReports = labResponse.data.data.map(report => ({
                     ...report,
+                    source: 'lab',
+                    radiologyData: {
+                        heafMantouxTest: null,
+                        chestXRayTest: null
+                    }
+                }));
+
+                // Process radiology reports (reports with radiology data)
+                const radiologyReports = radiologyResponse.data.map(report => ({
+                    ...report,
+                    source: 'radiology',
                     radiologyData: {
                         heafMantouxTest: report.heafMantouxTest,
                         chestXRayTest: report.chestXRayTest
                     }
                 }));
-                setReports(test);
-                setFilteredReports(test);
+
+                // Combine both types of reports, removing duplicates
+                // (lab reports that already have radiology data)
+                const labNumbersWithRadiology = new Set(
+                    radiologyReports.map(report => report.labNumber)
+                );
+                
+                const uniqueLabReports = labReports.filter(
+                    report => !labNumbersWithRadiology.has(report.labNumber)
+                );
+
+                const allReports = [...uniqueLabReports, ...radiologyReports];
+                
+                setReports(allReports);
+                setFilteredReports(allReports);
                 toast.success('Reports Successfully Fetched.')
                 setIsLoading(false);
             } catch (error) {
                 toast.error("Error Fetching Clinical Reports");
                 setIsLoading(false);
+                console.error("Error details:", error);
             }
         };
 
@@ -84,6 +116,18 @@ const Clinical = () => {
             filtered = filtered.filter((report) => report.testType === testTypeFilter);
         }
 
+        // Filter by source (lab only vs radiology complete)
+        if (sourceFilter !== "All") {
+            filtered = filtered.filter((report) => {
+                if (sourceFilter === "Lab Only") {
+                    return report.source === "lab";
+                } else if (sourceFilter === "Radiology Complete") {
+                    return report.source === "radiology";
+                }
+                return true;
+            });
+        }
+
         // Filter by date range
         if (dateRange.start && dateRange.end) {
             filtered = filtered.filter(
@@ -94,7 +138,7 @@ const Clinical = () => {
         }
 
         setFilteredReports(filtered);
-    }, [reports, searchTerm, testTypeFilter, dateRange]);
+    }, [reports, searchTerm, testTypeFilter, sourceFilter, dateRange]);
 
     const handleUnitSelect = (unit) => {
         setSelectedUnits((prev) => ({
@@ -307,6 +351,17 @@ const Clinical = () => {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
+                        
+                        {/* Source Filter */}
+                        <select
+                            value={sourceFilter}
+                            onChange={(e) => setSourceFilter(e.target.value)}
+                            className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                        >
+                            <option value="All">All Reports</option>
+                            <option value="Lab Only">Lab Only</option>
+                            <option value="Radiology Complete">Radiology Complete</option>
+                        </select>
 
                         {isLoading ? (
                             <p className="text-center">Loading Reports, Please Wait...</p>
@@ -350,6 +405,15 @@ const Clinical = () => {
                                                 <p>Lab Number: {report.labNumber}</p>
                                                 <p>Date: {new Date(report.timeStamp).toLocaleString()}</p>
                                             </div>
+                                            <div className="flex justify-center mt-2">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                    report.source === 'radiology' 
+                                                        ? 'bg-green-100 text-green-800' 
+                                                        : 'bg-yellow-100 text-yellow-800'
+                                                }`}>
+                                                    {report.source === 'radiology' ? 'Complete' : 'Lab Only'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -386,9 +450,29 @@ const Clinical = () => {
                             <div>
                                 {/* Report Header */}
                                 <div className="flex justify-between items-center border-b border-gray-200 pb-6">
-                                    <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-900">
-                                        {selectedReport.patientName}'s Report
-                                    </h2>
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-900">
+                                            {selectedReport.patientName}'s Report
+                                        </h2>
+                                        <div className="flex items-center mt-2 space-x-3">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                                selectedReport.source === 'radiology' 
+                                                    ? 'bg-green-100 text-green-800' 
+                                                    : 'bg-yellow-100 text-yellow-800'
+                                            }`}>
+                                                {selectedReport.source === 'radiology' ? 'Radiology Complete' : 'Lab Only'}
+                                            </span>
+                                            {selectedReport.radiologyData?.heafMantouxTest || selectedReport.radiologyData?.chestXRayTest ? (
+                                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                    Radiology Data Available
+                                                </span>
+                                            ) : (
+                                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                                    Pending Radiology
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* Test Results Grid */}

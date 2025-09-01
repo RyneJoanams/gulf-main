@@ -669,10 +669,27 @@ const Lab = () => {
                   <div className="mb-8 p-6 bg-gray-50 rounded-lg border-2 border-blue-200">
                     <h2 className="text-xl font-bold text-gray-800 mb-6 text-center bg-blue-100 p-3 rounded">Lab Report Data</h2>
                     
-                    {/* Debug info - remove this once working */}
-                    <div className="mb-4 p-2 bg-yellow-100 text-xs rounded">
-                      <strong>Debug Info:</strong> 
-                      <pre className="whitespace-pre-wrap">{JSON.stringify(existingLabData, null, 2)}</pre>
+                    {/* Patient Information Section */}
+                    <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <h4 className="text-lg font-semibold text-blue-800 mb-3">Patient Information</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="flex justify-between bg-white p-2 rounded shadow-sm">
+                          <span className="font-medium text-gray-700">Patient Name:</span>
+                          <span className="text-gray-900 font-semibold">{selectedPatient}</span>
+                        </div>
+                        <div className="flex justify-between bg-white p-2 rounded shadow-sm">
+                          <span className="font-medium text-gray-700">Lab Number:</span>
+                          <span className="text-gray-900 font-semibold">{selectedLabNumber}</span>
+                        </div>
+                        <div className="flex justify-between bg-white p-2 rounded shadow-sm">
+                          <span className="font-medium text-gray-700">Report Date:</span>
+                          <span className="text-gray-900 font-semibold">{new Date().toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex justify-between bg-white p-2 rounded shadow-sm">
+                          <span className="font-medium text-gray-700">Report Time:</span>
+                          <span className="text-gray-900 font-semibold">{new Date().toLocaleTimeString()}</span>
+                        </div>
+                      </div>
                     </div>
                     
                     {/* Render Urine Test Data */}

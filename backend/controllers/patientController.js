@@ -84,8 +84,20 @@ exports.deletePatient = async (req, res) => {
 // Get patients pending payment recording
 exports.getPatientsPendingPayment = async (req, res) => {
   try {
-    const patients = await Patient.find({ paymentRecorded: { $ne: true } }).sort({ createdAt: -1 });
-    res.status(200).json(patients);
+    const accounts = require('../models/accounts');
+    
+    // Get all patients who don't have paymentRecorded flag set to true
+    const allPendingPatients = await Patient.find({ paymentRecorded: { $ne: true } }).sort({ createdAt: -1 });
+    
+    // Get all patients who have payment records with "Paid" status
+    const paidPatients = await accounts.find({ paymentStatus: 'Paid' }).distinct('patientName');
+    
+    // Filter out patients who already have paid status
+    const actuallyPendingPatients = allPendingPatients.filter(patient => 
+      !paidPatients.includes(patient.name)
+    );
+    
+    res.status(200).json(actuallyPendingPatients);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

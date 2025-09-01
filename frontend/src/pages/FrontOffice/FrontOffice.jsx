@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import ReactToPrint from 'react-to-print';
 import {
   Dialog, DialogActions, DialogContent, DialogTitle,
   TextField, Button, MenuItem, CircularProgress, Typography, Container, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
@@ -7,16 +6,17 @@ import {
 import Webcam from 'react-webcam';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useParams } from "react-router-dom";
 import Select from 'react-select';
-import { Country, State, City } from 'country-state-city';
+import { Country } from 'country-state-city';
 import axios from 'axios';
 import TopBar from '../../components/TopBar'
 import Footer from '../../components/Footer';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import { QRCodeCanvas } from 'qrcode.react';
 import logo from '../../assets/GULF HEALTHCARE KENYA LTD.png';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { FaPrint, FaFileExcel } from 'react-icons/fa';
+import * as XLSX from 'xlsx';
 
 const medicalTypes = ['MAURITIUS', 'SM-VDRL', 'MEDICAL', 'FM', 'NORMAL'];
 const countryOptions = Country.getAllCountries().map((country) => ({
@@ -51,19 +51,18 @@ const customSelectStyles = {
 };
 
 const FrontOffice = () => {
-  const [patient, setPatient] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [patients, setPatients] = useState([]);
   const [loadingPatients, setLoadingPatients] = useState(true);
   const [showWebcam, setShowWebcam] = useState(false);
   const [selectedMedicalType, setSelectedMedicalType] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState({
-    startDate: '',
-    endDate: ''
-  });
+  
+  // Set default dates to today
+  const today = new Date();
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [formValues, setFormValues] = useState({
     _id: '',
     name: '',
@@ -76,30 +75,12 @@ const FrontOffice = () => {
     age: '',
     photo: null,
     medicalType: '',
+    agent: '',
   });
-  const [hideQr, setHideQr] = useState(false);
 
   const webcamRef = useRef(null);
-  const tableRef = useRef(null);
-  const { patientId } = useParams();
 
   useEffect(() => {
-    const fetchPatientData = async () => {
-      if (patientId) {
-        try {
-          const response = await axios.get(`http://localhost:5000/api/patient/${patientId}`);
-          setPatient(response.data);
-          setFormValues(response.data);
-        } catch (error) {
-          console.error('Error fetching patient data:', error);
-          toast.error('Failed to fetch patient data.');
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setLoading(false);
-      }
-    };
     const fetchAllPatients = async () => {
       try {
         console.log('Fetching patients...');
@@ -121,9 +102,8 @@ const FrontOffice = () => {
       }
     };
 
-    fetchPatientData();
     fetchAllPatients();
-  }, [patientId]);
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -131,11 +111,6 @@ const FrontOffice = () => {
       ...formValues,
       [name]: value,
     });
-  };
-
-  const handleDialogOpen = (patientId) => {
-    setSelectedPatientId(patientId);
-    setOpenDialog(true);
   };
 
   const handleDialogClose = () => {
@@ -241,6 +216,7 @@ const FrontOffice = () => {
       age: '',
       photo: null,
       medicalType: '',
+      agent: '',
     });
     setShowWebcam(false); // Reset webcam state
   };
@@ -396,73 +372,333 @@ const FrontOffice = () => {
     }
   };
 
-  // PDF Print Handler
-  const handlePdfPrint = async () => {
-    setHideQr(true); // Hide QR code
-    await new Promise((resolve) => setTimeout(resolve, 100)); // Wait for DOM update
+  // Print Report Handler
+  const printReport = () => {
+    if (filteredPatients.length === 0) {
+      toast.error("No patients found to print");
+      return;
+    }
 
-    const input = tableRef.current;
-    if (!input) return;
+    const formatData = (data) => {
+      return data || 'N/A';
+    };
 
-    // Wait for all images to load, but continue if any image fails
-    const images = input.querySelectorAll('img');
-    const promises = Array.from(images).map(
-      img =>
-        new Promise((resolve) => {
-          if (img.complete && img.naturalWidth !== 0) {
-            resolve();
-          } else {
-            img.onload = () => resolve();
-            img.onerror = () => {
-              // Replace broken image with a transparent 1x1 PNG
-              img.src =
-                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+Xb9wAAAAASUVORK5CYII=';
-              resolve();
+    const printStyles = `
+      <style>
+        @media print {
+          @page { 
+            margin: 0.5cm;
+            size: A4;
+          }
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            font-family: 'Arial', sans-serif;
+            font-size: 9px;
+            line-height: 1.3;
+            color: #333;
+            margin: 0;
+            padding: 0;
+          }
+          .report-container {
+            max-width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+          }
+          .header {
+            text-align: center;
+            padding: 8px 0;
+            border-bottom: 2px solid #2dd4bf;
+            margin-bottom: 12px;
+          }
+          .report-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0f766e;
+            margin: 4px 0;
+          }
+          .patients-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+            background-color: #f8fafc;
+            table-layout: fixed;
+          }
+          .patients-table th,
+          .patients-table td {
+            border: 1px solid #cbd5e1;
+            padding: 6px 8px;
+            font-size: 8px;
+            text-align: left;
+            font-weight: 500;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.2;
+          }
+          .patients-table th {
+            color: #0f766e;
+            font-weight: bold;
+            background-color: #e6fffa;
+          }
+          .patients-table tr:nth-child(even) {
+            background-color: #f8fafc;
+          }
+          .patient-photo {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+          }
+          .footer {
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 2px solid #2dd4bf;
+            text-align: center;
+            font-size: 8px;
+            color: #64748b;
+          }
+          .summary-info {
+            background-color: #e6fffa;
+            padding: 8px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+            border-left: 3px solid #0f766e;
+          }
+        }
+      </style>
+    `;
+
+    const patientsTableRows = filteredPatients.map(patient => `
+      <tr>
+        <td style="width: 8%;">
+          ${patient.photo ? `
+            <img 
+              src="data:image/jpeg;base64,${patient.photo}" 
+              alt="Patient" 
+              class="patient-photo">
+          ` : '-'}
+        </td>
+        <td style="width: 15%;">${formatData(patient.name)}</td>
+        <td style="width: 8%;">${formatData(patient.age)}</td>
+        <td style="width: 8%;">${formatData(patient.sex)}</td>
+        <td style="width: 15%;">${formatData(patient.passportNumber)}</td>
+        <td style="width: 12%;">${formatData(patient.issuingCountry)}</td>
+        <td style="width: 12%;">${formatData(patient.occupation)}</td>
+        <td style="width: 10%;">${formatData(patient.agent)}</td>
+        <td style="width: 12%;">${formatData(patient.medicalType)}</td>
+      </tr>
+    `).join('');
+
+    const printContent = `
+      <html>
+        <head>
+          <title>Patients Report - Gulf Healthcare Kenya Ltd</title>
+          ${printStyles}
+        </head>
+        <body>
+          <div class="report-container">
+            <div class="header">
+              <h1 class="report-title">GULF HEALTHCARE KENYA LTD - Patients Report</h1>
+              <div class="summary-info">
+                <strong>Report Summary:</strong> 
+                Total Patients: ${patients.length} | 
+                Filtered Results: ${filteredPatients.length} | 
+                ${startDate && endDate ? `Date Range: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}` : 'All Records'} |
+                ${searchQuery ? `Search: "${searchQuery}"` : 'All Records'} |
+                Medical Type: ${selectedMedicalType}
+              </div>
+            </div>
+
+            <table class="patients-table">
+              <thead>
+                <tr>
+                  <th style="width: 8%;">Photo</th>
+                  <th style="width: 15%;">Name</th>
+                  <th style="width: 8%;">Age</th>
+                  <th style="width: 8%;">Sex</th>
+                  <th style="width: 15%;">Passport Number</th>
+                  <th style="width: 12%;">Issuing Country</th>
+                  <th style="width: 12%;">Occupation</th>
+                  <th style="width: 10%;">Agent</th>
+                  <th style="width: 12%;">Medical Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${patientsTableRows}
+              </tbody>
+            </table>
+
+            <div class="footer">
+              <p><strong>Gulf Healthcare Kenya Ltd.</strong> • Computer-generated report • Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+              <p>This is an official patients report. For any queries, contact our front office department.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "", "width=800,height=600");
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.onafterprint = () => {
+        printWindow.close();
+      };
+    };
+  };
+
+  // Export to Excel Handler
+  const exportToExcel = () => {
+    if (filteredPatients.length === 0) {
+      toast.error("No patients found to export");
+      return;
+    }
+
+    try {
+      // Prepare data for Excel export
+      const excelData = filteredPatients.map((patient, index) => ({
+        'S/N': index + 1,
+        'Name': patient.name || 'N/A',
+        'Age': patient.age || 'N/A',
+        'Sex': patient.sex || 'N/A',
+        'Passport Number': patient.passportNumber || 'N/A',
+        'Issuing Country': patient.issuingCountry || 'N/A',
+        'Occupation': patient.occupation || 'N/A',
+        'Agent': patient.agent || 'N/A',
+        'Medical Type': patient.medicalType || 'N/A',
+        'Date Created': patient.createdAt ? new Date(patient.createdAt).toLocaleDateString() : 'N/A'
+      }));
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+      // Add header information
+      const headerInfo = [
+        ['GULF HEALTHCARE KENYA LTD - Patients Report'],
+        [''],
+        [`Report Generated: ${new Date().toLocaleString()}`],
+        [`Total Patients: ${patients.length}`],
+        [`Filtered Results: ${filteredPatients.length}`],
+        [`${startDate && endDate ? `Date Range: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}` : 'All Records'}`],
+        [`${searchQuery ? `Search Query: "${searchQuery}"` : 'All Records'}`],
+        [`Medical Type Filter: ${selectedMedicalType}`],
+        [''],
+        ['Patient Details:'],
+        []
+      ];
+
+      // Insert header information at the top
+      XLSX.utils.sheet_add_aoa(worksheet, headerInfo, { origin: 'A1' });
+      
+      // Add patient data starting from row 12 (after header info)
+      XLSX.utils.sheet_add_json(worksheet, excelData, { 
+        origin: 'A12',
+        skipHeader: false 
+      });
+
+      // Set column widths for better readability
+      const columnWidths = [
+        { wch: 5 },   // S/N
+        { wch: 20 },  // Name
+        { wch: 8 },   // Age
+        { wch: 10 },  // Sex
+        { wch: 18 },  // Passport Number
+        { wch: 18 },  // Issuing Country
+        { wch: 15 },  // Occupation
+        { wch: 15 },  // Agent
+        { wch: 15 },  // Medical Type
+        { wch: 12 }   // Date Created
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Style the header rows
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      for (let row = 0; row < 11; row++) {
+        for (let col = 0; col <= range.e.c; col++) {
+          const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+          if (worksheet[cellRef]) {
+            worksheet[cellRef].s = {
+              font: { bold: true, color: { rgb: "0F766E" } },
+              alignment: { horizontal: "center" }
             };
           }
-        })
-    );
-    await Promise.all(promises);
+        }
+      }
 
-    // Use html2canvas with useCORS enabled
-    const canvas = await html2canvas(input, { scale: 2, useCORS: true });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({
-      orientation: 'landscape',
-      unit: 'pt',
-      format: 'a4',
-    });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pageWidth - 40;
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    pdf.addImage(imgData, 'PNG', 20, 20, pdfWidth, pdfHeight, undefined, 'FAST');
-    pdf.save(`patients-list-${new Date().toISOString().slice(0,10)}.pdf`);
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Patients Report');
 
-    setHideQr(false); // Show QR code again
+      // Generate filename with current date and filter info
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filterInfo = searchQuery ? `_${searchQuery.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+      const filename = `Gulf_Healthcare_Patients_Report_${dateStr}${filterInfo}.xlsx`;
+
+      // Save the file
+      XLSX.writeFile(workbook, filename);
+      
+      toast.success(`Excel file exported successfully: ${filename}`);
+    } catch (error) {
+      console.error('Excel export error:', error);
+      toast.error('Failed to export Excel file. Please try again.');
+    }
   };
 
   // Clear search function
   const clearSearch = () => {
     setSearchQuery('');
+    // Reset dates to today
+    const today = new Date();
+    setStartDate(today);
+    setEndDate(today);
   };
 
-  // Enhanced filter function that combines medical type and search query
+  // Enhanced filter function that combines medical type, search query, and date range
   const filteredPatients = patients.filter(patient => {
     // Filter by medical type
     const medicalTypeMatch = selectedMedicalType === 'ALL' || patient.medicalType === selectedMedicalType;
     
-    // Filter by search query (case-insensitive search in name)
+    // Filter by search query (case-insensitive search in name or agent)
     const searchMatch = searchQuery === '' || 
-      patient.name.toLowerCase().includes(searchQuery.toLowerCase());
+      patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (patient.agent && patient.agent.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    return medicalTypeMatch && searchMatch;
+    // Filter by date range (default to today's records, or custom range if specified)
+    let dateMatch = true;
+    if (startDate && endDate) {
+      const patientDate = new Date(patient.createdAt || patient.date);
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      dateMatch = patientDate >= start && patientDate <= end;
+    }
+    
+    return medicalTypeMatch && searchMatch && dateMatch;
   });
 
-  // Get patient counts for each medical type (considering search)
+  // Get patient counts for each medical type (considering search and date filters)
   const getPatientCount = (medicalType) => {
-    const baseFilter = searchQuery === '' ? patients : 
-      patients.filter(patient => patient.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const baseFilter = patients.filter(patient => {
+      const searchMatch = searchQuery === '' || 
+        patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (patient.agent && patient.agent.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      let dateMatch = true;
+      if (startDate && endDate) {
+        const patientDate = new Date(patient.createdAt || patient.date);
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateMatch = patientDate >= start && patientDate <= end;
+      }
+      
+      return searchMatch && dateMatch;
+    });
     
     if (medicalType === 'ALL') return baseFilter.length;
     return baseFilter.filter(patient => patient.medicalType === medicalType).length;
@@ -480,7 +716,7 @@ const FrontOffice = () => {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search by patient name..."
+                placeholder="Search by patient name or agent..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border-0 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-teal-300 transition-all duration-200"
@@ -501,6 +737,58 @@ const FrontOffice = () => {
                 Found {filteredPatients.length} patient{filteredPatients.length !== 1 ? 's' : ''} matching "{searchQuery}"
               </p>
             )}
+          </div>
+
+          {/* Date Range Filter */}
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Date Range Filter</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-teal-200 text-sm font-medium mb-2">Start Date</label>
+                <DatePicker
+                  selected={startDate}
+                  onChange={date => setStartDate(date)}
+                  selectsStart
+                  startDate={startDate}
+                  endDate={endDate}
+                  className="w-full p-2 border rounded-lg text-gray-900"
+                  placeholderText="Select start date"
+                  isClearable
+                />
+              </div>
+              <div>
+                <label className="block text-teal-200 text-sm font-medium mb-2">End Date</label>
+                <DatePicker
+                  selected={endDate}
+                  onChange={date => setEndDate(date)}
+                  selectsEnd
+                  startDate={startDate}
+                  endDate={endDate}
+                  minDate={startDate}
+                  className="w-full p-2 border rounded-lg text-gray-900"
+                  placeholderText="Select end date"
+                  isClearable
+                />
+              </div>
+              {(startDate && endDate && (startDate.toDateString() !== new Date().toDateString() || endDate.toDateString() !== new Date().toDateString())) && (
+                <button
+                  onClick={() => {
+                    const today = new Date();
+                    setStartDate(today);
+                    setEndDate(today);
+                  }}
+                  className="w-full py-2 px-4 bg-teal-400 hover:bg-teal-300 text-teal-900 rounded-lg transition-colors duration-200 text-sm font-medium"
+                >
+                  Reset to Today
+                </button>
+              )}
+            </div>
+            <p className="text-teal-200 text-xs mt-2">
+              {startDate && endDate 
+                ? `Showing records from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`
+                : 'Showing all records'
+              }
+            </p>
           </div>
 
           <div className="mb-8">
@@ -610,6 +898,20 @@ const FrontOffice = () => {
                     ))}
                   </TextField>
                   
+                  <TextField
+                    name="agent"
+                    label="Agent (Optional)"
+                    value={formValues.agent}
+                    onChange={handleChange}
+                    fullWidth
+                    className="bg-gray-50"
+                    InputProps={{
+                      className: "rounded-lg",
+                      style: { padding: '12px' }
+                    }}
+                    placeholder="Enter agent name or code"
+                  />
+                  
                   {renderFields()}
                   
                   <Button
@@ -629,6 +931,11 @@ const FrontOffice = () => {
                     {searchQuery && (
                       <span className="text-lg font-normal text-gray-600 ml-2">
                         - Search: "{searchQuery}"
+                      </span>
+                    )}
+                    {startDate && endDate && (
+                      <span className="text-sm font-normal text-gray-500 ml-2 block">
+                        ({startDate.toLocaleDateString()} to {endDate.toLocaleDateString()})
                       </span>
                     )}
                   </Typography>
@@ -680,68 +987,27 @@ const FrontOffice = () => {
                   </DialogActions>
                 </Dialog>
 
-                <div className="mb-6 flex gap-4">
-                  <ReactToPrint
-                    trigger={() => (
-                      <button className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200 shadow-sm">
-                        Print Records
-                      </button>
-                    )}
-                    content={() => tableRef.current}
-                  />
+                <div className="mb-6 flex justify-end gap-3">
                   <button
-                    onClick={handlePdfPrint}
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200 shadow-sm"
+                    onClick={exportToExcel}
+                    className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200 shadow-sm flex items-center"
                   >
-                    Export as PDF
+                    <FaFileExcel className="mr-2" />
+                    Export to Excel
+                  </button>
+                  <button
+                    onClick={printReport}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200 shadow-sm flex items-center"
+                  >
+                    <FaPrint className="mr-2" />
+                    Print Report
                   </button>
                 </div>
 
                 <TableContainer 
                   component={Paper} 
-                  ref={tableRef}
                   className="rounded-xl shadow-md overflow-hidden"
                 >
-                  <style>
-                    {`
-                      @media print {
-                        .printable {
-                          margin: 0;
-                          padding: 20px;
-                          background: white;
-                          color: black;
-                          box-shadow: none;
-                        }
-                        .printable h1, .printable h2 {
-                          text-align: center;
-                          margin-bottom: 1rem;
-                        }
-                        .printable table {
-                          width: 100%;
-                          border-collapse: collapse;
-                          margin-top: 2rem;
-                        }
-                        .printable th, .printable td {
-                          border: 1px solid #e5e7eb;
-                          padding: 12px;
-                          text-align: left;
-                        }
-                        .printable th {
-                          background-color: #f9fafb;
-                        }
-                      }
-                    `}
-                  </style>
-                  
-                  <header className="p-8 bg-white border-b">
-                    <img src={logo} alt="Logo" className="max-w-md mx-auto mb-6" />
-                    <h1 className="text-2xl font-bold text-center text-gray-800">Health Center</h1>
-                    <h2 className="text-xl text-center text-gray-600 mt-2">Patient Records</h2>
-                    <p className="text-center text-gray-500 mt-4">
-                      Date: {new Date().toLocaleDateString()}
-                    </p>
-                  </header>
-
                   <Table className="min-w-full">
                     <TableHead>
                       <TableRow className="bg-gray-50">
@@ -752,6 +1018,7 @@ const FrontOffice = () => {
                         <TableCell className="font-semibold">Passport Number</TableCell>
                         <TableCell className="font-semibold">Issuing Country</TableCell>
                         <TableCell className="font-semibold">Occupation</TableCell>
+                        <TableCell className="font-semibold">Agent</TableCell>
                         <TableCell className="font-semibold">Medical Type</TableCell>
                         {/* Removed Actions column */}
                       </TableRow>
@@ -759,7 +1026,7 @@ const FrontOffice = () => {
                     <TableBody>
                       {loadingPatients ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">
+                          <TableCell colSpan={9} className="text-center py-8">
                             <CircularProgress size={40} />
                             <Typography variant="body2" className="mt-2 text-gray-500">
                               Loading patients...
@@ -768,7 +1035,7 @@ const FrontOffice = () => {
                         </TableRow>
                       ) : filteredPatients.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">
+                          <TableCell colSpan={9} className="text-center py-8">
                             <Typography variant="body1" className="text-gray-500">
                               {patients.length === 0 
                                 ? "No patients found. Start by adding a new patient." 
@@ -802,6 +1069,7 @@ const FrontOffice = () => {
                             <TableCell>{p.passportNumber}</TableCell>
                             <TableCell>{p.issuingCountry || '-'}</TableCell>
                             <TableCell>{p.occupation || '-'}</TableCell>
+                            <TableCell>{p.agent || '-'}</TableCell>
                             <TableCell>
                               <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                                 {p.medicalType}
@@ -815,13 +1083,11 @@ const FrontOffice = () => {
                   </Table>
                   
                   <div className="p-6 border-t bg-gray-50 flex justify-between items-center">
-                    {!hideQr && (
-                      <QRCodeCanvas 
-                        value={window.location.href} 
-                        size={100}
-                        className="rounded-lg shadow-sm bg-white p-2"
-                      />
-                    )}
+                    <QRCodeCanvas 
+                      value={window.location.href} 
+                      size={100}
+                      className="rounded-lg shadow-sm bg-white p-2"
+                    />
                     <p className="text-sm text-gray-500">
                       Generated on {new Date().toLocaleDateString()}
                     </p>

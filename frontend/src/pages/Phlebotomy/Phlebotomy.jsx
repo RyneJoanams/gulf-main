@@ -135,18 +135,6 @@ const Phlebotomy = () => {
     }
   };
 
-  const deleteLabNumber = async (id) => {
-    try {
-      await axios.delete(`http://localhost:5000/api/number/${id}`);
-      toast.success('Lab number deleted successfully');
-      fetchLabNumbers(); // refresh
-    } catch (err) {
-      toast.error('Failed to delete lab number');
-      console.error(err);
-    }
-  };
-
-
   const resetForm = () => {
     setSearchQuery('');
     setFilteredPatients(patientData?.patients || []);
@@ -309,7 +297,6 @@ const Phlebotomy = () => {
                       <th className="px-4 py-2 border-b border-gray-600">Patient</th>
                       <th className="px-4 py-2 border-b border-gray-600">Lab Number</th>
                       <th className="px-4 py-2 border-b border-gray-600">Status</th>
-                      <th className="px-4 py-2 border-b border-gray-600">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -326,16 +313,6 @@ const Phlebotomy = () => {
                           }`}>
                             {entry.status === 'completed' ? 'Completed' : 'Pending'}
                           </span>
-                        </td>
-                        <td className="px-4 py-2 border-b border-gray-700">
-                          <button
-                            onClick={() => deleteLabNumber(entry._id)}
-                            className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded"
-                            disabled={entry.status === 'completed'}
-                            title={entry.status === 'completed' ? 'Cannot delete completed lab numbers' : 'Delete lab number'}
-                          >
-                            Delete
-                          </button>
                         </td>
                       </tr>
                     ))}
