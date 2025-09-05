@@ -103,6 +103,25 @@ exports.getPatientsPendingPayment = async (req, res) => {
   }
 };
 
+// Get patients without lab numbers assigned
+exports.getPatientsWithoutLabNumbers = async (req, res) => {
+  try {
+    const LabNumber = require('../models/labNumber');
+    
+    // Get all patients who have lab numbers assigned
+    const assignedLabNumbers = await LabNumber.find().distinct('patient');
+    
+    // Get all patients who don't have lab numbers assigned
+    const patientsWithoutLabNumbers = await Patient.find({ 
+      name: { $nin: assignedLabNumbers }
+    }).sort({ createdAt: -1 });
+    
+    res.status(200).json(patientsWithoutLabNumbers);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Mark patient payment as recorded
 exports.markPaymentRecorded = async (req, res) => {
   try {

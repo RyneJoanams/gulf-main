@@ -8,6 +8,7 @@ import {
   MousePointer,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import logo from '../assets/GULF HEALTHCARE KENYA LTD.png';
 
 const LeftBar = () => {
   const [phlebotomyReports, setPhlebotomyReports] = useState([]);
@@ -97,11 +98,28 @@ const LeftBar = () => {
     }
   };
 
-  const printReport = (report) => {
+  const printReport = async (report) => {
     if (!report) {
       toast.error("No report selected for printing");
       return;
     }
+
+    // Convert logo to base64
+    const getLogoBase64 = async () => {
+      try {
+        const response = await fetch(logo);
+        const blob = await response.blob();
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      } catch (error) {
+        console.error('Error converting logo to base64:', error);
+        return '';
+      }
+    };
+    const logoBase64 = await getLogoBase64();
 
     // Helper function to check if section has data
     const hasData = (section) => {
@@ -142,7 +160,7 @@ const LeftBar = () => {
           }
           body {
             font-family: 'Arial', sans-serif;
-            font-size: 9px;
+            font-size: 11px;
             line-height: 1.3;
             color: #333;
             margin: 0;
@@ -160,23 +178,35 @@ const LeftBar = () => {
             border-bottom: 2px solid #2dd4bf;
             margin-bottom: 12px;
           }
+          .patient-info-section {
+            display: grid;
+            grid-template-columns: 1fr 80px;
+            gap: 12px;
+            align-items: start;
+            margin-top: 8px;
+          }
           .report-title {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: bold;
             color: #0f766e;
             margin: 4px 0;
           }
+          .patient-image-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 80px;
+          }
           .patient-image {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin: 4px auto;
-            border: 1px solid #e2e8f0;
+            width: 70px;
+            height: 70px;
+            border-radius: 8px;
+            border: 2px solid #0f766e;
+            object-fit: cover;
           }
           .patient-info-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 12px;
             background-color: #f8fafc;
             table-layout: fixed;
           }
@@ -201,7 +231,7 @@ const LeftBar = () => {
           }
           .section {
             break-inside: avoid;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             width: 100%;
           }
           .section-title {
@@ -223,7 +253,7 @@ const LeftBar = () => {
           .compact-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 8px;
+            font-size: 10px;
             margin-bottom: 8px;
             table-layout: fixed;
           }
@@ -238,26 +268,26 @@ const LeftBar = () => {
           .compact-table th {
             background-color: #f1f5f9;
             font-weight: bold;
-            font-size: 8px;
+            font-size: 10px;
             color: #0f766e;
           }
           .compact-table .label {
             font-weight: bold;
             width: 35%;
-            font-size: 8px;
+            font-size: 10px;
             background-color: #f8fafc;
             color: #374151;
           }
           .compact-table .value {
             width: 65%;
-            font-size: 8px;
+            font-size: 10px;
             color: #1f2937;
             line-height: 1.2;
           }
           .haemogram-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 7px;
+            font-size: 9px;
             margin-bottom: 8px;
             table-layout: fixed;
           }
@@ -273,10 +303,10 @@ const LeftBar = () => {
             background-color: #0f766e;
             color: white;
             font-weight: bold;
-            font-size: 7px;
+            font-size: 9px;
           }
           .haemogram-table td {
-            font-size: 6px;
+            font-size: 8px;
             color: #374151;
           }
           .haemogram-table tr:nth-child(even) {
@@ -287,17 +317,32 @@ const LeftBar = () => {
             padding-top: 8px;
             border-top: 2px solid #2dd4bf;
             text-align: center;
-            font-size: 8px;
+            font-size: 10px;
             color: #64748b;
           }
           .two-column-layout {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 12px;
             margin-bottom: 12px;
+            align-items: start;
           }
           .full-width-section {
             grid-column: 1 / -1;
+          }
+          .tests-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+          }
+          .bottom-section {
+            margin-top: 20px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 12px;
           }
         }
       </style>
@@ -309,6 +354,35 @@ const LeftBar = () => {
 
     // Render functions for different sections using compact tables
     const renderBasicInfo = (data) => {
+      const items = [
+        { label: 'Height', value: data.height ? `${formatData(data.height)} cm` : 'N/A' },
+        { label: 'Weight', value: data.weight ? `${formatData(data.weight)} kg` : 'N/A' }
+      ].filter(item => item.value !== 'N/A');
+
+      if (items.length === 0) return '';
+
+      return `
+        <table class="compact-table">
+          <thead>
+            <tr>
+              <th style="width: 40%;">Parameter</th>
+              <th style="width: 60%;">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(item => `
+              <tr>
+                <td class="label">${item.label}</td>
+                <td class="value">${item.value}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    };
+
+    // Render clinical information (officer, notes, height, weight)
+    const renderClinicalInfo = (data) => {
       const items = [
         { label: 'Height', value: data.height ? `${formatData(data.height)} cm` : 'N/A' },
         { label: 'Weight', value: data.weight ? `${formatData(data.weight)} kg` : 'N/A' },
@@ -483,6 +557,7 @@ const LeftBar = () => {
       `;
     };
 
+    // Renders Laboratory Tests data (area1 refers to the data structure)
     const renderArea1Tests = (data) => {
       const items = [
         { label: 'Blood Group', value: formatData(data.bloodGroup) },
@@ -500,6 +575,86 @@ const LeftBar = () => {
               <td class="value">${item.value}</td>
             </tr>
           `).join('')}
+        </table>
+      `;
+    };
+
+    const renderRenalFunction = (data) => {
+      const renalTests = [
+        { test: 'Urea', key: 'urea' },
+        { test: 'Creatinine', key: 'creatinine' },
+        { test: 'Fasting Blood Sugar', key: 'fastingBloodSugar' }
+      ].map(test => ({
+        test: test.test,
+        value: formatData(data[test.key]?.value),
+        status: formatData(data[test.key]?.status),
+        range: formatData(data[test.key]?.range)
+      })).filter(test => test.value !== 'N/A');
+
+      if (renalTests.length === 0) return '';
+
+      return `
+        <table class="haemogram-table">
+          <thead>
+            <tr>
+              <th style="width: 30%;">Test</th>
+              <th style="width: 20%;">Value</th>
+              <th style="width: 20%;">Status</th>
+              <th style="width: 30%;">Range</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${renalTests.map(test => `
+              <tr>
+                <td style="font-weight: 500; text-align: left;">${test.test}</td>
+                <td style="text-align: center; font-weight: bold;">${test.value}</td>
+                <td style="text-align: center; ${test.status !== 'N/A' && test.status !== 'Normal' ? 'color: #dc2626; font-weight: bold;' : ''}">${test.status}</td>
+                <td style="text-align: center; font-size: 6px;">${test.range}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+    };
+
+    const renderLiverFunction = (data) => {
+      const liverTests = [
+        { test: 'Total Bilirubin', key: 'totalBilirubin' },
+        { test: 'Direct Bilirubin', key: 'directBilirubin' },
+        { test: 'Indirect Bilirubin', key: 'indirectBilirubin' },
+        { test: 'SGOT', key: 'sgot' },
+        { test: 'SGPT', key: 'sgpt' },
+        { test: 'Gamma GT', key: 'gammaGt' },
+        { test: 'Alkaline Phosphate', key: 'alkalinePhosphate' },
+        { test: 'Total Proteins', key: 'totalProteins' },
+        { test: 'Albumin', key: 'albumin1' }
+      ].map(test => ({
+        test: test.test,
+        value: formatData(data[test.key]?.value),
+        status: formatData(data[test.key]?.status),
+        range: formatData(data[test.key]?.range)
+      })).filter(test => test.value !== 'N/A');
+
+      if (liverTests.length === 0) return '';
+
+      return `
+        <table class="haemogram-table">
+          <thead>
+            <tr>
+              <th style="width: 30%;">Test</th>
+              <th style="width: 20%;">Value</th>
+              <th style="width: 20%;">Status</th>
+              <th style="width: 30%;">Range</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${liverTests.map(test => `
+              <tr>
+                <td style="font-weight: 500; text-align: left;">${test.test}</td>
+                <td style="text-align: center; font-weight: bold;">${test.value}</td>
+                <td style="text-align: center; ${test.status !== 'N/A' && test.status !== 'Normal' ? 'color: #dc2626; font-weight: bold;' : ''}">${test.status}</td>
+                <td style="text-align: center; font-size: 6px;">${test.range}</td>
+              </tr>`).join('')}
+          </tbody>
         </table>
       `;
     };
@@ -567,71 +722,92 @@ const LeftBar = () => {
         <body>
           <div class="report-container">
             <div class="header">
-              <h1 class="report-title">GULF HEALTHCARE KENYA LTD - Clinical Report</h1>
-              ${report.selectedReport?.patientImage ? `
-                <img 
-                  src="data:image/jpeg;base64,${report.selectedReport.patientImage}" 
-                  alt="Patient" 
-                  class="patient-image">
-              ` : ''}
-              <table class="patient-info-table">
-                <tr>
-                  <td><strong>Patient Name:</strong> ${formatData(report.selectedReport?.patientName)}</td>
-                  <td><strong>Lab Number:</strong> ${formatData(report.selectedReport?.labNumber)}</td>
-                </tr>
-                <tr>
-                  <td><strong>Medical Type:</strong> ${formatData(report.selectedReport?.medicalType)}</td>
-                  <td><strong>Report Date:</strong> ${new Date(report.selectedReport?.timeStamp).toLocaleDateString()}</td>
-                </tr>
-              </table>
+              ${logoBase64 ? `<img src="${logoBase64}" alt="Gulf Healthcare Kenya Ltd" style="width: 200px; height: auto; display: block; margin: 0 auto 10px auto;" />` : ''}
+              <h2 class="report-title" style="margin-top: 10px;">Clinical Report</h2>
+              
+              <div class="patient-info-section">
+                <table class="patient-info-table">
+                  <tr>
+                    <td><strong>Patient Name:</strong> ${formatData(report.selectedReport?.patientName)}</td>
+                    <td><strong>Gender:</strong> ${formatData(report.gender)}</td>
+                    <td><strong>Age:</strong> ${formatData(report.age)}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Passport Number:</strong> ${formatData(report.passportNumber)}</td>
+                    <td><strong>Lab Number:</strong> ${formatData(report.selectedReport?.labNumber)}</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Report Date:</strong> ${new Date(report.selectedReport?.timeStamp).toLocaleDateString()}</td>
+                    <td><strong>Report Time:</strong> ${new Date(report.selectedReport?.timeStamp).toLocaleTimeString()}</td>
+                    <td></td>
+                  </tr>
+                </table>
+                
+                <div class="patient-image-container">
+                  ${report.selectedReport?.patientImage ? `
+                    <img 
+                      src="data:image/jpeg;base64,${report.selectedReport.patientImage}" 
+                      alt="Patient Photo" 
+                      class="patient-image">
+                  ` : `
+                    <div style="width: 70px; height: 70px; border: 2px dashed #cbd5e1; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 6px; text-align: center;">
+                      No Photo<br>Available
+                    </div>
+                  `}
+                </div>
+              </div>
             </div>
 
             <div class="main-content">
-              <div class="two-column-layout">
-                <div>
-                  ${renderSectionIfHasData('Basic Information', basicInfo, renderBasicInfo)}
-                  ${renderSectionIfHasData('General Examination', report.generalExamination, renderGeneralExam)}
-                  ${renderSectionIfHasData('Blood Tests', report.selectedReport?.bloodTest, renderBloodTests)}
-                </div>
-                
-                <div>
-                  ${renderSectionIfHasData('Systemic Examination', report.systemicExamination, renderSystemicExam)}
-                  ${renderSectionIfHasData('Urine Test', report.selectedReport?.urineTest, renderUrineTest)}
-                  ${renderSectionIfHasData('Area 1 Tests', report.selectedReport?.area1, renderArea1Tests)}
-                </div>
+              <!-- Tests Section with Fluid Layout -->
+              <div class="tests-container">
+                ${renderSectionIfHasData('General Examination', report.generalExamination, renderGeneralExam)}
+                ${renderSectionIfHasData('Systemic Examination', report.systemicExamination, renderSystemicExam)}
+                ${renderSectionIfHasData('Urine Test', report.selectedReport?.urineTest, renderUrineTest)}
+                ${renderSectionIfHasData('Blood Tests', report.selectedReport?.bloodTest, renderBloodTests)}
+                ${renderSectionIfHasData('Laboratory Tests', report.selectedReport?.area1, renderArea1Tests)}
               </div>
               
+              <!-- Full-width sections for larger test tables -->
               <div class="full-width-section">
                 ${renderSectionIfHasData('Full Haemogram', report.selectedReport?.fullHaemogram, renderHaemogram)}
               </div>
               
-              <div class="two-column-layout">
-                <div>
-                  ${hasData(report.historyOfPastIllness) || hasData(report.allergy) ? `
-                    <div class="section">
-                      <h3 class="section-title">Medical History</h3>
-                      <div class="section-content">
-                        ${renderMedicalHistory(report)}
-                      </div>
+              <div class="full-width-section">
+                ${renderSectionIfHasData('Renal Function Test', report.selectedReport?.renalFunction, renderRenalFunction)}
+              </div>
+              
+              <div class="full-width-section">
+                ${renderSectionIfHasData('Liver Function Test', report.selectedReport?.liverFunction, renderLiverFunction)}
+              </div>
+              
+              <!-- Clinical Notes and Lab Remarks at the Bottom -->
+              <div class="bottom-section">
+                ${hasData(report.historyOfPastIllness) || hasData(report.allergy) ? `
+                  <div class="section">
+                    <h3 class="section-title">Medical History</h3>
+                    <div class="section-content">
+                      ${renderMedicalHistory(report)}
                     </div>
-                  ` : ''}
-                </div>
+                  </div>
+                ` : ''}
                 
-                <div>
-                  ${hasData(report.selectedReport?.labRemarks) ? `
-                    <div class="section">
-                      <h3 class="section-title">Lab Remarks & Conclusions</h3>
-                      <div class="section-content">
-                        ${renderLabRemarks(report.selectedReport?.labRemarks)}
-                      </div>
+                ${renderSectionIfHasData('Clinical Information', basicInfo, renderClinicalInfo)}
+                
+                ${hasData(report.selectedReport?.labRemarks) ? `
+                  <div class="section">
+                    <h3 class="section-title">Lab Remarks & Conclusions</h3>
+                    <div class="section-content">
+                      ${renderLabRemarks(report.selectedReport?.labRemarks)}
                     </div>
-                  ` : ''}
-                </div>
+                  </div>
+                ` : ''}
               </div>
             </div>
 
             <div class="footer">
-              <p><strong>Gulf Healthcare Kenya Ltd.</strong> • Computer-generated report • Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+              <p><strong>Gulf Healthcare Kenya Ltd.</strong> • Computer-generated report</p>
               <p>This is an official medical report. For any queries, contact our laboratory department.</p>
             </div>
           </div>
@@ -790,11 +966,16 @@ const LeftBar = () => {
               {/* Patient Information */}
               <div className="bg-gray-50 p-4 rounded-lg mb-4">
                 <h3 className="text-lg font-semibold text-gray-700 mb-2">Patient Information</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <p><strong>Name:</strong> {selectedReport.selectedReport?.patientName || 'N/A'}</p>
+                  <p><strong>Gender:</strong> {selectedReport.gender || 'N/A'}</p>
+                  <p><strong>Age:</strong> {selectedReport.age || 'N/A'}</p>
+                  <p><strong>Passport Number:</strong> {selectedReport.passportNumber || 'N/A'}</p>
                   <p><strong>Lab Number:</strong> {selectedReport.selectedReport?.labNumber || 'N/A'}</p>
-                  <p><strong>Medical Type:</strong> {selectedReport.selectedReport?.medicalType || 'N/A'}</p>
+                  <p></p>
                   <p><strong>Date:</strong> {new Date(selectedReport.selectedReport?.timeStamp).toLocaleDateString()}</p>
+                  <p><strong>Time:</strong> {new Date(selectedReport.selectedReport?.timeStamp).toLocaleTimeString()}</p>
+                  <p></p>
                 </div>
               </div>
 
@@ -836,10 +1017,10 @@ const LeftBar = () => {
                 </div>
               )}
 
-              {/* Area 1 Tests */}
+              {/* Laboratory Tests */}
               {selectedReport.selectedReport?.area1 && (
                 <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Area 1 Tests</h3>
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Laboratory Tests</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <p><strong>Blood Group:</strong> {selectedReport.selectedReport.area1.bloodGroup || 'N/A'}</p>
                     <p><strong>Pregnancy Test:</strong> {selectedReport.selectedReport.area1.pregnancyTest || 'N/A'}</p>

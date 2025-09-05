@@ -26,7 +26,12 @@ const ReportSection = ({ title, data }) => {
     return (
       <div key={key} className="text-sm">
         <span className="font-medium text-gray-700">{formattedKey}:</span>{' '}
-        <span className="text-gray-600">{value || 'N/A'}</span>
+        <span className="text-gray-600">
+          {typeof value === 'object' && value !== null && !Array.isArray(value) 
+            ? `${value.value || 'N/A'}${value.units ? ` ${value.units}` : ''}${value.status ? ` (${value.status})` : ''}`
+            : value || 'N/A'
+          }
+        </span>
       </div>
     );
   };

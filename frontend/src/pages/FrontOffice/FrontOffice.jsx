@@ -373,11 +373,28 @@ const FrontOffice = () => {
   };
 
   // Print Report Handler
-  const printReport = () => {
+  const printReport = async () => {
     if (filteredPatients.length === 0) {
       toast.error("No patients found to print");
       return;
     }
+
+    // Convert logo to base64
+    const getLogoBase64 = async () => {
+      try {
+        const response = await fetch(logo);
+        const blob = await response.blob();
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      } catch (error) {
+        console.error('Error converting logo to base64:', error);
+        return '';
+      }
+    };
+    const logoBase64 = await getLogoBase64();
 
     const formatData = (data) => {
       return data || 'N/A';
@@ -395,7 +412,7 @@ const FrontOffice = () => {
           }
           body {
             font-family: 'Arial', sans-serif;
-            font-size: 9px;
+            font-size: 11px;
             line-height: 1.3;
             color: #333;
             margin: 0;
@@ -414,7 +431,7 @@ const FrontOffice = () => {
             margin-bottom: 12px;
           }
           .report-title {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: bold;
             color: #0f766e;
             margin: 4px 0;
@@ -430,7 +447,7 @@ const FrontOffice = () => {
           .patients-table td {
             border: 1px solid #cbd5e1;
             padding: 6px 8px;
-            font-size: 8px;
+            font-size: 10px;
             text-align: left;
             font-weight: 500;
             word-wrap: break-word;
@@ -456,7 +473,7 @@ const FrontOffice = () => {
             padding-top: 8px;
             border-top: 2px solid #2dd4bf;
             text-align: center;
-            font-size: 8px;
+            font-size: 10px;
             color: #64748b;
           }
           .summary-info {
@@ -500,7 +517,8 @@ const FrontOffice = () => {
         <body>
           <div class="report-container">
             <div class="header">
-              <h1 class="report-title">GULF HEALTHCARE KENYA LTD - Patients Report</h1>
+              ${logoBase64 ? `<img src="${logoBase64}" alt="Gulf Healthcare Kenya Ltd" style="width: 200px; height: auto; display: block; margin: 0 auto 10px auto;" />` : ''}
+              <h2 class="report-title" style="margin-top: 10px;">Patients Report</h2>
               <div class="summary-info">
                 <strong>Report Summary:</strong> 
                 Total Patients: ${patients.length} | 
@@ -531,7 +549,7 @@ const FrontOffice = () => {
             </table>
 
             <div class="footer">
-              <p><strong>Gulf Healthcare Kenya Ltd.</strong> • Computer-generated report • Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+              <p><strong>Gulf Healthcare Kenya Ltd.</strong> • Computer-generated report</p>
               <p>This is an official patients report. For any queries, contact our front office department.</p>
             </div>
           </div>

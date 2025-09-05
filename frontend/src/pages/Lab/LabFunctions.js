@@ -1,20 +1,18 @@
 export const TESTS_BY_UNIT = {
   urineTest: ['albumin', 'sugar', 'microscopic', 'reaction'],
-  bloodTest: ['hivTest', 'hbsAg', 'hcv', 'esr'],
+  bloodTest: ['hivTest', 'hbsAg', 'hcv', 'esr', 'vdrlTest', 'pregnancyTest', 'bloodGroup'],
   generalExamination: ['hernia', 'varicoseVein', 'rightEye', 'leftEye'],
-  systemicExamination: [ 'heart', 'bloodPressure', 'pulseRate'],
+  systemicExamination: ['heart', 'bloodPressure', 'pulseRate'],
   fullHaemogram: [],
   liverFunction: [],
   renalFunction: [],
   heafChestTest: ['heafMantouxTest', 'chestXray'],
-  otherTests: ["hydrocele", "earRight", "earLeft", "lungs", "liver", "spleen", "otherDeformities"],
-  area1: ['stoolConsistency','stoolMicroscopy', 'tpha', 'vdrlTest', 'venerealDisease', 'pregnancyTest',
-     'typhoid', 'hydrocele', 'otherDeformities','earRight', 'earLeft', 'lungs', 'liver', 'spleen', 'bloodGroup']
+  laboratoryTests: ['stoolConsistency','stoolMicroscopy', 'tpha', 'venerealDisease', 'typhoid', 'hydrocele']
 };
 
 export const initialValues = {
   albumin: '', sugar: '', microscopic: '', reaction: '', 
-bloodTest: { hivTest: '', hbsAg: '', hcv: '', esr: '',     
+bloodTest: { hivTest: '', hbsAg: '', hcv: '', esr: '', vdrlTest: '', pregnancyTest: '', bloodGroup: ''    
 },
 generalExamination: {hernia: '', varicoseVein: '', rightEye: '', leftEye: '',       
 },
@@ -63,22 +61,13 @@ systemicExamination: { heart: '', bloodPressure: '', pulseRate: '',
   heafMantouxTest: '',
   chestXray: '',
 
-  // Added Area 1 Fields
+  // Added Laboratory Test Fields
   stoolConsistency: '',
   stoolMicroscopy: '',
   tpha: '',
-  vdrlTest: '',
   venerealDisease: '',
-  pregnancyTest: '',
   typhoid: '',
   hydrocele: '',
-  otherDeformities: '',
-  earRight: '',
-  earLeft: '',
-  lungs: '',
-  liver: '',
-  spleen: '',
-  bloodGroup: '',
 };
   
   

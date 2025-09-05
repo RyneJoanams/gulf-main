@@ -1,7 +1,7 @@
 import React from 'react';
 import { Field, ErrorMessage } from 'formik';
 
-const TableRow = ({ testName, namePrefix, unitsPlaceholder, rangePlaceholder, disabled }) => {
+const TableRow = ({ testName, namePrefix, unitsPlaceholder, rangePlaceholder, disabled, editableUnits = false }) => {
   return (
     <tr className="border-b border-gray-200 hover:bg-gray-50 transition duration-150">
       <td className="px-4 py-3 text-gray-700 font-medium">
@@ -22,9 +22,20 @@ const TableRow = ({ testName, namePrefix, unitsPlaceholder, rangePlaceholder, di
         />
       </td>
       
-      {unitsPlaceholder && (
-        <td className="px-4 py-3 text-gray-600 italic">
-          {unitsPlaceholder}
+      {editableUnits && (
+        <td className="px-4 py-3">
+          <Field
+            name={`${namePrefix}.units`}
+            type="text"
+            placeholder={unitsPlaceholder || "Enter Units"}
+            disabled={disabled}
+            className={`w-full p-2 border ${disabled ? 'bg-gray-100 text-gray-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition duration-200`}
+          />
+          <ErrorMessage
+            name={`${namePrefix}.units`}
+            component="div"
+            className="text-red-500 text-sm mt-1"
+          />
         </td>
       )}
 

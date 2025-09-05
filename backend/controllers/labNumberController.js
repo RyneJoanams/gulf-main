@@ -1,6 +1,55 @@
 const mongoose = require("mongoose");
 const express = require("express");
 const LabNumber = require("../models/labNumber");
+const Counter = require("../models/Counter");
+
+// Controller to generate lab number based on medical type
+exports.generateLabNumber = async (req, res) => {
+  const { patientId, medicalType, passportNumber } = req.body;
+
+  try {
+    // Determine prefix based on medical type
+    let prefix;
+    let counterName;
+    
+    if (medicalType === 'SM-VDRL') {
+      prefix = 'S';
+      counterName = 'S_SERIES';
+    } else if (['MAURITIUS', 'NORMAL', 'MEDICAL', 'FM'].includes(medicalType)) {
+      prefix = 'F';
+      counterName = 'F_SERIES';
+    } else {
+      // Default to F series for unknown types
+      prefix = 'F';
+      counterName = 'F_SERIES';
+    }
+
+    // Get and increment the counter
+    const counter = await Counter.findOneAndUpdate(
+      { name: counterName },
+      { $inc: { value: 1 } },
+      { new: true, upsert: true }
+    );
+
+    // Format the lab number
+    const formattedCounter = String(counter.value).padStart(3, '0');
+    const labNumber = `LAB-${passportNumber}-${prefix}${formattedCounter}`;
+
+    res.status(200).json({
+      success: true,
+      labNumber: labNumber,
+      series: prefix,
+      sequenceNumber: counter.value,
+      message: "Lab number generated successfully",
+    });
+  } catch (error) {
+    console.error("Error generating lab number:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate lab number",
+    });
+  }
+};
 
 // Controller to handle lab number submission
 exports.createLabNumber = async (req, res) => {

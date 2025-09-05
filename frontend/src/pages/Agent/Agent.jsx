@@ -4,57 +4,95 @@ import { FaChevronCircleLeft, FaPrint, FaChevronCircleRight, FaUser, FaClipboard
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import TopBar from "../../components/TopBar";
+import logo from '../../assets/GULF HEALTHCARE KENYA LTD.png';
 
 const Agent = () => {
     const [reports, setReports] = useState([]);
     const [filteredReports, setFilteredReports] = useState([]);
     const [selectedReport, setSelectedReport] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const [hasSearched, setHasSearched] = useState(false);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    useEffect(() => {
-        const fetchReports = async () => {
-            try {
-                const response = await axios.get("http://localhost:5000/api/clinical");
-                setReports(response.data);
-                setFilteredReports(response.data);
-                
-                toast.success('Reports Successfully Fetched.')
-                setIsLoading(false);
-            } catch (error) {
-                toast.error("Error Fetching Clinical Reports");
-                setIsLoading(false);
-            }
-        };
-
-        fetchReports();
-    }, []);
-
-    useEffect(() => {
-        let filtered = reports;
-
-        // Filter by search term (patient name or lab number)
-        if (searchTerm) {
-            filtered = filtered.filter((report) =>
-                (report?.selectedReport?.patientName &&
-                    report?.selectedReport?.patientName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                (report?.selectedReport?.labNumber &&
-                    report?.selectedReport?.labNumber?.toString().includes(searchTerm.toLowerCase()))
-            );
+    // Search function to fetch reports based on search term
+    const searchReports = async (searchValue) => {
+        if (!searchValue.trim()) {
+            setFilteredReports([]);
+            setHasSearched(false);
+            return;
         }
 
-        setFilteredReports(filtered);
-    }, [reports, searchTerm]);
+        setIsLoading(true);
+        setHasSearched(true);
+        try {
+            const response = await axios.get("http://localhost:5000/api/clinical");
+            const allReports = response.data;
+            
+            // Filter by search term (passport number or ID only for identity confirmation)
+            const filtered = allReports.filter((report) =>
+                (report?.selectedReport?.passportNumber &&
+                    report?.selectedReport?.passportNumber?.toLowerCase().includes(searchValue.toLowerCase())) ||
+                (report?.selectedReport?.labNumber &&
+                    report?.selectedReport?.labNumber?.toString().includes(searchValue.toLowerCase()))
+            );
+            
+            setReports(allReports);
+            setFilteredReports(filtered);
+            setCurrentPage(1); // Reset to first page when searching
+            
+            if (filtered.length === 0) {
+                toast.info('No patients found matching your search criteria.');
+            } else {
+                toast.success(`Found ${filtered.length} patient(s) matching your search.`);
+            }
+        } catch (error) {
+            toast.error("Error searching for patients");
+            setFilteredReports([]);
+        }
+        setIsLoading(false);
+    };
 
-    const printReport = () => {
+    // Handle search input changes with debouncing
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            if (searchTerm.trim()) {
+                searchReports(searchTerm);
+            } else {
+                setFilteredReports([]);
+                setHasSearched(false);
+                setSelectedReport(null);
+            }
+        }, 500); // Debounce search for 500ms
+
+        return () => clearTimeout(timeoutId);
+    }, [searchTerm]);
+
+    const printReport = async () => {
         if (!selectedReport) {
             toast.error("No report selected for printing");
             return;
         }
+
+        // Convert logo to base64
+        const getLogoBase64 = async () => {
+            try {
+                const response = await fetch(logo);
+                const blob = await response.blob();
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (error) {
+                console.error('Error converting logo to base64:', error);
+                return '';
+            }
+        };
+        const logoBase64 = await getLogoBase64();
 
         const formatData = (data) => {
             return data || 'N/A';
@@ -78,7 +116,7 @@ const Agent = () => {
                     }
                     body {
                         font-family: 'Arial', sans-serif;
-                        font-size: 12px;
+                        font-size: 14px;
                         line-height: 1.4;
                         color: #333;
                         margin: 0;
@@ -138,7 +176,7 @@ const Agent = () => {
                     }
                     .info-value {
                         color: #1f2937;
-                        font-size: 14px;
+                        font-size: 16px;
                     }
                     .fitness-status {
                         text-align: center;
@@ -164,7 +202,7 @@ const Agent = () => {
                         padding-top: 20px;
                         border-top: 2px solid #0f766e;
                         text-align: center;
-                        font-size: 10px;
+                        font-size: 12px;
                         color: #64748b;
                     }
                 }
@@ -180,8 +218,8 @@ const Agent = () => {
                 <body>
                     <div class="report-container">
                         <div class="header">
-                            <h1 class="report-title">GULF HEALTHCARE KENYA LTD</h1>
-                            <h2 style="color: #64748b; margin: 10px 0;">Patient Summary Report</h2>
+                            ${logoBase64 ? `<img src="${logoBase64}" alt="Gulf Healthcare Kenya Ltd" style="width: 200px; height: auto; display: block; margin: 0 auto 10px auto;" />` : ''}
+                            <h2 style="color: #64748b; margin: 10px 0;">Agent Summary Report</h2>
                             ${selectedReport.selectedReport.patientImage ? `
                                 <img 
                                     src="data:image/jpeg;base64,${selectedReport.selectedReport.patientImage}" 
@@ -198,12 +236,20 @@ const Agent = () => {
                                     <span class="info-value">${formatData(selectedReport.selectedReport.patientName)}</span>
                                 </div>
                                 <div class="info-item">
+                                    <span class="info-label">Gender:</span>
+                                    <span class="info-value">${formatData(selectedReport.selectedReport.gender)}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Age:</span>
+                                    <span class="info-value">${formatData(selectedReport.selectedReport.age)}</span>
+                                </div>
+                                <div class="info-item">
                                     <span class="info-label">Lab Number:</span>
                                     <span class="info-value">${formatData(selectedReport.selectedReport.labNumber)}</span>
                                 </div>
                                 <div class="info-item">
-                                    <span class="info-label">Medical Type:</span>
-                                    <span class="info-value">${formatData(selectedReport.selectedReport.medicalType)}</span>
+                                    <span class="info-label">Passport Number:</span>
+                                    <span class="info-value">${formatData(selectedReport.selectedReport.passportNumber)}</span>
                                 </div>
                                 <div class="info-item">
                                     <span class="info-label">Report Date:</span>
@@ -256,15 +302,28 @@ const Agent = () => {
                     <div className="bg-white dark:bg-gray-200 rounded-lg shadow-lg p-4 overflow-y-auto">
                         <input
                             type="text"
-                            placeholder="Search by patient name or lab number"
+                            placeholder="Search by passport number or ID only"
                             className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
 
                         {isLoading ? (
-                            <p className="text-center">Loading Reports, Please Wait...</p>
-                        ) : paginatedReports.length > 0 ? (
+                            <div className="text-center py-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto mb-2"></div>
+                                <p className="text-gray-600">Searching for patients...</p>
+                            </div>
+                        ) : !hasSearched ? (
+                            <div className="text-center py-12">
+                                <FaUser className="mx-auto text-4xl text-gray-400 mb-4" />
+                                <h3 className="text-lg font-medium text-gray-600 mb-2">
+                                    Search for Patients
+                                </h3>
+                                <p className="text-sm text-gray-500">
+                                    Enter a passport number or ID to find patient records
+                                </p>
+                            </div>
+                        ) : filteredReports.length > 0 ? (
                             paginatedReports.map((report) => (
                                 <div
                                     key={report._id}
@@ -301,9 +360,11 @@ const Agent = () => {
                                             <p className="text-sm">
                                                 Lab #: <span className="font-semibold">{report.selectedReport.labNumber}</span>
                                             </p>
-                                            <p className="text-sm">
-                                                Type: <span className="font-semibold">{report.selectedReport.medicalType || 'N/A'}</span>
-                                            </p>
+                                            {report.selectedReport.passportNumber && (
+                                                <p className="text-sm">
+                                                    Passport: <span className="font-semibold">{report.selectedReport.passportNumber}</span>
+                                                </p>
+                                            )}
                                             <p className="text-xs">
                                                 {new Date(report.selectedReport.timeStamp).toLocaleDateString()}
                                             </p>
@@ -312,29 +373,39 @@ const Agent = () => {
                                 </div>
                             ))
                         ) : (
-                            <p className="text-center text-gray-500">No reports found.</p>
+                            <div className="text-center py-12">
+                                <FaUser className="mx-auto text-4xl text-gray-400 mb-4" />
+                                <h3 className="text-lg font-medium text-gray-600 mb-2">
+                                    No Patients Found
+                                </h3>
+                                <p className="text-sm text-gray-500">
+                                    No patients match your search criteria. Try searching with a different passport number or ID.
+                                </p>
+                            </div>
                         )}
 
-                        {/* Pagination */}
-                        <div className="flex justify-between items-center mt-4">
-                            <button
-                                disabled={currentPage === 1}
-                                onClick={() => setCurrentPage(currentPage - 1)}
-                                className="bg-teal-500 text-white p-2 rounded-md hover:bg-teal-600 disabled:opacity-50"
-                            >
-                                <FaChevronCircleLeft />
-                            </button>
-                            <div className="text-center text-sm">
-                                Page {currentPage} of {Math.ceil(filteredReports.length / itemsPerPage)}
+                        {/* Pagination - only show when there are search results */}
+                        {hasSearched && filteredReports.length > 0 && (
+                            <div className="flex justify-between items-center mt-4">
+                                <button
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(currentPage - 1)}
+                                    className="bg-teal-500 text-white p-2 rounded-md hover:bg-teal-600 disabled:opacity-50"
+                                >
+                                    <FaChevronCircleLeft />
+                                </button>
+                                <div className="text-center text-sm">
+                                    Page {currentPage} of {Math.ceil(filteredReports.length / itemsPerPage)}
+                                </div>
+                                <button
+                                    disabled={currentPage === Math.ceil(filteredReports.length / itemsPerPage)}
+                                    onClick={() => setCurrentPage(currentPage + 1)}
+                                    className="bg-teal-500 text-white p-2 rounded-md hover:bg-teal-600 disabled:opacity-50"
+                                >
+                                    <FaChevronCircleRight />
+                                </button>
                             </div>
-                            <button
-                                disabled={currentPage === Math.ceil(filteredReports.length / itemsPerPage)}
-                                onClick={() => setCurrentPage(currentPage + 1)}
-                                className="bg-teal-500 text-white p-2 rounded-md hover:bg-teal-600 disabled:opacity-50"
-                            >
-                                <FaChevronCircleRight />
-                            </button>
-                        </div>
+                        )}
                     </div>
 
                     {/* Patient Summary */}
@@ -374,10 +445,22 @@ const Agent = () => {
                                             </div>
                                         </div>
                                         <div className="flex-1">
-                                            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                                            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
                                                 {selectedReport.selectedReport.patientName}
                                             </h3>
                                             <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Gender:</span>
+                                                    <p className="text-lg font-semibold text-gray-800 dark:text-white">
+                                                        {selectedReport.selectedReport.gender || 'N/A'}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Age:</span>
+                                                    <p className="text-lg font-semibold text-gray-800 dark:text-white">
+                                                        {selectedReport.selectedReport.age || 'N/A'}
+                                                    </p>
+                                                </div>
                                                 <div>
                                                     <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Lab Number:</span>
                                                     <p className="text-lg font-semibold text-gray-800 dark:text-white">
@@ -385,9 +468,9 @@ const Agent = () => {
                                                     </p>
                                                 </div>
                                                 <div>
-                                                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Medical Type:</span>
+                                                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Passport Number:</span>
                                                     <p className="text-lg font-semibold text-gray-800 dark:text-white">
-                                                        {selectedReport.selectedReport.medicalType || 'N/A'}
+                                                        {selectedReport.selectedReport.passportNumber || 'N/A'}
                                                     </p>
                                                 </div>
                                                 <div>
@@ -467,10 +550,13 @@ const Agent = () => {
                             <div className="text-center py-12">
                                 <FaUser className="mx-auto text-6xl text-gray-400 mb-4" />
                                 <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">
-                                    No Patient Selected
+                                    {!hasSearched ? "Search for a Patient" : "No Patient Selected"}
                                 </h3>
                                 <p className="text-gray-500 dark:text-gray-400">
-                                    Select a patient from the list to view their summary
+                                    {!hasSearched 
+                                        ? "Use the search box to find a patient by passport number or ID"
+                                        : "Select a patient from the search results to view their summary"
+                                    }
                                 </p>
                             </div>
                         )}

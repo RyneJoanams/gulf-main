@@ -24,6 +24,7 @@ const upload = multer({
 //Patient Registration Routes
 patientRoutes.get('/', patientController.getAllPatients);
 patientRoutes.get('/pending-payment', patientController.getPatientsPendingPayment);
+patientRoutes.get('/without-lab-numbers', patientController.getPatientsWithoutLabNumbers);
 patientRoutes.get('/:id', patientController.getPatientById);
 patientRoutes.post('/', upload.single('photo'), patientController.createPatient); // File upload for patient photo
 patientRoutes.put('/mark-payment-recorded', patientController.markPaymentRecorded);

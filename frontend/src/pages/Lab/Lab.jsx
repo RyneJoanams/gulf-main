@@ -246,7 +246,7 @@ const Lab = () => {
     }));
   };
 
-  // Functions to render existing data in view mode
+  // Enhanced functions to render existing data in view mode
   const renderViewData = (data, sectionTitle) => {
     console.log(`Rendering ${sectionTitle}:`, data);
     
@@ -264,18 +264,38 @@ const Lab = () => {
       return null;
     }
 
+    // Get icon based on section title
+    const getIcon = (title) => {
+      if (title.toLowerCase().includes('urine')) return 'fas fa-tint';
+      if (title.toLowerCase().includes('blood')) return 'fas fa-heartbeat';
+      if (title.toLowerCase().includes('laboratory')) return 'fas fa-microscope';
+      return 'fas fa-vial';
+    };
+
     return (
-      <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <h4 className="text-lg font-semibold text-blue-800 mb-3">{sectionTitle}</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {validEntries.map(([key, value]) => (
-            <div key={key} className="flex justify-between bg-white p-2 rounded shadow-sm">
-              <span className="font-medium text-gray-700 capitalize">
-                {key.replace(/([A-Z])/g, ' $1')}:
-              </span>
-              <span className="text-gray-900 font-semibold">{String(value)}</span>
-            </div>
-          ))}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4">
+          <h4 className="text-xl font-bold text-white flex items-center gap-2">
+            <i className={getIcon(sectionTitle)}></i>
+            {sectionTitle}
+          </h4>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {validEntries.map(([key, value]) => (
+              <div key={key} className="bg-gradient-to-br from-gray-50 to-blue-50 p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-200">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-gray-700 capitalize flex items-center gap-2">
+                    <i className="fas fa-circle text-blue-400 text-xs"></i>
+                    {key.replace(/([A-Z])/g, ' $1')}:
+                  </span>
+                  <span className="text-gray-900 font-bold bg-white px-3 py-1 rounded-full shadow-sm">
+                    {String(value)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -299,38 +319,78 @@ const Lab = () => {
       return null;
     }
 
+    // Get icon based on section title
+    const getIcon = (title) => {
+      if (title.toLowerCase().includes('renal')) return 'fas fa-kidneys';
+      if (title.toLowerCase().includes('haemogram')) return 'fas fa-heartbeat';
+      if (title.toLowerCase().includes('liver')) return 'fas fa-liver';
+      return 'fas fa-table';
+    };
+
+    // Only show Units column for Full Haemogram
+    const showUnitsColumn = sectionTitle.toLowerCase().includes('haemogram');
+
     return (
-      <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <h4 className="text-lg font-semibold text-blue-800 mb-3">{sectionTitle}</h4>
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-green-500 to-teal-600 px-6 py-4">
+          <h4 className="text-xl font-bold text-white flex items-center gap-2">
+            <i className={getIcon(sectionTitle)}></i>
+            {sectionTitle}
+          </h4>
+        </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="px-4 py-2 text-left border border-gray-200 font-semibold">Test</th>
-                <th className="px-4 py-2 text-left border border-gray-200 font-semibold">Value</th>
-                <th className="px-4 py-2 text-left border border-gray-200 font-semibold">Units</th>
-                <th className="px-4 py-2 text-left border border-gray-200 font-semibold">Status</th>
-                <th className="px-4 py-2 text-left border border-gray-200 font-semibold">Range</th>
+          <table className="min-w-full">
+            <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">
+                  Test Name
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">
+                  Value
+                </th>
+                {showUnitsColumn && (
+                  <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">
+                    Units
+                  </th>
+                )}
+                <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">
+                  Range
+                </th>
               </tr>
             </thead>
-            <tbody>
-              {validEntries.map(([test, values]) => (
-                <tr key={test} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-2 font-medium border border-gray-200">
-                    {test.replace(/([A-Z])/g, ' $1').toUpperCase()}
+            <tbody className="bg-white divide-y divide-gray-200">
+              {validEntries.map(([test, values], index) => (
+                <tr key={test} className={`hover:bg-blue-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 capitalize">
+                    {test.replace(/([A-Z])/g, ' $1')}
                   </td>
-                  <td className="px-4 py-2 border border-gray-200">{values.value || '-'}</td>
-                  <td className="px-4 py-2 border border-gray-200">{values.units || '-'}</td>
-                  <td className="px-4 py-2 border border-gray-200">
-                    <span className={`px-2 py-1 rounded text-sm ${
-                      values.status === 'Normal' ? 'bg-green-100 text-green-800' :
-                      values.status === 'Abnormal' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {values.status || '-'}
-                    </span>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
+                    {values.value || '-'}
                   </td>
-                  <td className="px-4 py-2 border border-gray-200">{values.range || '-'}</td>
+                  {showUnitsColumn && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {values.units || '-'}
+                    </td>
+                  )}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {values.status ? (
+                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
+                        values.status.toLowerCase() === 'normal' 
+                          ? 'bg-green-100 text-green-800 border border-green-300' 
+                          : 'bg-red-100 text-red-800 border border-red-300'
+                      }`}>
+                        {values.status}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {values.range || '-'}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -339,6 +399,12 @@ const Lab = () => {
       </div>
     );
   };
+
+  const filteredPatients = useMemo(() => {
+    return patientData.patients.filter((patient) =>
+      patient.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [patientData.patients, searchTerm]);
 
   const labRemarks = {
     fitnessEvaluation: {
@@ -470,12 +536,6 @@ const Lab = () => {
 
 
 
-  // Filter patients based on the search term
-  const filteredPatients = patientData.patients.filter((patient) =>
-    patient.name && patient.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-
   return (
     <>
       <TopBar />
@@ -530,562 +590,812 @@ const Lab = () => {
                   Patient Name: <span className="font-semibold">{selectedPatient || 'No data'}</span>
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-gray-50 rounded-lg shadow-lg">
+                {/* Enhanced Patient Selection Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg border border-blue-100">
                   {/* Patient Image Display */}
-                  <div className="bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
-                    {selectedPatient ? (
-                      patientData.patients
-                        .filter((patient) => patient.name === selectedPatient)
-                        .map((patient) => (
-                          <div key={patient.labNumber} className="flex flex-col items-center space-y-4">
-                            {/* Patient Image */}
-                            {patient.photo ? (
-                              <img
-                                src={`data:image/jpeg;base64,${patient.photo}`}
-                                alt={`${patient.name}`}
-                                className="w-40 h-40 rounded-full shadow-lg object-cover border-4 border-blue-500 transition-transform transform hover:scale-105"
-                              />
-                            ) : (
-                              <div className="w-40 h-40 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-semibold shadow-lg">
-                                No Image
+                  <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 flex flex-col items-center transition-all duration-300 hover:shadow-xl">
+                    <div className="flex flex-col items-center space-y-4">
+                      <div className="relative">
+                        {selectedPatient && selectedPatient !== 'Select Patient' ? (
+                          patientData.patients
+                            .filter((patient) => patient.name === selectedPatient)
+                            .map((patient) => (
+                              <div key={patient.labNumber} className="flex flex-col items-center space-y-4">
+                                {/* Patient Image */}
+                                {patient.photo ? (
+                                  <div className="relative">
+                                    <img
+                                      src={`data:image/jpeg;base64,${patient.photo}`}
+                                      alt={`${patient.name}`}
+                                      className="w-32 h-32 rounded-full shadow-xl object-cover border-4 border-gradient-to-r from-blue-400 to-purple-500 transition-transform transform hover:scale-105"
+                                    />
+                                    <div className="absolute bottom-0 right-0 w-8 h-8 bg-green-500 rounded-full border-4 border-white flex items-center justify-center">
+                                      <i className="fas fa-check text-white text-xs"></i>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-gray-500 font-semibold shadow-xl border-4 border-gray-200">
+                                    <i className="fas fa-user text-3xl"></i>
+                                  </div>
+                                )}
+
+                                {/* Patient Details */}
+                                <div className="text-center">
+                                  <h2 className="text-xl font-bold text-gray-800 mb-2">{patient.name}</h2>
+                                  <div className="space-y-1">
+                                    <p className="text-sm text-gray-600 bg-blue-50 px-3 py-1 rounded-full">
+                                      <i className="fas fa-hashtag mr-1"></i>
+                                      Lab: <span className="font-semibold">{selectedLabNumber || 'Not Selected'}</span>
+                                    </p>
+                                    <p className="text-sm text-gray-600 bg-green-50 px-3 py-1 rounded-full">
+                                      <i className="fas fa-stethoscope mr-1"></i>
+                                      Type: <span className="font-semibold">{patient.medicalType || 'Standard'}</span>
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
-                            )}
-
-                            {/* Patient Details */}
-                            <h2 className="text-lg font-bold text-gray-800">{patient.name}</h2>
-                            <p className="text-gray-500 text-sm italic">
-                              Lab Number: <span className="font-semibold">{selectedLabNumber}</span>
-                            </p>
-                            <p className="text-gray-500 text-sm italic">
-                              Medical Type: <span className="font-semibold">{selectedPatientData?.medicalType || 'N/A'}</span>
-                            </p>
-                          </div>
-                        ))
-                    ) : (
-                      <div className="text-gray-500 italic">No patient selected.</div>
-                    )}
-                  </div>
-
-                  {/* Search and Dropdown */}
-                  <div className="bg-white p-6 rounded-lg shadow-md">
-                    {/* Search Input */}
-                    <div className="mb-6">
-                      <label
-                        className="block text-gray-600 font-semibold mb-2"
-                        htmlFor="patientSearch"
-                      >
-                        <i className="fas fa-search mr-2 text-blue-500"></i>Search Patient
-                      </label>
-                      <input
-                        type="text"
-                        id="patientSearch"
-                        placeholder="Search by name"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 ease-in-out"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
-
-                    {/* Dropdown for Selecting Patient */}
-                    <div>
-                      <label
-                        className="block text-gray-600 font-semibold mb-2"
-                        htmlFor="patientSelect"
-                      >
-                        <i className="fas fa-user mr-2 text-blue-500"></i>Select Patient
-                      </label>
-                      <select
-                        id="patientSelect"
-                        className="w-full px-4 py-3 border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out text-gray-700 bg-white"
-                        value={selectedPatient}
-                        onChange={(e) => setSelectedPatient(e.target.value)}
-                        disabled={!patientData.patients || patientData.patients.length === 0}
-                      >
-                        {/* Default option */}
-                        <option value="Select Patient">Select Patient</option>
-                        {filteredPatients.length > 0 ? (
-                          filteredPatients.map((patient) => (
-                            <option key={patient.labNumber} value={patient.name}>
-                              {patient.name}
-                            </option>
-                          ))
+                            ))
                         ) : (
-                          <option>No patients found</option>
-                        )}
-                      </select>
-
-                      {/* Lab Number Selection */}
-                      <div className="max-w-4xl mx-auto">
-                        <label className="block text-gray-600 font-semibold mt-5 mb-2">Lab Numbers</label>
-
-                        {loading && <div className="text-center text-gray-500">Loading...</div>}
-                        {error && <div className="text-center text-red-500">{error}</div>}
-
-                        {!loading && !error && labNumbers.length > 0 ? (
-                          <div>
-                            <div className="mb-6">
-                              <input
-                                type="text"
-                                placeholder="Search Lab Number"
-                                value={search}
-                                onChange={handleSearchChange}
-                                className="w-full p-3 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300 ease-in-out"
-                              />
+                          <div className="flex flex-col items-center space-y-4">
+                            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-400 shadow-lg">
+                              <i className="fas fa-user-plus text-4xl"></i>
                             </div>
-
-                            <div className="relative mb-6">
-                              <select
-                                value={selectedLabNumber}
-                                onChange={handleSelectChange}
-                                className="w-full p-3 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300 ease-in-out"
-                              >
-                                <option value="">Select Lab Number</option>
-                                {filteredLabNumbers.map((lab) => (
-                                  <option key={lab._id} value={lab.number}>
-                                    {lab.number}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {selectedLabNumber && (
-                              <div className="mt-4 text-sm text-gray-700">
-                                <p>Selected Lab Number: <span className="font-semibold">{selectedLabNumber}</span></p>
-                              </div>
-                            )}
+                            <p className="text-gray-500 text-center font-medium">Select a patient to begin</p>
                           </div>
-                        ) : (
-                          !loading && !error && (
-                            <div className="text-center text-gray-500">No lab numbers available</div>
-                          )
                         )}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Patient Search and Selection */}
+                  <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 space-y-6">
+                    <div className="text-center mb-4">
+                      <h3 className="text-lg font-semibold text-gray-800 flex items-center justify-center gap-2">
+                        <i className="fas fa-search text-blue-500"></i>
+                        Patient Selection
+                      </h3>
+                    </div>
+
+                    {/* Search Input */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Search Patient
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Type patient name..."
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                      </div>
+                    </div>
+
+                    {/* Patient Dropdown */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Patient
+                      </label>
+                      <div className="relative">
+                        <select
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 bg-white"
+                          value={selectedPatient}
+                          onChange={(e) => setSelectedPatient(e.target.value)}
+                          disabled={!patientData.patients || patientData.patients.length === 0}
+                        >
+                          <option value="Select Patient">Choose a patient...</option>
+                          {filteredPatients.length > 0 ? (
+                            filteredPatients.map((patient) => (
+                              <option key={patient.labNumber} value={patient.name}>
+                                {patient.name}
+                              </option>
+                            ))
+                          ) : (
+                            <option disabled>No patients found</option>
+                          )}
+                        </select>
+                        <i className="fas fa-user absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lab Number Selection */}
+                  <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 space-y-6">
+                    <div className="text-center mb-4">
+                      <h3 className="text-lg font-semibold text-gray-800 flex items-center justify-center gap-2">
+                        <i className="fas fa-flask text-green-500"></i>
+                        Lab Number
+                      </h3>
+                    </div>
+
+                    {loading && (
+                      <div className="text-center py-8">
+                        <div className="inline-flex items-center gap-2 text-blue-600">
+                          <i className="fas fa-spinner fa-spin"></i>
+                          Loading lab numbers...
+                        </div>
+                      </div>
+                    )}
+
+                    {error && (
+                      <div className="text-center py-4">
+                        <div className="inline-flex items-center gap-2 text-red-600 bg-red-50 px-4 py-2 rounded-lg">
+                          <i className="fas fa-exclamation-triangle"></i>
+                          {error}
+                        </div>
+                      </div>
+                    )}
+
+                    {!loading && !error && labNumbers.length > 0 ? (
+                      <div className="space-y-4">
+                        {/* Lab Number Search */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Search Lab Number
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="Type lab number..."
+                              value={search}
+                              onChange={handleSearchChange}
+                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200"
+                            />
+                            <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                          </div>
+                        </div>
+
+                        {/* Lab Number Dropdown */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Select Lab Number
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={selectedLabNumber}
+                              onChange={handleSelectChange}
+                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200 bg-white"
+                            >
+                              <option value="">Choose lab number...</option>
+                              {filteredLabNumbers.map((lab) => (
+                                <option key={lab._id} value={lab.number}>
+                                  {lab.number}
+                                </option>
+                              ))}
+                            </select>
+                            <i className="fas fa-flask absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                          </div>
+                        </div>
+
+                        {selectedLabNumber && (
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                            <div className="flex items-center gap-2 text-green-800">
+                              <i className="fas fa-check-circle"></i>
+                              <span className="font-medium">Selected: {selectedLabNumber}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      !loading && !error && (
+                        <div className="text-center py-8">
+                          <div className="text-gray-500">
+                            <i className="fas fa-flask text-4xl mb-2 block"></i>
+                            No lab numbers available
+                          </div>
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
 
-                {/* Show existing data in view mode */}
+                {/* Enhanced Lab Report View Section */}
                 {isViewMode && existingLabData && (
-                  <div className="mb-8 p-6 bg-gray-50 rounded-lg border-2 border-blue-200">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6 text-center bg-blue-100 p-3 rounded">Lab Report Data</h2>
+                  <div className="mb-8 p-8 bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl border-2 border-blue-200 shadow-lg">
+                    <div className="text-center mb-8">
+                      <h2 className="text-3xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-3">
+                        <i className="fas fa-file-medical text-blue-600"></i>
+                        Lab Report Analysis
+                      </h2>
+                      <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-500 mx-auto rounded-full"></div>
+                    </div>
                     
-                    {/* Patient Information Section */}
-                    <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <h4 className="text-lg font-semibold text-blue-800 mb-3">Patient Information</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="flex justify-between bg-white p-2 rounded shadow-sm">
-                          <span className="font-medium text-gray-700">Patient Name:</span>
-                          <span className="text-gray-900 font-semibold">{selectedPatient}</span>
+                    {/* Patient Information Header */}
+                    <div className="mb-8 p-6 bg-white rounded-xl shadow-md border border-blue-100">
+                      <h4 className="text-xl font-bold text-blue-800 mb-4 flex items-center gap-2">
+                        <i className="fas fa-user-circle"></i>
+                        Patient Information
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg shadow-sm border border-blue-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <i className="fas fa-user text-blue-600"></i>
+                            <span className="font-medium text-gray-700">Patient Name</span>
+                          </div>
+                          <span className="text-gray-900 font-bold text-lg">{selectedPatient}</span>
                         </div>
-                        <div className="flex justify-between bg-white p-2 rounded shadow-sm">
-                          <span className="font-medium text-gray-700">Lab Number:</span>
-                          <span className="text-gray-900 font-semibold">{selectedLabNumber}</span>
+                        <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg shadow-sm border border-green-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <i className="fas fa-hashtag text-green-600"></i>
+                            <span className="font-medium text-gray-700">Lab Number</span>
+                          </div>
+                          <span className="text-gray-900 font-bold text-lg">{selectedLabNumber}</span>
                         </div>
-                        <div className="flex justify-between bg-white p-2 rounded shadow-sm">
-                          <span className="font-medium text-gray-700">Report Date:</span>
-                          <span className="text-gray-900 font-semibold">{new Date().toLocaleDateString()}</span>
+                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg shadow-sm border border-purple-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <i className="fas fa-calendar text-purple-600"></i>
+                            <span className="font-medium text-gray-700">Report Date</span>
+                          </div>
+                          <span className="text-gray-900 font-bold">{new Date().toLocaleDateString()}</span>
                         </div>
-                        <div className="flex justify-between bg-white p-2 rounded shadow-sm">
-                          <span className="font-medium text-gray-700">Report Time:</span>
-                          <span className="text-gray-900 font-semibold">{new Date().toLocaleTimeString()}</span>
+                        <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg shadow-sm border border-orange-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <i className="fas fa-clock text-orange-600"></i>
+                            <span className="font-medium text-gray-700">Report Time</span>
+                          </div>
+                          <span className="text-gray-900 font-bold">{new Date().toLocaleTimeString()}</span>
                         </div>
                       </div>
                     </div>
                     
-                    {/* Render Urine Test Data */}
-                    {renderViewData(existingLabData.urineTest, "Urine Test Results")}
+                    {/* Test Results Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                      {/* Render Test Results */}
+                      {renderViewData(existingLabData.urineTest, "Urine Test Results")}
+                      {renderViewData(existingLabData.bloodTest, "Blood Test Results")}
+                      {renderViewData(existingLabData.area1, "Laboratory Test Results")}
+                    </div>
                     
-                    {/* Render Blood Test Data */}
-                    {renderViewData(existingLabData.bloodTest, "Blood Test Results")}
+                    {/* Advanced Test Results */}
+                    <div className="space-y-6 mb-6">
+                      {renderTableViewData(existingLabData.renalFunction, "Renal Function Test Results")}
+                      {renderTableViewData(existingLabData.fullHaemogram, "Full Haemogram Results")}
+                      {renderTableViewData(existingLabData.liverFunction, "Liver Function Test Results")}
+                    </div>
                     
-                    {/* Render Laboratory Tests Data */}
-                    {renderViewData(existingLabData.area1, "Laboratory Test Results")}
-                    
-                    {/* Render Renal Function Test Data */}
-                    {renderTableViewData(existingLabData.renalFunction, "Renal Function Test Results")}
-                    
-                    {/* Render Full Haemogram Data */}
-                    {renderTableViewData(existingLabData.fullHaemogram, "Full Haemogram Results")}
-                    
-                    {/* Render Liver Function Test Data */}
-                    {renderTableViewData(existingLabData.liverFunction, "Liver Function Test Results")}
-                    
-                    {/* Render Lab Remarks */}
+                    {/* Lab Remarks Section */}
                     {existingLabData.labRemarks && (
-                      <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
-                        <h4 className="text-lg font-semibold text-green-800 mb-3">Lab Remarks</h4>
-                        <div className="space-y-2">
-                          <div className="bg-white p-2 rounded shadow-sm">
-                            <strong className="text-gray-700">Fit in other aspects:</strong> 
-                            <span className={`ml-2 px-2 py-1 rounded text-sm font-semibold ${
-                              existingLabData.labRemarks.fitnessEvaluation?.otherAspectsFit === 'YES' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {existingLabData.labRemarks.fitnessEvaluation?.otherAspectsFit}
-                            </span>
-                          </div>
-                          <div className="bg-white p-2 rounded shadow-sm">
-                            <strong className="text-gray-700">Overall Status:</strong> 
-                            <span className={`ml-2 px-2 py-1 rounded text-sm font-semibold ${
-                              existingLabData.labRemarks.fitnessEvaluation?.overallStatus === 'FIT' ? 'bg-green-100 text-green-800' : 
-                              existingLabData.labRemarks.fitnessEvaluation?.overallStatus === 'UNFIT' ? 'bg-red-100 text-red-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {existingLabData.labRemarks.fitnessEvaluation?.overallStatus}
-                            </span>
-                          </div>
-                          <div className="bg-white p-2 rounded shadow-sm">
-                            <strong className="text-gray-700">Lab Superintendent:</strong> 
-                            <span className="ml-2 text-gray-900 font-semibold">{existingLabData.labRemarks.labSuperintendent?.name}</span>
+                      <div className="bg-white rounded-xl shadow-md border border-green-200 overflow-hidden">
+                        <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4">
+                          <h4 className="text-xl font-bold text-white flex items-center gap-2">
+                            <i className="fas fa-clipboard-check"></i>
+                            Medical Assessment
+                          </h4>
+                        </div>
+                        <div className="p-6 space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-gray-700">Fitness Assessment:</span>
+                                <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                                  existingLabData.labRemarks.fitnessEvaluation?.otherAspectsFit === 'YES' 
+                                    ? 'bg-green-100 text-green-800 border border-green-300' 
+                                    : 'bg-red-100 text-red-800 border border-red-300'
+                                }`}>
+                                  {existingLabData.labRemarks.fitnessEvaluation?.otherAspectsFit}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-gray-700">Overall Status:</span>
+                                <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                                  existingLabData.labRemarks.fitnessEvaluation?.overallStatus === 'FIT' 
+                                    ? 'bg-green-100 text-green-800 border border-green-300' : 
+                                  existingLabData.labRemarks.fitnessEvaluation?.overallStatus === 'UNFIT' 
+                                    ? 'bg-red-100 text-red-800 border border-red-300' :
+                                    'bg-yellow-100 text-yellow-800 border border-yellow-300'
+                                }`}>
+                                  {existingLabData.labRemarks.fitnessEvaluation?.overallStatus}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-gray-700">Superintendent:</span>
+                                <span className="text-gray-900 font-bold">
+                                  {existingLabData.labRemarks.labSuperintendent?.name}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Show message if no data found */}
+                    {/* No Data Message */}
                     {(!existingLabData.urineTest || Object.keys(existingLabData.urineTest || {}).length === 0) &&
                      (!existingLabData.bloodTest || Object.keys(existingLabData.bloodTest || {}).length === 0) &&
                      (!existingLabData.area1 || Object.keys(existingLabData.area1 || {}).length === 0) &&
                      (!existingLabData.renalFunction || Object.keys(existingLabData.renalFunction || {}).length === 0) &&
                      (!existingLabData.fullHaemogram || Object.keys(existingLabData.fullHaemogram || {}).length === 0) &&
                      (!existingLabData.liverFunction || Object.keys(existingLabData.liverFunction || {}).length === 0) && (
-                      <div className="text-center p-6 bg-gray-100 rounded-lg">
-                        <p className="text-gray-600 text-lg">No lab test data found for this report.</p>
+                      <div className="text-center p-8 bg-white rounded-xl border border-gray-200">
+                        <i className="fas fa-exclamation-circle text-6xl text-gray-300 mb-4"></i>
+                        <p className="text-gray-600 text-xl font-medium">No lab test data found for this report.</p>
+                        <p className="text-gray-500 mt-2">Please check if the lab tests have been completed.</p>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Show form inputs only when not in view mode or when editing */}
+                {/* Enhanced Test Input Forms */}
                 {(!isViewMode || isEditMode) && (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Urine Test Section */}
-                      <div className="mb-8 p-6 bg-gray-50 rounded-lg">
-                        <h3 className="flex items-center gap-4 text-xl font-semibold mb-4">
-                          <label className="flex items-center gap-4 text-black">
-                            <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.urineTest || false} onChange={() => handleUnitSelect('urineTest')} /> <b>Urine Test</b></label>
+                  <div className="space-y-8">
+                    {/* Enhanced Urine Test Section */}
+                    <div className="bg-white rounded-xl shadow-lg border border-blue-200 overflow-hidden">
+                      <div className="bg-gradient-to-r from-blue-500 to-cyan-600 px-6 py-4">
+                        <h3 className="flex items-center gap-3 text-xl font-bold text-white">
+                          <label className="flex items-center gap-3 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-blue-600 focus:ring-2 focus:ring-white" 
+                              checked={selectedUnits.urineTest || false} 
+                              onChange={() => handleUnitSelect('urineTest')} 
+                            />
+                            <i className="fas fa-tint"></i>
+                            Urine Test
+                          </label>
                           {selectedUnits.urineTest && (
-                            <label className="flex items-center gap-2 text-sm text-black"><input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectAll.urineTest || false} onChange={() => handleSelectAllTests('urineTest')} />Select All</label>)}
-                        </h3>
-                        {selectedUnits.urineTest && (
-                          <>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                              <label className='flex items-center gap-2'><input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedTests.urineTest?.albumin || false} onChange={() => handleTestSelect('urineTest', 'albumin')} /> Albumin:</label>
-                              {selectedTests.urineTest?.albumin && (<Field name="urineTest.albumin" className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="text" />)}
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                              <label className='flex items-center gap-2'><input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedTests.urineTest?.sugar || false} onChange={() => handleTestSelect('urineTest', 'sugar')} /> Sugar:</label>
-                              {selectedTests.urineTest?.sugar && (<Field name="urineTest.sugar" className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="text" />)}
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                              <label className='flex items-center gap-2'><input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedTests.urineTest?.microscopic || false} onChange={() => handleTestSelect('urineTest', 'microscopic')} /> Microscopic:</label>
-                              {selectedTests.urineTest?.microscopic && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="urineTest.microscopic" type="text" />)}
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                              <label className='flex items-center gap-2'><input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedTests.urineTest?.reaction || false} onChange={() => handleTestSelect('urineTest', 'reaction')} /> Reaction:</label>
-                              {selectedTests.urineTest?.reaction && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="urineTest.reaction" type="text" />)}
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Blood Test Section */}
-                      <div className="mb-8 p-6 bg-gray-50 rounded-lg">
-                        <h3 className='flex items-center gap-4 text-xl font-semibold mb-4 text-black'>
-                          <label className="flex items-center gap-2 text-black">
-                            <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.bloodTest || false} onChange={() => handleUnitSelect('bloodTest')} /><b>Blood Test</b></label>
-                          {selectedUnits.bloodTest && (
-                            <label className="flex items-center gap-2 text-sm">
-                              <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectAll.bloodTest || false} onChange={() => handleSelectAllTests('bloodTest')} />Select All</label>)}
-                        </h3>
-                        {selectedUnits.bloodTest && (
-                          <>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                              <label className="flex items-center gap-2 text-black"><input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-black" checked={selectedTests.bloodTest?.hivTest || false} onChange={() => handleTestSelect('bloodTest', 'hivTest')} /> HIV Test (I, II):</label>
-                              {selectedTests.bloodTest?.hivTest && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="bloodTest.hivTest" type="text" />)}
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                              <label className="flex items-center gap-2 text-black"><input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-black" checked={selectedTests.bloodTest?.hbsAg || false} onChange={() => handleTestSelect('bloodTest', 'hbsAg')} /> HbsAg:</label>
-                              {selectedTests.bloodTest?.hbsAg && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="bloodTest.hbsAg" type="text" />)}
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                              <label className="flex items-center gap-2 text-black"><input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-black" checked={selectedTests.bloodTest?.hcv || false} onChange={() => handleTestSelect('bloodTest', 'hcv')} /> HCV:</label>
-                              {selectedTests.bloodTest?.hcv && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="bloodTest.hcv" type="text" />)}
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                              <label className="flex items-center gap-2 text-black"><input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-black" checked={selectedTests.bloodTest?.esr || false} onChange={() => handleTestSelect('bloodTest', 'esr')} /> ESR(1stHR):</label>
-                              {selectedTests.bloodTest?.esr && (<Field className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" name="bloodTest.esr" type="text" />)}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Laboratory Test Section */}
-                    <div className="grid grid-cols-4 gap-2 mb-8 p-6 bg-gray-50 rounded-lg">
-                      <h3 className='flex items-center gap-4 text-xl font-semibold mb-4 text-black'>
-                        <label className="flex items-center gap-2 text-black">
-                          <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.area1 || false} onChange={() => handleUnitSelect('area1')} /><b>Laboratory Tests</b></label>
-                        {selectedUnits.area1 && (
-                          <label> <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectAll.area1 || false} onChange={() => handleSelectAllTests('area1')} />Select All</label>)}
-                      </h3>
-                      {selectedUnits.area1 && (
-                        <>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.stoolConsistency || false} onChange={() => handleTestSelect('area1', 'stoolConsistency')} /> stool Consistency:</label>
-                            {selectedTests.area1?.stoolConsistency && (<Field name="area1.stoolConsistency" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.stoolMicroscopy || false} onChange={() => handleTestSelect('area1', 'stoolMicroscopy')} /> stoolMicroscopy:</label>
-                            {selectedTests.area1?.stoolMicroscopy && (<Field name="area1.stoolMicroscopy" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.tpha || false} onChange={() => handleTestSelect('area1', 'tpha')} /> TPHA:</label>
-                            {selectedTests.area1?.tpha && (<Field name="area1.tpha" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.vdrlTest || false} onChange={() => handleTestSelect('area1', 'vdrlTest')} /> VDRL Test:</label>
-                            {selectedTests.area1?.vdrlTest && (<Field name="area1.vdrlTest" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.venerealDisease || false} onChange={() => handleTestSelect('area1', 'venerealDisease')} /> venereal Disease:</label>
-                            {selectedTests.area1?.venerealDisease && (<Field name="area1.venerealDisease" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.pregnancyTest || false} onChange={() => handleTestSelect('area1', 'pregnancyTest')} /> Pregnancy Test:</label>
-                            {selectedTests.area1?.pregnancyTest && (<Field name="area1.pregnancyTest" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.typhoid || false} onChange={() => handleTestSelect('area1', 'typhoid')} /> Typhoid:</label>
-                            {selectedTests.area1?.typhoid && (<Field name="area1.typhoid" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.otherDeformities || false} onChange={() => handleTestSelect('area1', 'otherDeformities')} /> Other Deformities:</label>
-                            {selectedTests.area1?.otherDeformities && (<Field name="area1.otherDeformities" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.earRight || false} onChange={() => handleTestSelect('area1', 'earRight')} /> Ear Right:</label>
-                            {selectedTests.area1?.earRight && (<Field name="area1.earRight" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.earLeft || false} onChange={() => handleTestSelect('area1', 'earLeft')} /> Ear Left:</label>
-                            {selectedTests.area1?.earLeft && (<Field name="area1.earLeft" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.lungs || false} onChange={() => handleTestSelect('area1', 'lungs')} /> Lungs:</label>
-                            {selectedTests.area1?.lungs && (<Field name="area1.lungs" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.liver || false} onChange={() => handleTestSelect('area1', 'liver')} /> Liver:</label>
-                            {selectedTests.area1?.liver && (<Field name="area1.liver" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label><input type="checkbox" checked={selectedTests.area1?.spleen || false} onChange={() => handleTestSelect('area1', 'spleen')} /> spleen:</label>
-                            {selectedTests.area1?.spleen && (<Field name="area1.spleen" type="text" />)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <label>
-                              <input
-                                type="checkbox"
-                                checked={selectedTests.area1?.bloodGroup || false}
-                                onChange={() => handleTestSelect('area1', 'bloodGroup')}
-                              /> Blood Group:
+                            <label className="flex items-center gap-2 text-sm ml-auto">
+                              <input 
+                                type="checkbox" 
+                                className="w-4 h-4 rounded border-white bg-white/20 checked:bg-white checked:text-blue-600" 
+                                checked={selectAll.urineTest || false} 
+                                onChange={() => handleSelectAllTests('urineTest')} 
+                              />
+                              Select All
                             </label>
-
-                            {selectedTests.area1?.bloodGroup && (
-                              <Field as="select" name="area1.bloodGroup" className="border rounded px-2 py-1">
-                                <option value="">Select</option>
-                                <option value="A+">A+</option>
-                                <option value="A-">A−</option>
-                                <option value="B+">B+</option>
-                                <option value="B-">B−</option>
-                                <option value="AB+">AB+</option>
-                                <option value="AB-">AB−</option>
-                                <option value="O+">O+</option>
-                                <option value="O-">O−</option>
-                              </Field>
-                            )}
-                          </div>
-                        </>
+                          )}
+                        </h3>
+                      </div>
+                      {selectedUnits.urineTest && (
+                        <div className="p-6 space-y-4 bg-gradient-to-br from-blue-50 to-cyan-50">
+                          {[
+                            { key: 'albumin', label: 'Albumin', icon: 'fas fa-circle' },
+                            { key: 'sugar', label: 'Sugar', icon: 'fas fa-cube' },
+                            { key: 'microscopic', label: 'Microscopic', icon: 'fas fa-microscope' },
+                            { key: 'reaction', label: 'Reaction', icon: 'fas fa-flask' }
+                          ].map(({ key, label, icon }) => (
+                            <div key={key} className="bg-white rounded-lg p-4 border border-blue-200 shadow-sm">
+                              <div className="flex items-center gap-4">
+                                <label className="flex items-center gap-3 cursor-pointer min-w-0 flex-1">
+                                  <input 
+                                    type="checkbox" 
+                                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                                    checked={selectedTests.urineTest?.[key] || false} 
+                                    onChange={() => handleTestSelect('urineTest', key)} 
+                                  />
+                                  <i className={`${icon} text-blue-600`}></i>
+                                  <span className="font-medium text-gray-700">{label}:</span>
+                                </label>
+                                {selectedTests.urineTest?.[key] && (
+                                  <div className="flex-1 max-w-xs">
+                                    <Field 
+                                      name={`urineTest.${key}`} 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200" 
+                                      type="text" 
+                                      placeholder={`Enter ${label.toLowerCase()}`}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
 
-                    {/* Renal Function Test Section */}
-                    <div className="overflow-x-auto">
-                      <h3 className="flex items-center gap-4 text-xl font-semibold mb-4 text-black">
-                        <label className="flex items-center gap-2 text-black">
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 rounded border-gray-300"
-                            checked={selectedUnits.renalFunction || false}
-                            onChange={() => handleSelectAllTestsInUnit('renalFunction')}
-                          />{' '}
-                          Renal Function Test
-                        </label>
-                      </h3>
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Test
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Value
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Range
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {['urea', 'creatinine', 'fastingBloodSugar'].map((test) => (
-                            <TableRow
-                              key={test}
-                              testName={test.replace(/([A-Z])/g, ' $1')}
-                              namePrefix={`renalFunction.${test}`}
-                              rangePlaceholder="Range"
-                              disabled={!selectedUnits.renalFunction}
+                    {/* Enhanced Laboratory Test Section (now includes Blood Tests) */}
+                    <div className="bg-white rounded-xl shadow-lg border border-green-200 overflow-hidden">
+                      <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4">
+                        <h3 className="flex items-center gap-3 text-xl font-bold text-white">
+                          <label className="flex items-center gap-3 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-green-600 focus:ring-2 focus:ring-white" 
+                              checked={selectedUnits.area1 || false} 
+                              onChange={() => handleUnitSelect('area1')} 
                             />
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Full Haemogram Section */}
-                    <div className='grid grid-cols-2 gap-3 mt-10'>
-                      <div className="overflow-x-auto">
-                        <h3 className='flex items-center gap-4 text-xl font-semibold mb-4 text-black'>
-                          <label className="flex items-center gap-2 text-black">
-                            <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.fullHaemogram || false} onChange={() => handleSelectAllTestsInUnit('fullHaemogram')} /> Full Haemogram Report</label>
-                        </h3>
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className='bg-gray-50'>
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Test</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Units</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Range</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {['wbc', 'lym', 'mid', 'gran', 'rbc', 'mcv', 'hgb', 'hct', 'mch', 'mchc', 'rwd', 'plcr', 'plt', 'mpv', 'pct', 'pdw'].map((test) => (
-                              <TableRow
-                                key={test}
-                                testName={test.toUpperCase()}
-                                namePrefix={`fullHaemogram.${test}`}
-                                unitsPlaceholder="Units"
-                                rangePlaceholder="Range"
-                                disabled={!selectedUnits.fullHaemogram}
+                            <i className="fas fa-microscope"></i>
+                            Laboratory Tests
+                          </label>
+                          {selectedUnits.area1 && (
+                            <label className="flex items-center gap-2 text-sm ml-auto">
+                              <input 
+                                type="checkbox" 
+                                className="w-4 h-4 rounded border-white bg-white/20 checked:bg-white checked:text-green-600" 
+                                checked={selectAll.area1 || false} 
+                                onChange={() => handleSelectAllTests('area1')} 
                               />
-                            ))}
-                          </tbody>
-                        </table>
+                              Select All
+                            </label>
+                          )}
+                        </h3>
                       </div>
-
-                      {/* Liver Function Test Section */}
-                      <div className="overflow-x-auto">
-                        <h3 className='flex items-center gap-4 text-xl font-semibold mb-4 text-black'>
-                          <label className="flex items-center gap-2 text-black">
-                            <input type="checkbox" className="w-4 h-4 rounded border-gray-300" checked={selectedUnits.liverFunction || false} onChange={() => handleSelectAllTestsInUnit('liverFunction')} /> Liver Function Test</label>
-                        </h3>
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className='bg-gray-50'>
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Test</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Range</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {['totalBilirubin', 'directBilirubin', 'indirectBilirubin', 'sgot', 'sgpt', 'gammaGt', 'alkalinePhosphate', 'totalProteins', 'albumin1'].map((test) => (
-                              <TableRow
-                                key={test}
-                                testName={test.replace(/([A-Z])/g, ' $1')}
-                                namePrefix={`liverFunction.${test}`}
-                                rangePlaceholder="Range"
-                                disabled={!selectedUnits.liverFunction}
-                              />
-                            ))}
-                          </tbody>
-                        </table>
-
-                        {/* Lab Remarks */}
-                        <div className="bg-gray-100 flex flex-col items-center justify-center p-6">
-                          {/* Fitness Evaluation Section */}
-                          <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-lg">
-                            <h3 className="text-2xl font-bold text-teal-600 mb-6 text-center">
-                              Fitness Evaluation
-                            </h3>
-
-                            {/* First Dropdown for Other Aspects */}
-                            <div className="mb-2">
-                              <label className="block text-gray-700 font-medium mb-2">
-                                Does applicant appear fit in all other respects?
-                              </label>
-                              <select className="w-full px-4 py-2 border rounded-lg text-gray-700 focus:ring-2 focus:ring-teal-400 focus:outline-none"
-                                value={otherAspectsFit}
-                                onChange={(e) => setOtherAspectsFit(e.target.value)}
-                              >
-                                <option value="" disabled>Select</option>
-                                <option value="YES">YES</option>
-                                <option value="NO">NO</option>
-                              </select>
+                      {selectedUnits.area1 && (
+                        <div className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 space-y-6">
+                          
+                          {/* Blood Tests Subsection */}
+                          <div className="bg-white rounded-lg border-2 border-red-200 overflow-hidden">
+                            <div className="bg-gradient-to-r from-red-500 to-pink-600 px-4 py-3">
+                              <h4 className="flex items-center gap-2 text-lg font-bold text-white">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input 
+                                    type="checkbox" 
+                                    className="w-4 h-4 rounded border-white bg-white/20 checked:bg-white checked:text-red-600 focus:ring-2 focus:ring-white" 
+                                    checked={selectedUnits.bloodTest || false} 
+                                    onChange={() => handleUnitSelect('bloodTest')} 
+                                  />
+                                  <i className="fas fa-heartbeat text-sm"></i>
+                                  Blood Tests
+                                </label>
+                                {selectedUnits.bloodTest && (
+                                  <label className="flex items-center gap-2 text-sm ml-auto">
+                                    <input 
+                                      type="checkbox" 
+                                      className="w-3 h-3 rounded border-white bg-white/20 checked:bg-white checked:text-red-600" 
+                                      checked={selectAll.bloodTest || false} 
+                                      onChange={() => handleSelectAllTests('bloodTest')} 
+                                    />
+                                    Select All
+                                  </label>
+                                )}
+                              </h4>
                             </div>
-
-                            {/* Second Dropdown for Overall Opinion */}
-                            <div className="mb-2">
-                              <label className="block text-gray-700 font-medium mb-2">
-                                In my opinion, I find the applicant
-                                <select className="w-full px-4 py-2 border rounded-lg text-gray-700 focus:ring-2 focus:ring-teal-400 focus:outline-none"
-                                  value={overallStatus}
-                                  onChange={(e) => setOverallStatus(e.target.value)}
-                                >
-                                  <option value="" disabled>Select</option>
-                                  <option value="FIT">FIT</option>
-                                  <option value="UNFIT">UNFIT</option>
-                                  <option value="NOT SURE">NOT SURE</option>
-                                </select>
-                                for employment.
-                              </label>
-                            </div>
+                            {selectedUnits.bloodTest && (
+                              <div className="p-4 bg-gradient-to-br from-red-50 to-pink-50">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  {[
+                                    { key: 'hivTest', label: 'HIV Test (I, II)', icon: 'fas fa-shield-alt' },
+                                    { key: 'hbsAg', label: 'HbsAg', icon: 'fas fa-virus' },
+                                    { key: 'hcv', label: 'HCV', icon: 'fas fa-virus-slash' },
+                                    { key: 'esr', label: 'ESR(1stHR)', icon: 'fas fa-clock' }
+                                  ].map(({ key, label, icon }) => (
+                                    <div key={key} className="bg-white rounded-lg p-3 border border-red-200 shadow-sm">
+                                      <div className="flex items-center gap-3">
+                                        <label className="flex items-center gap-2 cursor-pointer min-w-0 flex-1">
+                                          <input 
+                                            type="checkbox" 
+                                            className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500" 
+                                            checked={selectedTests.bloodTest?.[key] || false} 
+                                            onChange={() => handleTestSelect('bloodTest', key)} 
+                                          />
+                                          <i className={`${icon} text-red-600 text-sm`}></i>
+                                          <span className="font-medium text-gray-700 text-sm">{label}:</span>
+                                        </label>
+                                        {selectedTests.bloodTest?.[key] && (
+                                          <div className="flex-1 max-w-xs">
+                                            <Field 
+                                              name={`bloodTest.${key}`} 
+                                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200" 
+                                              type="text" 
+                                              placeholder={`Enter ${label.toLowerCase()}`}
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
 
-                          {/* Lab Superintendent Section */}
-                          <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-lg mt-2">
-                            <h3 className="text-2xl font-bold text-teal-600 mb-6 text-center">
-                              Lab Superintendent
-                            </h3>
-                            <label className="block text-gray-700 font-medium mb-2">
-                              Name:
+                          {/* General Laboratory Tests */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {[
+                              { key: 'stoolConsistency', label: 'Stool Consistency', icon: 'fas fa-vial' },
+                              { key: 'stoolMicroscopy', label: 'Stool Microscopy', icon: 'fas fa-microscope' },
+                              { key: 'tpha', label: 'TPHA', icon: 'fas fa-shield-alt' },
+                              { key: 'vdrlTest', label: 'VDRL Test', icon: 'fas fa-shield-alt' },
+                              { key: 'venerealDisease', label: 'Venereal Disease', icon: 'fas fa-virus' },
+                              { key: 'pregnancyTest', label: 'Pregnancy Test', icon: 'fas fa-baby' },
+                              { key: 'typhoid', label: 'Typhoid', icon: 'fas fa-virus-slash' }
+                            ].map(({ key, label, icon }) => (
+                              <div key={key} className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
+                                <div className="flex items-center gap-4">
+                                  <label className="flex items-center gap-3 cursor-pointer min-w-0 flex-1">
+                                    <input 
+                                      type="checkbox" 
+                                      className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500" 
+                                      checked={selectedTests.area1?.[key] || false} 
+                                      onChange={() => handleTestSelect('area1', key)} 
+                                    />
+                                    <i className={`${icon} text-green-600`}></i>
+                                    <span className="font-medium text-gray-700">{label}:</span>
+                                  </label>
+                                  {selectedTests.area1?.[key] && (
+                                    <div className="flex-1 max-w-xs">
+                                      <Field 
+                                        name={`area1.${key}`} 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200" 
+                                        type="text" 
+                                        placeholder={`Enter ${label.toLowerCase()}`}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {/* Special Blood Group Selection */}
+                            <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm col-span-1 md:col-span-2">
+                              <div className="flex items-center gap-4">
+                                <label className="flex items-center gap-3 cursor-pointer min-w-0 flex-1">
+                                  <input
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    checked={selectedTests.area1?.bloodGroup || false}
+                                    onChange={() => handleTestSelect('area1', 'bloodGroup')}
+                                  />
+                                  <i className="fas fa-tint text-green-600"></i>
+                                  <span className="font-medium text-gray-700">Blood Group:</span>
+                                </label>
+                                {selectedTests.area1?.bloodGroup && (
+                                  <div className="flex-1 max-w-xs">
+                                    <Field 
+                                      as="select" 
+                                      name="area1.bloodGroup" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200 bg-white"
+                                    >
+                                      <option value="">Select Blood Group</option>
+                                      <option value="A+">A+</option>
+                                      <option value="A-">A−</option>
+                                      <option value="B+">B+</option>
+                                      <option value="B-">B−</option>
+                                      <option value="AB+">AB+</option>
+                                      <option value="AB-">AB−</option>
+                                      <option value="O+">O+</option>
+                                      <option value="O-">O−</option>
+                                    </Field>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Enhanced Advanced Tests Section */}
+                    <div className="space-y-8">
+                      {/* Renal Function Test */}
+                      <div className="bg-white rounded-xl shadow-lg border border-purple-200 overflow-hidden">
+                        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-4">
+                          <h3 className="flex items-center gap-3 text-xl font-bold text-white">
+                            <label className="flex items-center gap-3 cursor-pointer">
                               <input
-                                type="text"
-                                placeholder="Enter Lab Superintendent Name"
-                                className="w-full px-4 py-2 border rounded-lg text-gray-700 focus:ring-2 focus:ring-teal-400 focus:outline-none"
-                                value={labSuperintendent}
-                                onChange={(e) => setLabSuperintendent(e.target.value)}
+                                type="checkbox"
+                                className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-purple-600 focus:ring-2 focus:ring-white"
+                                checked={selectedUnits.renalFunction || false}
+                                onChange={() => handleSelectAllTestsInUnit('renalFunction')}
                               />
+                              <i className="fas fa-kidneys"></i>
+                              Renal Function Test
                             </label>
+                          </h3>
+                        </div>
+                        {selectedUnits.renalFunction && (
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full">
+                              <thead className="bg-gradient-to-r from-purple-50 to-indigo-50">
+                                <tr>
+                                  <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">
+                                    Test
+                                  </th>
+                                  <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">
+                                    Value
+                                  </th>
+                                  <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">
+                                    Status
+                                  </th>
+                                  <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">
+                                    Range
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {['urea', 'creatinine', 'fastingBloodSugar'].map((test) => (
+                                  <TableRow
+                                    key={test}
+                                    testName={test.replace(/([A-Z])/g, ' $1')}
+                                    namePrefix={`renalFunction.${test}`}
+                                    rangePlaceholder="Range"
+                                    disabled={!selectedUnits.renalFunction}
+                                  />
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Enhanced Advanced Tests Grid */}
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                        {/* Full Haemogram Section */}
+                        <div className="bg-white rounded-xl shadow-lg border border-red-200 overflow-hidden">
+                          <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4">
+                            <h3 className="flex items-center gap-3 text-xl font-bold text-white">
+                              <label className="flex items-center gap-3 cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-red-600 focus:ring-2 focus:ring-white" 
+                                  checked={selectedUnits.fullHaemogram || false} 
+                                  onChange={() => handleSelectAllTestsInUnit('fullHaemogram')} 
+                                />
+                                <i className="fas fa-heartbeat"></i>
+                                Full Haemogram
+                              </label>
+                            </h3>
+                          </div>
+                          {selectedUnits.fullHaemogram && (
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full">
+                                <thead className="bg-gradient-to-r from-red-50 to-rose-50">
+                                  <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Test</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Value</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Units</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Status</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Range</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {['wbc', 'lym', 'mid', 'gran', 'rbc', 'mcv', 'hgb', 'hct', 'mch', 'mchc', 'rwd', 'plcr', 'plt', 'mpv', 'pct', 'pdw'].map((test) => (
+                                    <TableRow
+                                      key={test}
+                                      testName={test.toUpperCase()}
+                                      namePrefix={`fullHaemogram.${test}`}
+                                      unitsPlaceholder="Units"
+                                      rangePlaceholder="Range"
+                                      disabled={!selectedUnits.fullHaemogram}
+                                      editableUnits={true}
+                                    />
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Liver Function and Assessment */}
+                        <div className="space-y-8">
+                          {/* Liver Function Test Section */}
+                          <div className="bg-white rounded-xl shadow-lg border border-orange-200 overflow-hidden">
+                            <div className="bg-gradient-to-r from-orange-500 to-amber-600 px-6 py-4">
+                              <h3 className="flex items-center gap-3 text-xl font-bold text-white">
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                  <input 
+                                    type="checkbox" 
+                                    className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-orange-600 focus:ring-2 focus:ring-white" 
+                                    checked={selectedUnits.liverFunction || false} 
+                                    onChange={() => handleSelectAllTestsInUnit('liverFunction')} 
+                                  />
+                                  <i className="fas fa-liver"></i>
+                                  Liver Function
+                                </label>
+                              </h3>
+                            </div>
+                            {selectedUnits.liverFunction && (
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full">
+                                  <thead className="bg-gradient-to-r from-orange-50 to-amber-50">
+                                    <tr>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Test</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Value</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Status</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Range</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white divide-y divide-gray-200">
+                                    {['totalBilirubin', 'directBilirubin', 'indirectBilirubin', 'sgot', 'sgpt', 'gammaGt', 'alkalinePhosphate', 'totalProteins', 'albumin1'].map((test) => (
+                                      <TableRow
+                                        key={test}
+                                        testName={test.replace(/([A-Z])/g, ' $1')}
+                                        namePrefix={`liverFunction.${test}`}
+                                        rangePlaceholder="Range"
+                                        disabled={!selectedUnits.liverFunction}
+                                      />
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Enhanced Assessment Section */}
+                          <div className="bg-white rounded-xl shadow-lg border border-teal-200 overflow-hidden">
+                            <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4">
+                              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <i className="fas fa-clipboard-check"></i>
+                                Medical Assessment
+                              </h3>
+                            </div>
+                            <div className="p-6 bg-gradient-to-br from-teal-50 to-cyan-50 space-y-6">
+                              {/* Fitness Evaluation */}
+                              <div className="bg-white rounded-lg p-6 border border-teal-200 shadow-sm">
+                                <h4 className="text-lg font-bold text-teal-700 mb-4 flex items-center gap-2">
+                                  <i className="fas fa-user-check"></i>
+                                  Fitness Evaluation
+                                </h4>
+                                <div className="space-y-4">
+                                  <div>
+                                    <label className="block text-gray-700 font-medium mb-2">
+                                      Does applicant appear fit in all other respects?
+                                    </label>
+                                    <select 
+                                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition duration-200"
+                                      value={otherAspectsFit}
+                                      onChange={(e) => setOtherAspectsFit(e.target.value)}
+                                    >
+                                      <option value="">Select...</option>
+                                      <option value="YES">YES</option>
+                                      <option value="NO">NO</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-gray-700 font-medium mb-2">
+                                      In my opinion, I find the applicant
+                                    </label>
+                                    <select 
+                                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition duration-200"
+                                      value={overallStatus}
+                                      onChange={(e) => setOverallStatus(e.target.value)}
+                                    >
+                                      <option value="">Select status...</option>
+                                      <option value="FIT">FIT</option>
+                                      <option value="UNFIT">UNFIT</option>
+                                      <option value="NOT SURE">NOT SURE</option>
+                                    </select>
+                                    <span className="text-gray-600 text-sm mt-1 block">for employment.</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Lab Superintendent */}
+                              <div className="bg-white rounded-lg p-6 border border-teal-200 shadow-sm">
+                                <h4 className="text-lg font-bold text-teal-700 mb-4 flex items-center gap-2">
+                                  <i className="fas fa-user-md"></i>
+                                  Lab Superintendent
+                                </h4>
+                                <div>
+                                  <label className="block text-gray-700 font-medium mb-2">
+                                    Superintendent Name:
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Enter Lab Superintendent Name"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition duration-200"
+                                    value={labSuperintendent}
+                                    onChange={(e) => setLabSuperintendent(e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </>
+                  </div>
                 )}
 
+                {/* Enhanced Submit Button */}
                 {(!isViewMode || isEditMode) && (
-                  <button 
-                    type="submit" 
-                    className="mt-10 w-1/4 bg-blue-500 hover:bg-blue-600 text-white text-[16px] font-semibold py-2 px-4 rounded shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:scale-105"
-                  >
-                    <FaSave className='inline mr-3' />
-                    {existingLabData ? 'UPDATE LAB REPORT' : 'SUBMIT LAB REPORT'}
-                  </button>
+                  <div className="flex justify-center pt-8">
+                    <button 
+                      type="submit" 
+                      className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300"
+                    >
+                      <span className="flex items-center gap-3">
+                        <i className="fas fa-save text-xl"></i>
+                        {existingLabData ? 'UPDATE LAB REPORT' : 'SUBMIT LAB REPORT'}
+                      </span>
+                      <div className="absolute inset-0 rounded-xl bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+                    </button>
+                  </div>
                 )}
 
               </Form>
@@ -1093,12 +1403,14 @@ const Lab = () => {
           </Formik>
 
         ) : (
-          <div className="flex items-center justify-center h-screen">
-            <div className="text-lg font-semibold text-gray-600">
-              Please select a patient to view their lab reports.
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center p-8 bg-white rounded-xl shadow-lg border border-gray-200">
+              <i className="fas fa-user-plus text-6xl text-gray-300 mb-4"></i>
+              <h3 className="text-xl font-semibold text-gray-600 mb-2">No Patient Selected</h3>
+              <p className="text-gray-500">Please select a patient to view their lab reports.</p>
             </div>
           </div>
-        )};
+        )}
 
       </div>
       <Footer />
