@@ -12,6 +12,7 @@ const Clinical = () => {
     const [reports, setReports] = useState([]);
     const [filteredReports, setFilteredReports] = useState([]);
     const [selectedReport, setSelectedReport] = useState(null);
+    const [selectedPatientDetails, setSelectedPatientDetails] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [testTypeFilter, setTestTypeFilter] = useState("All");
@@ -242,6 +243,9 @@ const Clinical = () => {
 
             const clinicalReport = {
                 selectedReport,
+                passportNumber: selectedPatientDetails?.passportNumber,
+                gender: selectedPatientDetails?.gender,
+                age: selectedPatientDetails?.age,
                 ...filteredData,
                 clinicalNotes: formData.clinicalNotes,
                 clinicalOfficerName: formData.clinicalOfficerName,
@@ -261,6 +265,15 @@ const Clinical = () => {
             setReports(updatedReports);
             setFilteredReports(updatedReports);
 
+            // Dispatch event to refresh the clinical reports in LeftBar
+            const event = new CustomEvent('clinicalReportSubmitted', {
+                detail: {
+                    labNumber: selectedReport?.labNumber,
+                    patientName: selectedReport?.patientName
+                }
+            });
+            window.dispatchEvent(event);
+
             // Reset form and selection
             setFormData({
                 generalExamination: {},
@@ -277,9 +290,46 @@ const Clinical = () => {
             setSelectAll({});
             setSelectedUnits({});
             setSelectedReport(null);
+            setSelectedPatientDetails(null);
         } catch (error) {
             toast.error("Error creating report");
             console.error(error);
+        }
+    };
+
+    // Function to fetch patient details based on patient name
+    const fetchPatientDetails = async (patientName) => {
+        try {
+            const response = await axios.get('http://localhost:5000/api/patient');
+            const patients = response.data;
+            
+            // Find patient by name (case-insensitive)
+            const patient = patients.find(p => 
+                p.name.toLowerCase() === patientName.toLowerCase()
+            );
+            
+            if (patient) {
+                setSelectedPatientDetails({
+                    passportNumber: patient.passportNumber,
+                    gender: patient.sex, // Patient model uses 'sex' field
+                    age: patient.age
+                });
+            } else {
+                setSelectedPatientDetails(null);
+                toast.warning(`Patient details not found for: ${patientName}`);
+            }
+        } catch (error) {
+            console.error('Error fetching patient details:', error);
+            setSelectedPatientDetails(null);
+            toast.error('Failed to fetch patient details');
+        }
+    };
+
+    // Function to handle report selection with patient details fetching
+    const handleReportSelection = async (report) => {
+        setSelectedReport(report);
+        if (report && report.patientName) {
+            await fetchPatientDetails(report.patientName);
         }
     };
 
@@ -406,7 +456,7 @@ const Clinical = () => {
                                     return (
                                         <div
                                             key={report._id}
-                                            onClick={() => setSelectedReport(report)}
+                                            onClick={() => handleReportSelection(report)}
                                             className={`relative p-4 rounded-lg mb-4 transition-all duration-300 ease-in-out hover:scale-105 border shadow-md hover:shadow-lg
               ${selectedReport?._id === report._id
                                                     ? "bg-gradient-to-br from-teal-600 to-teal-700 text-white border-teal-400"
@@ -514,6 +564,19 @@ const Clinical = () => {
                                             </h2>
                                             <p className="text-gray-600 mt-2">Lab Number: <span className="font-semibold">{selectedReport.labNumber}</span></p>
                                             <p className="text-gray-600">Test Date: <span className="font-semibold">{new Date(selectedReport.timeStamp).toLocaleDateString()}</span></p>
+                                            
+                                            {/* Patient Basic Information */}
+                                            <div className="mt-3 space-y-1">
+                                                <p className="text-gray-600">
+                                                    Passport: <span className="font-semibold">{selectedPatientDetails?.passportNumber || 'N/A'}</span>
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Gender: <span className="font-semibold">{selectedPatientDetails?.gender || 'N/A'}</span>
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Age: <span className="font-semibold">{selectedPatientDetails?.age || 'N/A'}</span>
+                                                </p>
+                                            </div>
                                         </div>
                                         <div className="flex flex-col space-y-2">
                                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${

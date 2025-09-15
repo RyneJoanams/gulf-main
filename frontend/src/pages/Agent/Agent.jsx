@@ -34,8 +34,8 @@ const Agent = () => {
             
             // Filter by search term (passport number or ID only for identity confirmation)
             const filtered = allReports.filter((report) =>
-                (report?.selectedReport?.passportNumber &&
-                    report?.selectedReport?.passportNumber?.toLowerCase().includes(searchValue.toLowerCase())) ||
+                (report?.passportNumber &&
+                    report?.passportNumber?.toLowerCase().includes(searchValue.toLowerCase())) ||
                 (report?.selectedReport?.labNumber &&
                     report?.selectedReport?.labNumber?.toString().includes(searchValue.toLowerCase()))
             );
@@ -237,11 +237,11 @@ const Agent = () => {
                                 </div>
                                 <div class="info-item">
                                     <span class="info-label">Gender:</span>
-                                    <span class="info-value">${formatData(selectedReport.selectedReport.gender)}</span>
+                                    <span class="info-value">${formatData(selectedReport.gender)}</span>
                                 </div>
                                 <div class="info-item">
                                     <span class="info-label">Age:</span>
-                                    <span class="info-value">${formatData(selectedReport.selectedReport.age)}</span>
+                                    <span class="info-value">${formatData(selectedReport.age)}</span>
                                 </div>
                                 <div class="info-item">
                                     <span class="info-label">Lab Number:</span>
@@ -249,7 +249,7 @@ const Agent = () => {
                                 </div>
                                 <div class="info-item">
                                     <span class="info-label">Passport Number:</span>
-                                    <span class="info-value">${formatData(selectedReport.selectedReport.passportNumber)}</span>
+                                    <span class="info-value">${formatData(selectedReport.passportNumber)}</span>
                                 </div>
                                 <div class="info-item">
                                     <span class="info-label">Report Date:</span>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog, DialogActions, DialogContent, DialogTitle,
   TextField, Button, MenuItem, CircularProgress, Typography, Container, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
+  Chip, Tooltip, Fade, Grow, IconButton, InputAdornment, Card, CardContent, Box, Avatar, Badge, Collapse
 } from '@mui/material';
 import Webcam from 'react-webcam';
 import { ToastContainer, toast } from 'react-toastify';
@@ -15,8 +16,103 @@ import { QRCodeCanvas } from 'qrcode.react';
 import logo from '../../assets/GULF HEALTHCARE KENYA LTD.png';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { FaPrint, FaFileExcel } from 'react-icons/fa';
+import { 
+  FaPrint, 
+  FaFileExcel, 
+  FaUser, 
+  FaIdCard, 
+  FaGlobe, 
+  FaBriefcase, 
+  FaUserTie, 
+  FaCamera, 
+  FaUpload, 
+  FaSearch, 
+  FaFilter, 
+  FaEye, 
+  FaEdit, 
+  FaTrash,
+  FaCalendarAlt,
+  FaPlus,
+  FaUsers,
+  FaChartLine,
+  FaStethoscope,
+  FaTimes,
+  FaCheck,
+  FaSpinner
+} from 'react-icons/fa';
 import * as XLSX from 'xlsx';
+
+// Custom CSS animations
+const customStyles = `
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.6s ease-out;
+  }
+
+  .animate-slideIn {
+    animation: slideIn 0.8s ease-out;
+  }
+
+  .animate-pulse-hover:hover {
+    animation: pulse 0.3s ease-in-out;
+  }
+
+  .glass-effect {
+    backdrop-filter: blur(15px);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .gradient-border {
+    background: linear-gradient(135deg, #3b82f6, #2563eb, #1d4ed8);
+    padding: 2px;
+    border-radius: 16px;
+  }
+
+  .gradient-border-inner {
+    background: white;
+    border-radius: 14px;
+    padding: 24px;
+  }
+`;
+
+// Inject custom styles
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.type = 'text/css';
+  styleSheet.innerText = customStyles;
+  document.head.appendChild(styleSheet);
+}
 
 const medicalTypes = ['MAURITIUS', 'SM-VDRL', 'MEDICAL', 'FM', 'NORMAL'];
 const countryOptions = Country.getAllCountries().map((country) => ({
@@ -29,24 +125,57 @@ const sexOptions = [
   { value: 'Female', label: 'Female' },
 ];
 
-// Custom styles for Select component
+// Enhanced custom styles for Select component
 const customSelectStyles = {
-  control: (base) => ({
+  control: (base, state) => ({
     ...base,
-    minHeight: '48px',
-    background: '#f9fafb',
-    borderColor: '#e5e7eb',
-    borderRadius: '0.5rem',
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+    minHeight: '56px',
+    background: state.isFocused ? '#ffffff' : '#f8fafc',
+    borderColor: state.isFocused ? '#2563eb' : '#e2e8f0',
+    borderWidth: '2px',
+    borderRadius: '12px',
+    boxShadow: state.isFocused 
+      ? '0 0 0 3px rgba(37, 99, 235, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.1)' 
+      : '0 1px 3px rgba(0, 0, 0, 0.1)',
+    transition: 'all 0.2s ease-in-out',
     '&:hover': {
-      borderColor: '#3b82f6',
+      borderColor: state.isFocused ? '#2563eb' : '#3b82f6',
+      transform: 'translateY(-1px)',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
     },
   }),
   option: (base, state) => ({
     ...base,
-    background: state.isSelected ? '#3b82f6' : state.isFocused ? '#e5e7eb' : 'white',
-    color: state.isSelected ? 'white' : '#1f2937',
-    padding: '0.75rem',
+    background: state.isSelected 
+      ? 'linear-gradient(135deg, #3b82f6, #2563eb)' 
+      : state.isFocused 
+        ? '#f1f5f9' 
+        : 'white',
+    color: state.isSelected ? 'white' : '#1e293b',
+    padding: '12px 16px',
+    borderRadius: state.isFocused ? '8px' : '0px',
+    margin: state.isFocused ? '2px' : '0px',
+    transition: 'all 0.2s ease-in-out',
+    fontWeight: state.isSelected ? '600' : '400',
+    '&:active': {
+      background: state.isSelected ? '#2563eb' : '#e2e8f0',
+    },
+  }),
+  dropdownIndicator: (base, state) => ({
+    ...base,
+    transition: 'transform 0.3s ease',
+    transform: state.selectProps.menuIsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+    color: state.isFocused ? '#2563eb' : '#64748b',
+  }),
+  placeholder: (base) => ({
+    ...base,
+    color: '#94a3b8',
+    fontWeight: '400',
+  }),
+  singleValue: (base) => ({
+    ...base,
+    color: '#1e293b',
+    fontWeight: '500',
   }),
 };
 
@@ -113,6 +242,29 @@ const FrontOffice = () => {
     });
   };
 
+  const handleMedicalTypeChange = (e) => {
+    const { value } = e.target;
+    const displayFields = getDisplayFields(value);
+    
+    // Clear fields that are not required for the new medical type
+    const updatedFormValues = {
+      ...formValues,
+      medicalType: value,
+    };
+
+    if (!displayFields.showIssuingCountry) {
+      updatedFormValues.issuingCountry = '';
+    }
+    if (!displayFields.showOccupation) {
+      updatedFormValues.occupation = '';
+    }
+    if (!displayFields.showAgent) {
+      updatedFormValues.agent = '';
+    }
+
+    setFormValues(updatedFormValues);
+  };
+
   const handleDialogClose = () => {
     setOpenDialog(false);
     setSelectedPatientId(null);
@@ -148,59 +300,129 @@ const FrontOffice = () => {
   };
 
   const renderPhotoInput = () => (
-    <div className="mt-8 space-y-6 bg-gray-50 p-6 rounded-lg shadow-sm">
-      <div className="flex flex-col space-y-2">
-        <label className="text-sm font-medium text-gray-700">Upload Photo</label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleFileUpload}
-          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-        />
-      </div>
-      
-      <Button
-        variant="outlined"
-        onClick={() => setShowWebcam(!showWebcam)}
-        className="w-full py-2 px-4 border border-blue-500 text-blue-600 rounded-md hover:bg-blue-50 transition-colors duration-200"
-      >
-        {showWebcam ? 'Hide Webcam' : 'Take Live Picture'}
-      </Button>
+    <Card className="shadow-lg border-0 overflow-hidden">
+      <CardContent className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
+        <Typography variant="h6" className="text-gray-800 font-semibold mb-4 flex items-center">
+          <FaCamera className="mr-2 text-blue-600" />
+          Patient Photo
+        </Typography>
+        
+        <div className="space-y-4">
+          <div className="flex flex-col space-y-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center">
+              <FaUpload className="mr-2 text-blue-500" />
+              Upload Photo
+            </label>
+            <div className="relative group">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+              <div className="border-2 border-dashed border-blue-300 rounded-xl p-8 text-center bg-white hover:bg-blue-50 hover:border-blue-400 transition-all duration-300 group-hover:scale-105">
+                <FaUpload className="mx-auto text-3xl text-blue-400 mb-2" />
+                <p className="text-gray-600">Click to upload or drag and drop</p>
+                <p className="text-sm text-gray-500 mt-1">PNG, JPG, JPEG up to 10MB</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="relative">
+            <Button
+              variant="outlined"
+              onClick={() => setShowWebcam(!showWebcam)}
+              className="w-full py-3 border-2 border-blue-500 text-blue-600 rounded-xl hover:bg-blue-50 transition-all duration-300 font-medium"
+              startIcon={<FaCamera />}
+              sx={{
+                borderRadius: '12px',
+                textTransform: 'none',
+                fontSize: '16px',
+                '&:hover': {
+                  borderWidth: '2px',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 8px 25px rgba(59, 130, 246, 0.15)',
+                },
+              }}
+            >
+              {showWebcam ? 'Hide Camera' : 'Take Live Picture'}
+            </Button>
+          </div>
 
-      {showWebcam && (
-        <div className="mt-4 space-y-4">
-          <Webcam 
-            ref={webcamRef} 
-            screenshotFormat="image/jpeg" 
-            className="rounded-lg shadow-md w-full"
-          />
-          <Button 
-            variant="contained" 
-            onClick={captureImage}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md transition-colors duration-200"
-          >
-            Capture
-          </Button>
-        </div>
-      )}
+          <Collapse in={showWebcam}>
+            <div className="mt-6 space-y-4 bg-white rounded-xl p-4 shadow-inner">
+              <div className="relative rounded-xl overflow-hidden shadow-lg">
+                <Webcam 
+                  ref={webcamRef} 
+                  screenshotFormat="image/jpeg" 
+                  className="w-full rounded-xl"
+                  videoConstraints={{
+                    width: 640,
+                    height: 480,
+                    facingMode: "user"
+                  }}
+                />
+              </div>
+              <Button 
+                variant="contained" 
+                onClick={captureImage}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-xl transition-all duration-300 font-medium"
+                startIcon={<FaCamera />}
+                sx={{
+                  borderRadius: '12px',
+                  textTransform: 'none',
+                  fontSize: '16px',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 8px 25px rgba(59, 130, 246, 0.3)',
+                  },
+                }}
+              >
+                Capture Photo
+              </Button>
+            </div>
+          </Collapse>
 
-      {formValues.photo && (
-        <div className="mt-4 p-4 bg-white rounded-lg shadow-sm">
-          <img
-            src={formValues.photo instanceof File ? URL.createObjectURL(formValues.photo) : formValues.photo}
-            alt="Captured"
-            className="w-32 h-32 object-cover rounded-lg shadow-md mx-auto"
-          />
-          <button
-            type="button"
-            onClick={removeCapturedPhoto}
-            className="mt-4 w-full py-2 px-4 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200"
-          >
-            Remove Photo
-          </button>
+          {formValues.photo && (
+            <Fade in={!!formValues.photo}>
+              <Card className="mt-4 bg-white shadow-md rounded-xl overflow-hidden">
+                <CardContent className="p-4">
+                  <Typography variant="subtitle2" className="text-gray-700 mb-3 font-medium">
+                    Preview
+                  </Typography>
+                  <div className="flex items-center space-x-4">
+                    <Avatar
+                      src={formValues.photo instanceof File ? URL.createObjectURL(formValues.photo) : formValues.photo}
+                      alt="Patient Photo"
+                      sx={{ width: 80, height: 80 }}
+                      className="shadow-lg border-2 border-blue-200"
+                    />
+                    <div className="flex-1">
+                      <Typography variant="body2" className="text-gray-600 mb-2">
+                        Photo captured successfully
+                      </Typography>
+                      <Button
+                        onClick={removeCapturedPhoto}
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        startIcon={<FaTimes />}
+                        sx={{
+                          borderRadius: '8px',
+                          textTransform: 'none',
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Fade>
+          )}
         </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 
   const resetForm = () => {
@@ -224,13 +446,31 @@ const FrontOffice = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation checks
+    // Basic validation checks
     const requiredFields = ['name', 'age', 'sex', 'passportNumber', 'medicalType'];
     for (const field of requiredFields) {
       if (!formValues[field]) {
         toast.error(`${field} is required.`);
         return; // Prevent form submission if a required field is missing
       }
+    }
+
+    // Medical type-specific validation
+    const displayFields = getDisplayFields(formValues.medicalType);
+    
+    if (displayFields.showIssuingCountry && !formValues.issuingCountry) {
+      toast.error('Issuing Country is required for this medical type.');
+      return;
+    }
+    
+    if (displayFields.showOccupation && !formValues.occupation) {
+      toast.error('Occupation is required for this medical type.');
+      return;
+    }
+    
+    if (displayFields.showAgent && !formValues.agent) {
+      toast.error('Agent is required for this medical type.');
+      return;
     }
 
     // FormData for file uploads
@@ -272,18 +512,48 @@ const FrontOffice = () => {
 
   const renderFields = () => {
     const commonFields = (
-      <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <TextField
           name="name"
-          label="Name"
+          label="Full Name"
           value={formValues.name}
           onChange={handleChange}
           fullWidth
           required
-          className="bg-gray-50"
+          variant="outlined"
+          className="bg-white"
           InputProps={{
-            className: "rounded-lg",
-            style: { padding: '12px' }
+            startAdornment: (
+              <InputAdornment position="start">
+                <FaUser className="text-blue-500" />
+              </InputAdornment>
+            ),
+            className: "rounded-xl",
+            style: { 
+              fontSize: '16px',
+              background: '#ffffff',
+              borderRadius: '12px'
+            }
+          }}
+          InputLabelProps={{
+            style: { 
+              color: '#475569',
+              fontWeight: '500'
+            }
+          }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '12px',
+              '&:hover fieldset': {
+                borderColor: '#3b82f6',
+                borderWidth: '2px',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#2563eb',
+                borderWidth: '2px',
+                boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.1)',
+              },
+            },
           }}
         />
         
@@ -295,21 +565,57 @@ const FrontOffice = () => {
           onChange={handleChange}
           fullWidth
           required
-          className="bg-gray-50"
+          variant="outlined"
+          className="bg-white"
           InputProps={{
-            className: "rounded-lg",
-            style: { padding: '12px' }
+            startAdornment: (
+              <InputAdornment position="start">
+                <FaCalendarAlt className="text-blue-500" />
+              </InputAdornment>
+            ),
+            className: "rounded-xl",
+            style: { 
+              fontSize: '16px',
+              background: '#ffffff',
+              borderRadius: '12px'
+            }
+          }}
+          InputLabelProps={{
+            style: { 
+              color: '#475569',
+              fontWeight: '500'
+            }
+          }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '12px',
+              '&:hover fieldset': {
+                borderColor: '#3b82f6',
+                borderWidth: '2px',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#2563eb',
+                borderWidth: '2px',
+                boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.1)',
+              },
+            },
           }}
         />
 
-        <Select
-          options={sexOptions}
-          value={sexOptions.find((option) => option.value === formValues.sex)}
-          onChange={(selectedOption) => setFormValues({ ...formValues, sex: selectedOption.value })}
-          placeholder="Select Sex"
-          styles={customSelectStyles}
-          className="rounded-lg"
-        />
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Sex *
+          </label>
+          <Select
+            options={sexOptions}
+            value={sexOptions.find((option) => option.value === formValues.sex)}
+            onChange={(selectedOption) => setFormValues({ ...formValues, sex: selectedOption.value })}
+            placeholder="Select Sex"
+            styles={customSelectStyles}
+            className="rounded-xl"
+            isSearchable={false}
+          />
+        </div>
 
         <TextField
           name="passportNumber"
@@ -318,10 +624,40 @@ const FrontOffice = () => {
           onChange={handleChange}
           fullWidth
           required
-          className="bg-gray-50"
+          variant="outlined"
+          className="bg-white"
           InputProps={{
-            className: "rounded-lg",
-            style: { padding: '12px' }
+            startAdornment: (
+              <InputAdornment position="start">
+                <FaIdCard className="text-blue-500" />
+              </InputAdornment>
+            ),
+            className: "rounded-xl",
+            style: { 
+              fontSize: '16px',
+              background: '#ffffff',
+              borderRadius: '12px'
+            }
+          }}
+          InputLabelProps={{
+            style: { 
+              color: '#475569',
+              fontWeight: '500'
+            }
+          }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '12px',
+              '&:hover fieldset': {
+                borderColor: '#3b82f6',
+                borderWidth: '2px',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#2563eb',
+                borderWidth: '2px',
+                boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.1)',
+              },
+            },
           }}
         />
       </div>
@@ -334,28 +670,118 @@ const FrontOffice = () => {
         return (
           <div className="space-y-6">
             {commonFields}
-            <Select
-              options={countryOptions}
-              value={countryOptions.find((option) => option.value === formValues.issuingCountry)}
-              onChange={(selectedOption) =>
-                setFormValues({ ...formValues, issuingCountry: selectedOption.value })
-              }
-              placeholder="Select Issuing Country"
-              styles={customSelectStyles}
-              className="rounded-lg"
-            />
-            <TextField
-              name="occupation"
-              label="Occupation"
-              value={formValues.occupation}
-              onChange={handleChange}
-              fullWidth
-              className="bg-gray-50"
-              InputProps={{
-                className: "rounded-lg",
-                style: { padding: '12px' }
-              }}
-            />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  <FaGlobe className="mr-2 text-blue-500" />
+                  Issuing Country *
+                </label>
+                <Select
+                  options={countryOptions}
+                  value={countryOptions.find((option) => option.value === formValues.issuingCountry)}
+                  onChange={(selectedOption) =>
+                    setFormValues({ ...formValues, issuingCountry: selectedOption.value })
+                  }
+                  placeholder="Search and select issuing country"
+                  styles={customSelectStyles}
+                  className="rounded-xl"
+                  isSearchable
+                />
+              </div>
+              
+              <TextField
+                name="occupation"
+                label="Occupation"
+                value={formValues.occupation}
+                onChange={handleChange}
+                fullWidth
+                required
+                variant="outlined"
+                className="bg-white"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <FaBriefcase className="text-blue-500" />
+                    </InputAdornment>
+                  ),
+                  className: "rounded-xl",
+                  style: { 
+                    fontSize: '16px',
+                    background: '#ffffff',
+                    borderRadius: '12px'
+                  }
+                }}
+                InputLabelProps={{
+                  style: { 
+                    color: '#475569',
+                    fontWeight: '500'
+                  }
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                    '&:hover fieldset': {
+                      borderColor: '#3b82f6',
+                      borderWidth: '2px',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#2563eb',
+                      borderWidth: '2px',
+                      boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.1)',
+                    },
+                  },
+                }}
+              />
+            </div>
+            
+            <div className="md:col-span-2">
+              <TextField
+                name="agent"
+                label="Agent"
+                value={formValues.agent}
+                onChange={handleChange}
+                fullWidth
+                required
+                variant="outlined"
+                className="bg-white"
+                placeholder="Enter agent name or code"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <FaUserTie className="text-blue-500" />
+                    </InputAdornment>
+                  ),
+                  className: "rounded-xl",
+                  style: { 
+                    fontSize: '16px',
+                    background: '#ffffff',
+                    borderRadius: '12px'
+                  }
+                }}
+                InputLabelProps={{
+                  style: { 
+                    color: '#475569',
+                    fontWeight: '500'
+                  }
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                    '&:hover fieldset': {
+                      borderColor: '#3b82f6',
+                      borderWidth: '2px',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#2563eb',
+                      borderWidth: '2px',
+                      boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.1)',
+                    },
+                  },
+                }}
+              />
+            </div>
+            
             {renderPhotoInput()}
           </div>
         );
@@ -487,26 +913,62 @@ const FrontOffice = () => {
       </style>
     `;
 
-    const patientsTableRows = filteredPatients.map(patient => `
+    // Get display fields for print based on selected medical type
+    const printDisplayFields = getDisplayFields(selectedMedicalType);
+    
+    const patientsTableRows = filteredPatients.map(patient => {
+      let row = `
+        <tr>
+          <td style="width: 8%;">
+            ${patient.photo ? `
+              <img 
+                src="data:image/jpeg;base64,${patient.photo}" 
+                alt="Patient" 
+                class="patient-photo">
+            ` : '-'}
+          </td>
+          <td style="width: 15%;">${formatData(patient.name)}</td>
+          <td style="width: 8%;">${formatData(patient.age)}</td>
+          <td style="width: 8%;">${formatData(patient.sex)}</td>
+          <td style="width: 15%;">${formatData(patient.passportNumber)}</td>`;
+      
+      if (printDisplayFields.showIssuingCountry) {
+        row += `<td style="width: 12%;">${formatData(patient.issuingCountry)}</td>`;
+      }
+      if (printDisplayFields.showOccupation) {
+        row += `<td style="width: 12%;">${formatData(patient.occupation)}</td>`;
+      }
+      if (printDisplayFields.showAgent) {
+        row += `<td style="width: 10%;">${formatData(patient.agent)}</td>`;
+      }
+      
+      row += `<td style="width: 12%;">${formatData(patient.medicalType)}</td>
+        </tr>`;
+      
+      return row;
+    }).join('');
+
+    // Generate table headers based on medical type
+    let tableHeaders = `
       <tr>
-        <td style="width: 8%;">
-          ${patient.photo ? `
-            <img 
-              src="data:image/jpeg;base64,${patient.photo}" 
-              alt="Patient" 
-              class="patient-photo">
-          ` : '-'}
-        </td>
-        <td style="width: 15%;">${formatData(patient.name)}</td>
-        <td style="width: 8%;">${formatData(patient.age)}</td>
-        <td style="width: 8%;">${formatData(patient.sex)}</td>
-        <td style="width: 15%;">${formatData(patient.passportNumber)}</td>
-        <td style="width: 12%;">${formatData(patient.issuingCountry)}</td>
-        <td style="width: 12%;">${formatData(patient.occupation)}</td>
-        <td style="width: 10%;">${formatData(patient.agent)}</td>
-        <td style="width: 12%;">${formatData(patient.medicalType)}</td>
-      </tr>
-    `).join('');
+        <th style="width: 8%;">Photo</th>
+        <th style="width: 15%;">Name</th>
+        <th style="width: 8%;">Age</th>
+        <th style="width: 8%;">Sex</th>
+        <th style="width: 15%;">Passport Number</th>`;
+    
+    if (printDisplayFields.showIssuingCountry) {
+      tableHeaders += `<th style="width: 12%;">Issuing Country</th>`;
+    }
+    if (printDisplayFields.showOccupation) {
+      tableHeaders += `<th style="width: 12%;">Occupation</th>`;
+    }
+    if (printDisplayFields.showAgent) {
+      tableHeaders += `<th style="width: 10%;">Agent</th>`;
+    }
+    
+    tableHeaders += `<th style="width: 12%;">Medical Type</th>
+      </tr>`;
 
     const printContent = `
       <html>
@@ -531,17 +993,7 @@ const FrontOffice = () => {
 
             <table class="patients-table">
               <thead>
-                <tr>
-                  <th style="width: 8%;">Photo</th>
-                  <th style="width: 15%;">Name</th>
-                  <th style="width: 8%;">Age</th>
-                  <th style="width: 8%;">Sex</th>
-                  <th style="width: 15%;">Passport Number</th>
-                  <th style="width: 12%;">Issuing Country</th>
-                  <th style="width: 12%;">Occupation</th>
-                  <th style="width: 10%;">Agent</th>
-                  <th style="width: 12%;">Medical Type</th>
-                </tr>
+                ${tableHeaders}
               </thead>
               <tbody>
                 ${patientsTableRows}
@@ -576,19 +1028,34 @@ const FrontOffice = () => {
     }
 
     try {
+      // Get display fields for export based on selected medical type
+      const exportDisplayFields = getDisplayFields(selectedMedicalType);
+      
       // Prepare data for Excel export
-      const excelData = filteredPatients.map((patient, index) => ({
-        'S/N': index + 1,
-        'Name': patient.name || 'N/A',
-        'Age': patient.age || 'N/A',
-        'Sex': patient.sex || 'N/A',
-        'Passport Number': patient.passportNumber || 'N/A',
-        'Issuing Country': patient.issuingCountry || 'N/A',
-        'Occupation': patient.occupation || 'N/A',
-        'Agent': patient.agent || 'N/A',
-        'Medical Type': patient.medicalType || 'N/A',
-        'Date Created': patient.createdAt ? new Date(patient.createdAt).toLocaleDateString() : 'N/A'
-      }));
+      const excelData = filteredPatients.map((patient, index) => {
+        let patientData = {
+          'S/N': index + 1,
+          'Name': patient.name || 'N/A',
+          'Age': patient.age || 'N/A',
+          'Sex': patient.sex || 'N/A',
+          'Passport Number': patient.passportNumber || 'N/A'
+        };
+        
+        if (exportDisplayFields.showIssuingCountry) {
+          patientData['Issuing Country'] = patient.issuingCountry || 'N/A';
+        }
+        if (exportDisplayFields.showOccupation) {
+          patientData['Occupation'] = patient.occupation || 'N/A';
+        }
+        if (exportDisplayFields.showAgent) {
+          patientData['Agent'] = patient.agent || 'N/A';
+        }
+        
+        patientData['Medical Type'] = patient.medicalType || 'N/A';
+        patientData['Date Created'] = patient.createdAt ? new Date(patient.createdAt).toLocaleDateString() : 'N/A';
+        
+        return patientData;
+      });
 
       // Create workbook and worksheet
       const workbook = XLSX.utils.book_new();
@@ -618,19 +1085,28 @@ const FrontOffice = () => {
         skipHeader: false 
       });
 
-      // Set column widths for better readability
-      const columnWidths = [
+      // Set column widths for better readability - dynamically based on displayed columns
+      let columnWidths = [
         { wch: 5 },   // S/N
         { wch: 20 },  // Name
         { wch: 8 },   // Age
         { wch: 10 },  // Sex
-        { wch: 18 },  // Passport Number
-        { wch: 18 },  // Issuing Country
-        { wch: 15 },  // Occupation
-        { wch: 15 },  // Agent
-        { wch: 15 },  // Medical Type
-        { wch: 12 }   // Date Created
+        { wch: 18 }   // Passport Number
       ];
+      
+      if (exportDisplayFields.showIssuingCountry) {
+        columnWidths.push({ wch: 18 }); // Issuing Country
+      }
+      if (exportDisplayFields.showOccupation) {
+        columnWidths.push({ wch: 15 }); // Occupation
+      }
+      if (exportDisplayFields.showAgent) {
+        columnWidths.push({ wch: 15 }); // Agent
+      }
+      
+      columnWidths.push({ wch: 15 }); // Medical Type
+      columnWidths.push({ wch: 12 }); // Date Created
+      
       worksheet['!cols'] = columnWidths;
 
       // Style the header rows
@@ -673,6 +1149,54 @@ const FrontOffice = () => {
     setStartDate(today);
     setEndDate(today);
   };
+
+  // Helper function to determine which fields should be displayed based on medical type
+  const getDisplayFields = (medicalType) => {
+    switch (medicalType) {
+      case 'MAURITIUS':
+      case 'MEDICAL':
+      case 'FM':
+        return {
+          showIssuingCountry: true,
+          showOccupation: true,
+          showAgent: true
+        };
+      case 'SM-VDRL':
+      case 'NORMAL':
+        return {
+          showIssuingCountry: false,
+          showOccupation: false,
+          showAgent: false
+        };
+      default:
+        return {
+          showIssuingCountry: true,
+          showOccupation: true,
+          showAgent: true
+        };
+    }
+  };
+
+  // Helper function to get color for medical type chips
+  const getMedicalTypeColor = (medicalType) => {
+    switch (medicalType) {
+      case 'MAURITIUS':
+        return 'linear-gradient(135deg, #059669, #047857)';
+      case 'SM-VDRL':
+        return 'linear-gradient(135deg, #dc2626, #b91c1c)';
+      case 'MEDICAL':
+        return 'linear-gradient(135deg, #3b82f6, #2563eb)';
+      case 'FM':
+        return 'linear-gradient(135deg, #7c3aed, #6d28d9)';
+      case 'NORMAL':
+        return 'linear-gradient(135deg, #64748b, #475569)';
+      default:
+        return 'linear-gradient(135deg, #6b7280, #4b5563)';
+    }
+  };
+
+  // Get the display fields for the currently selected medical type
+  const currentDisplayFields = getDisplayFields(selectedMedicalType);
 
   // Enhanced filter function that combines medical type, search query, and date range
   const filteredPatients = patients.filter(patient => {
@@ -810,103 +1334,279 @@ const FrontOffice = () => {
           </div>
 
           <div className="mb-8">
-            <h3 className="text-xl font-semibold text-white mb-6">Medical Types</h3>
+            <div className="flex items-center justify-between mb-6">
+              <Typography variant="h5" className="text-white font-bold flex items-center">
+                <FaFilter className="mr-3" />
+                Medical Types
+              </Typography>
+              <Chip 
+                label={`${filteredPatients.length} results`}
+                size="small"
+                sx={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  fontWeight: '600',
+                }}
+              />
+            </div>
             
             {/* All Patients Filter */}
-            <div 
-              className={`flex items-center justify-between p-4 rounded-lg mb-3 cursor-pointer transition-all duration-200 ${
+            <Card 
+              className={`mb-4 cursor-pointer transition-all duration-300 hover:scale-105 ${
                 selectedMedicalType === 'ALL' 
-                  ? 'bg-white text-teal-700 shadow-md' 
-                  : 'bg-teal-500 hover:bg-teal-300 text-white'
+                  ? 'shadow-xl border-2 border-white' 
+                  : 'shadow-md hover:shadow-lg'
               }`}
               onClick={() => setSelectedMedicalType('ALL')}
+              sx={{
+                background: selectedMedicalType === 'ALL'
+                  ? 'linear-gradient(135deg, #ffffff, #f8fafc)'
+                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
+                backdropFilter: 'blur(10px)',
+                borderRadius: '12px',
+              }}
             >
-              <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${
-                  selectedMedicalType === 'ALL' ? 'bg-teal-600' : 'bg-white'
-                }`}></div>
-                <span className="font-medium">All Patients</span>
-              </div>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                selectedMedicalType === 'ALL' 
-                  ? 'bg-teal-200 text-teal-800' 
-                  : 'bg-white bg-opacity-20 text-white'
-              }`}>
-                {getPatientCount('ALL')}
-              </span>
-            </div>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Avatar 
+                      sx={{ 
+                        width: 32, 
+                        height: 32,
+                        bgcolor: selectedMedicalType === 'ALL' ? '#0d9488' : 'rgba(255, 255, 255, 0.3)',
+                      }}
+                    >
+                      <FaUsers className={`text-sm ${selectedMedicalType === 'ALL' ? 'text-white' : 'text-white'}`} />
+                    </Avatar>
+                    <Typography 
+                      variant="body1" 
+                      className={`font-semibold ${
+                        selectedMedicalType === 'ALL' ? 'text-gray-800' : 'text-white'
+                      }`}
+                    >
+                      All Patients
+                    </Typography>
+                  </div>
+                  <Chip
+                    label={getPatientCount('ALL')}
+                    size="small"
+                    sx={{
+                      background: selectedMedicalType === 'ALL' 
+                        ? 'linear-gradient(135deg, #0d9488, #0f766e)' 
+                        : 'rgba(255, 255, 255, 0.2)',
+                      color: 'white',
+                      fontWeight: '700',
+                      minWidth: '32px',
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Medical Type Filters */}
-            {medicalTypes.map((type) => (
-              <div
+            {medicalTypes.map((type, index) => (
+              <Card
                 key={type}
-                className={`flex items-center justify-between p-4 rounded-lg mb-3 cursor-pointer transition-all duration-200 ${
+                className={`mb-3 cursor-pointer transition-all duration-300 hover:scale-105 ${
                   selectedMedicalType === type 
-                    ? 'bg-white text-teal-900 shadow-md' 
-                    : 'bg-teal-500 hover:bg-teal-400 text-white'
+                    ? 'shadow-xl border-2 border-white' 
+                    : 'shadow-md hover:shadow-lg'
                 }`}
                 onClick={() => setSelectedMedicalType(type)}
+                sx={{
+                  background: selectedMedicalType === type
+                    ? 'linear-gradient(135deg, #ffffff, #f8fafc)'
+                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '12px',
+                  animation: `fadeIn 0.3s ease-in-out ${index * 0.1}s`,
+                }}
               >
-                <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-3 rounded-full ${
-                    selectedMedicalType === type ? 'bg-teal-600' : 'bg-white'
-                  }`}></div>
-                  <span className="font-medium">{type}</span>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  selectedMedicalType === type 
-                    ? 'bg-teal-200 text-teal-800' 
-                    : 'bg-white bg-opacity-20 text-white'
-                }`}>
-                  {getPatientCount(type)}
-                </span>
-              </div>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Avatar 
+                        sx={{ 
+                          width: 32, 
+                          height: 32,
+                          background: selectedMedicalType === type 
+                            ? getMedicalTypeColor(type)
+                            : 'rgba(255, 255, 255, 0.3)',
+                        }}
+                      >
+                        <FaStethoscope className="text-sm text-white" />
+                      </Avatar>
+                      <Typography 
+                        variant="body1" 
+                        className={`font-semibold ${
+                          selectedMedicalType === type ? 'text-gray-800' : 'text-white'
+                        }`}
+                      >
+                        {type}
+                      </Typography>
+                    </div>
+                    <Chip
+                      label={getPatientCount(type)}
+                      size="small"
+                      sx={{
+                        background: selectedMedicalType === type 
+                          ? getMedicalTypeColor(type)
+                          : 'rgba(255, 255, 255, 0.2)',
+                        color: 'white',
+                        fontWeight: '700',
+                        minWidth: '32px',
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
 
-          {/* Summary Stats */}
-          <div className="bg-teal-500 rounded-lg p-4">
-            <h4 className="font-semibold text-white mb-3">Summary</h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-teal-200">Total Patients:</span>
-                <span className="font-medium text-white">{patients.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-teal-200">Currently Viewing:</span>
-                <span className="font-medium text-white">{filteredPatients.length}</span>
-              </div>
-              {searchQuery && (
-                <div className="flex justify-between border-t border-teal-400 pt-2 mt-2">
-                  <span className="text-teal-200">Search Results:</span>
-                  <span className="font-medium text-white">{filteredPatients.length}</span>
+          {/* Enhanced Summary Stats */}
+          <Card 
+            className="mt-6 shadow-xl"
+            sx={{
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.1))',
+              backdropFilter: 'blur(15px)',
+              borderRadius: '16px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+            }}
+          >
+            <CardContent className="p-6">
+              <Typography variant="h6" className="font-bold text-white mb-4 flex items-center">
+                <FaChartLine className="mr-3" />
+                Summary Statistics
+              </Typography>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-white bg-opacity-10">
+                  <div className="flex items-center space-x-3">
+                    <FaUsers className="text-white text-lg" />
+                    <Typography variant="body2" className="text-white">
+                      Total Patients
+                    </Typography>
+                  </div>
+                  <Chip
+                    label={patients.length}
+                    sx={{
+                      background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                      color: 'white',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                    }}
+                  />
                 </div>
-              )}
-            </div>
-          </div>
+                
+                <div className="flex items-center justify-between p-3 rounded-lg bg-white bg-opacity-10">
+                  <div className="flex items-center space-x-3">
+                    <FaEye className="text-white text-lg" />
+                    <Typography variant="body2" className="text-white">
+                      Currently Viewing
+                    </Typography>
+                  </div>
+                  <Chip
+                    label={filteredPatients.length}
+                    sx={{
+                      background: 'linear-gradient(135deg, #059669, #047857)',
+                      color: 'white',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                    }}
+                  />
+                </div>
+                
+                {searchQuery && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-white bg-opacity-10 border-t border-white border-opacity-20">
+                    <div className="flex items-center space-x-3">
+                      <FaSearch className="text-white text-lg" />
+                      <Typography variant="body2" className="text-white">
+                        Search Results
+                      </Typography>
+                    </div>
+                    <Chip
+                      label={filteredPatients.length}
+                      sx={{
+                        background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                        color: 'white',
+                        fontWeight: '700',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
         
         <div className="flex-1 px-6 py-8">
-          <Container maxWidth="lg" className="bg-white rounded-xl shadow-lg">
-            <div className="p-8">
-              <Typography variant="h4" className="text-center text-gray-800 font-semibold mb-8">
-                Patient Registration Form
-              </Typography>
+          <Container maxWidth="xl" className="animate-fadeIn">
+            <div className="gradient-border mb-12">
+              <div className="gradient-border-inner">
+                <div className="text-center mb-8">
+                  <Typography 
+                    variant="h3" 
+                    className="text-gray-800 font-bold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+                  >
+                    Patient Registration
+                  </Typography>
+                  <Typography variant="h6" className="text-gray-600 max-w-2xl mx-auto">
+                    Complete the form below to register a new patient. All required fields are marked with an asterisk (*).
+                  </Typography>
+                  <div className="w-24 h-1 bg-gradient-to-r from-blue-600 to-indigo-600 mx-auto mt-4 rounded-full"></div>
+                </div>
               
-              <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-8">
-                <div className="bg-white p-6 rounded-xl shadow-sm space-y-6">
+              <form onSubmit={handleSubmit} className="max-w-6xl mx-auto animate-slideIn">
+                <Card className="shadow-2xl border-0 overflow-hidden">
+                  <CardContent 
+                    className="p-6 md:p-8"
+                    sx={{
+                      background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
+                    }}
+                  >
+                    <div className="space-y-8">
                   <TextField
                     select
                     name="medicalType"
                     label="Medical Type"
                     value={formValues.medicalType}
-                    onChange={handleChange}
+                    onChange={handleMedicalTypeChange}
                     fullWidth
                     required
-                    className="bg-gray-50"
+                    variant="outlined"
+                    className="bg-white"
                     InputProps={{
-                      className: "rounded-lg",
-                      style: { padding: '12px' }
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <FaStethoscope className="text-blue-500" />
+                        </InputAdornment>
+                      ),
+                      className: "rounded-xl",
+                      style: { 
+                        fontSize: '16px',
+                        background: '#ffffff',
+                        borderRadius: '12px'
+                      }
+                    }}
+                    InputLabelProps={{
+                      style: { 
+                        color: '#475569',
+                        fontWeight: '500'
+                      }
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '12px',
+                        '&:hover fieldset': {
+                          borderColor: '#3b82f6',
+                          borderWidth: '2px',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#2563eb',
+                          borderWidth: '2px',
+                          boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.1)',
+                        },
+                      },
                     }}
                   >
                     {medicalTypes.map((type) => (
@@ -916,63 +1616,155 @@ const FrontOffice = () => {
                     ))}
                   </TextField>
                   
-                  <TextField
-                    name="agent"
-                    label="Agent (Optional)"
-                    value={formValues.agent}
-                    onChange={handleChange}
-                    fullWidth
-                    className="bg-gray-50"
-                    InputProps={{
-                      className: "rounded-lg",
-                      style: { padding: '12px' }
-                    }}
-                    placeholder="Enter agent name or code"
-                  />
+                  {/* Enhanced requirements info based on medical type */}
+                  {formValues.medicalType && (
+                    <Fade in={!!formValues.medicalType}>
+                      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-md">
+                        <CardContent className="p-4">
+                          <Typography variant="h6" className="text-blue-800 font-semibold mb-3 flex items-center">
+                            <FaCheck className="mr-2 text-green-600" />
+                            Required fields for {formValues.medicalType}
+                          </Typography>
+                          <div className="space-y-2 text-sm text-blue-700">
+                            <div className="flex items-center">
+                              <FaCheck className="mr-2 text-green-500 text-xs" />
+                              <span>Name, Age, Sex, Passport Number</span>
+                            </div>
+                            {getDisplayFields(formValues.medicalType).showIssuingCountry && (
+                              <div className="flex items-center">
+                                <FaGlobe className="mr-2 text-blue-500 text-xs" />
+                                <span>Issuing Country</span>
+                              </div>
+                            )}
+                            {getDisplayFields(formValues.medicalType).showOccupation && (
+                              <div className="flex items-center">
+                                <FaBriefcase className="mr-2 text-blue-500 text-xs" />
+                                <span>Occupation</span>
+                              </div>
+                            )}
+                            {getDisplayFields(formValues.medicalType).showAgent && (
+                              <div className="flex items-center">
+                                <FaUserTie className="mr-2 text-blue-500 text-xs" />
+                                <span>Agent</span>
+                              </div>
+                            )}
+                            {!getDisplayFields(formValues.medicalType).showIssuingCountry && 
+                             !getDisplayFields(formValues.medicalType).showOccupation &&
+                             !getDisplayFields(formValues.medicalType).showAgent && (
+                              <div className="flex items-center text-green-700">
+                                <FaCheck className="mr-2 text-green-600 text-xs" />
+                                <span className="font-medium">No additional fields required</span>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Fade>
+                  )}
                   
                   {renderFields()}
                   
                   <Button
                     variant="contained"
                     type="submit"
-                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 mt-8"
+                    size="large"
+                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-300 mt-8 font-semibold text-lg"
+                    startIcon={<FaPlus />}
+                    sx={{
+                      borderRadius: '12px',
+                      textTransform: 'none',
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      padding: '16px 24px',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 12px 28px rgba(59, 130, 246, 0.3)',
+                      },
+                    }}
                   >
                     Submit Registration
                   </Button>
-                </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </form>
-
-              <div className="mt-16">
-                <div className="flex justify-between items-center mb-8">
-                  <Typography variant="h5" className="text-gray-800 font-semibold">
-                    Patients List
+              </div>
+            </div>
+              
+              <div className="mt-16 animate-fadeIn">
+                <Card className="shadow-2xl border-0 overflow-hidden">
+                  <CardContent 
+                    className="p-8"
+                    sx={{
+                      background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
+                    }}
+                  >
+                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-8 space-y-4 lg:space-y-0">
+                  <div>
+                    <Typography 
+                      variant="h4" 
+                      className="text-gray-800 font-bold mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+                    >
+                      Patients Directory
+                    </Typography>
                     {searchQuery && (
-                      <span className="text-lg font-normal text-gray-600 ml-2">
-                        - Search: "{searchQuery}"
-                      </span>
+                      <Typography variant="body1" className="text-gray-600 flex items-center">
+                        <FaSearch className="mr-2 text-blue-500" />
+                        Search: "{searchQuery}"
+                      </Typography>
                     )}
                     {startDate && endDate && (
-                      <span className="text-sm font-normal text-gray-500 ml-2 block">
-                        ({startDate.toLocaleDateString()} to {endDate.toLocaleDateString()})
-                      </span>
+                      <Typography variant="body2" className="text-gray-500 flex items-center mt-1">
+                        <FaCalendarAlt className="mr-2 text-green-500" />
+                        {startDate.toLocaleDateString()} to {endDate.toLocaleDateString()}
+                      </Typography>
                     )}
-                  </Typography>
+                  </div>
                   
-                  {/* Additional search bar in main content area */}
-                  
+                  <div className="flex items-center space-x-4">
+                    <Chip
+                      icon={<FaUsers />}
+                      label={`${filteredPatients.length} patients`}
+                      sx={{
+                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                        color: 'white',
+                        fontWeight: '600',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
                 </div>
 
-                {/* Show message when no results found */}
+                {/* Enhanced no results message */}
                 {filteredPatients.length === 0 && searchQuery && (
-                  <div className="text-center py-8 text-gray-500">
-                    <p className="text-lg mb-2">No patients found matching "{searchQuery}"</p>
-                    <button
-                      onClick={clearSearch}
-                      className="text-blue-500 hover:text-blue-700 underline"
-                    >
-                      Clear search to see all patients
-                    </button>
-                  </div>
+                  <Card className="text-center py-12 mb-8 shadow-lg">
+                    <CardContent>
+                      <FaSearch className="text-6xl text-gray-300 mb-4 mx-auto" />
+                      <Typography variant="h6" className="text-gray-600 font-medium mb-2">
+                        No patients found matching "{searchQuery}"
+                      </Typography>
+                      <Typography variant="body2" className="text-gray-500 mb-4 max-w-md mx-auto">
+                        Try adjusting your search terms or clear the search to see all patients.
+                      </Typography>
+                      <Button
+                        onClick={clearSearch}
+                        variant="outlined"
+                        startIcon={<FaTimes />}
+                        sx={{
+                          borderRadius: '12px',
+                          textTransform: 'none',
+                          borderColor: '#3b82f6',
+                          color: '#3b82f6',
+                          '&:hover': {
+                            borderColor: '#2563eb',
+                            background: '#eff6ff',
+                          },
+                        }}
+                      >
+                        Clear Search
+                      </Button>
+                    </CardContent>
+                  </Card>
                 )}
 
                 <Dialog 
@@ -1005,93 +1797,301 @@ const FrontOffice = () => {
                   </DialogActions>
                 </Dialog>
 
-                <div className="mb-6 flex justify-end gap-3">
-                  <button
-                    onClick={exportToExcel}
-                    className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200 shadow-sm flex items-center"
-                  >
-                    <FaFileExcel className="mr-2" />
-                    Export to Excel
-                  </button>
-                  <button
-                    onClick={printReport}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200 shadow-sm flex items-center"
-                  >
-                    <FaPrint className="mr-2" />
-                    Print Report
-                  </button>
+                <div className="mb-6 flex flex-wrap justify-end gap-3">
+                  <Tooltip title="Export data to Excel spreadsheet" arrow>
+                    <Button
+                      onClick={exportToExcel}
+                      variant="contained"
+                      startIcon={<FaFileExcel />}
+                      sx={{
+                        background: 'linear-gradient(135deg, #059669, #047857)',
+                        borderRadius: '12px',
+                        textTransform: 'none',
+                        fontWeight: '600',
+                        padding: '12px 24px',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #047857, #065f46)',
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 8px 25px rgba(5, 150, 105, 0.3)',
+                        },
+                      }}
+                    >
+                      Export to Excel
+                    </Button>
+                  </Tooltip>
+                  
+                  <Tooltip title="Print patient report" arrow>
+                    <Button
+                      onClick={printReport}
+                      variant="contained"
+                      startIcon={<FaPrint />}
+                      sx={{
+                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                        borderRadius: '12px',
+                        textTransform: 'none',
+                        fontWeight: '600',
+                        padding: '12px 24px',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 8px 25px rgba(59, 130, 246, 0.3)',
+                        },
+                      }}
+                    >
+                      Print Report
+                    </Button>
+                  </Tooltip>
                 </div>
 
                 <TableContainer 
                   component={Paper} 
-                  className="rounded-xl shadow-md overflow-hidden"
+                  className="rounded-2xl shadow-xl overflow-hidden border border-gray-100"
+                  sx={{
+                    background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
+                  }}
                 >
                   <Table className="min-w-full">
                     <TableHead>
-                      <TableRow className="bg-gray-50">
-                        <TableCell className="font-semibold">Photo</TableCell>
-                        <TableCell className="font-semibold">Name</TableCell>
-                        <TableCell className="font-semibold">Age</TableCell>
-                        <TableCell className="font-semibold">Sex</TableCell>
-                        <TableCell className="font-semibold">Passport Number</TableCell>
-                        <TableCell className="font-semibold">Issuing Country</TableCell>
-                        <TableCell className="font-semibold">Occupation</TableCell>
-                        <TableCell className="font-semibold">Agent</TableCell>
-                        <TableCell className="font-semibold">Medical Type</TableCell>
-                        {/* Removed Actions column */}
+                      <TableRow 
+                        sx={{
+                          background: 'linear-gradient(135deg, #1e293b, #334155)',
+                          '& th': {
+                            color: 'white',
+                            fontWeight: '600',
+                            fontSize: '14px',
+                            padding: '16px 12px',
+                            borderBottom: 'none',
+                          }
+                        }}
+                      >
+                        <TableCell>
+                          <div className="flex items-center">
+                            <FaUser className="mr-2" />
+                            Photo
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <FaUser className="mr-2" />
+                            Name
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <FaCalendarAlt className="mr-2" />
+                            Age
+                          </div>
+                        </TableCell>
+                        <TableCell>Sex</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <FaIdCard className="mr-2" />
+                            Passport Number
+                          </div>
+                        </TableCell>
+                        {currentDisplayFields.showIssuingCountry && (
+                          <TableCell>
+                            <div className="flex items-center">
+                              <FaGlobe className="mr-2" />
+                              Issuing Country
+                            </div>
+                          </TableCell>
+                        )}
+                        {currentDisplayFields.showOccupation && (
+                          <TableCell>
+                            <div className="flex items-center">
+                              <FaBriefcase className="mr-2" />
+                              Occupation
+                            </div>
+                          </TableCell>
+                        )}
+                        {currentDisplayFields.showAgent && (
+                          <TableCell>
+                            <div className="flex items-center">
+                              <FaUserTie className="mr-2" />
+                              Agent
+                            </div>
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          <div className="flex items-center">
+                            <FaStethoscope className="mr-2" />
+                            Medical Type
+                          </div>
+                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {loadingPatients ? (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center py-8">
-                            <CircularProgress size={40} />
-                            <Typography variant="body2" className="mt-2 text-gray-500">
-                              Loading patients...
-                            </Typography>
+                          <TableCell 
+                            colSpan={6 + (currentDisplayFields.showIssuingCountry ? 1 : 0) + (currentDisplayFields.showOccupation ? 1 : 0) + (currentDisplayFields.showAgent ? 1 : 0)} 
+                            className="text-center py-16"
+                          >
+                            <div className="flex flex-col items-center space-y-4">
+                              <div className="relative">
+                                <CircularProgress size={50} thickness={4} sx={{ color: '#3b82f6' }} />
+                                <FaSpinner className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-blue-500 animate-spin" />
+                              </div>
+                              <Typography variant="body1" className="text-gray-600 font-medium">
+                                Loading patients data...
+                              </Typography>
+                              <Typography variant="body2" className="text-gray-500">
+                                Please wait while we fetch the latest information
+                              </Typography>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ) : filteredPatients.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center py-8">
-                            <Typography variant="body1" className="text-gray-500">
-                              {patients.length === 0 
-                                ? "No patients found. Start by adding a new patient." 
-                                : "No patients match your current filter criteria."
-                              }
-                            </Typography>
+                          <TableCell 
+                            colSpan={6 + (currentDisplayFields.showIssuingCountry ? 1 : 0) + (currentDisplayFields.showOccupation ? 1 : 0) + (currentDisplayFields.showAgent ? 1 : 0)} 
+                            className="text-center py-16"
+                          >
+                            <div className="flex flex-col items-center space-y-4">
+                              <FaUsers className="text-6xl text-gray-300" />
+                              <Typography variant="h6" className="text-gray-600 font-medium">
+                                {patients.length === 0 
+                                  ? "No patients found" 
+                                  : "No patients match your criteria"
+                                }
+                              </Typography>
+                              <Typography variant="body2" className="text-gray-500 max-w-md">
+                                {patients.length === 0 
+                                  ? "Start by adding a new patient using the registration form above." 
+                                  : "Try adjusting your filters or search terms to find the patients you're looking for."
+                                }
+                              </Typography>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filteredPatients.map((p) => (
+                        filteredPatients.map((p, index) => (
                           <TableRow 
                             key={p._id}
-                            className="hover:bg-gray-50 transition-colors duration-150"
+                            sx={{
+                              background: index % 2 === 0 ? '#ffffff' : '#f8fafc',
+                              '&:hover': {
+                                background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+                                transform: 'scale(1.01)',
+                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                                transition: 'all 0.2s ease-in-out',
+                              },
+                              '& td': {
+                                padding: '16px 12px',
+                                borderBottom: '1px solid #f1f5f9',
+                              }
+                            }}
                           >
                             <TableCell>
                               {p.photo ? (
-                                <img
+                                <Avatar
                                   src={`data:image/jpeg;base64,${p.photo}` || `${p.photo}`}
-                                  alt="Patient"
-                                  className="w-16 h-16 object-cover rounded-lg shadow-sm"
+                                  alt={p.name}
+                                  sx={{ 
+                                    width: 56, 
+                                    height: 56,
+                                    border: '3px solid #e2e8f0',
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                                  }}
                                 />
                               ) : (
-                                <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                                  <span className="text-gray-400">-</span>
-                                </div>
+                                <Avatar
+                                  sx={{ 
+                                    width: 56, 
+                                    height: 56,
+                                    bgcolor: '#3b82f6',
+                                    border: '3px solid #e2e8f0',
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                                  }}
+                                >
+                                  <FaUser className="text-white" />
+                                </Avatar>
                               )}
                             </TableCell>
-                            <TableCell className="font-medium text-gray-900">{p.name}</TableCell>
-                            <TableCell>{p.age}</TableCell>
-                            <TableCell>{p.sex}</TableCell>
-                            <TableCell>{p.passportNumber}</TableCell>
-                            <TableCell>{p.issuingCountry || '-'}</TableCell>
-                            <TableCell>{p.occupation || '-'}</TableCell>
-                            <TableCell>{p.agent || '-'}</TableCell>
                             <TableCell>
-                              <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                                {p.medicalType}
-                              </span>
+                              <div className="flex flex-col">
+                                <Typography variant="body1" className="font-semibold text-gray-900 mb-1">
+                                  {p.name}
+                                </Typography>
+                                <Typography variant="body2" className="text-gray-500">
+                                  Patient ID: {p._id.slice(-6)}
+                                </Typography>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={`${p.age} years`} 
+                                size="small"
+                                sx={{
+                                  background: 'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
+                                  color: '#475569',
+                                  fontWeight: '600',
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={p.sex} 
+                                size="small"
+                                sx={{
+                                  background: p.sex === 'Male' 
+                                    ? 'linear-gradient(135deg, #dbeafe, #bfdbfe)' 
+                                    : 'linear-gradient(135deg, #fce7f3, #fbcfe8)',
+                                  color: p.sex === 'Male' ? '#1e40af' : '#be185d',
+                                  fontWeight: '600',
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <FaIdCard className="mr-2 text-gray-400" />
+                                <Typography variant="body2" className="font-mono font-medium text-gray-700">
+                                  {p.passportNumber}
+                                </Typography>
+                              </div>
+                            </TableCell>
+                            {currentDisplayFields.showIssuingCountry && (
+                              <TableCell>
+                                <div className="flex items-center">
+                                  <FaGlobe className="mr-2 text-blue-500" />
+                                  <Typography variant="body2" className="text-gray-700">
+                                    {p.issuingCountry || '-'}
+                                  </Typography>
+                                </div>
+                              </TableCell>
+                            )}
+                            {currentDisplayFields.showOccupation && (
+                              <TableCell>
+                                <div className="flex items-center">
+                                  <FaBriefcase className="mr-2 text-green-500" />
+                                  <Typography variant="body2" className="text-gray-700">
+                                    {p.occupation || '-'}
+                                  </Typography>
+                                </div>
+                              </TableCell>
+                            )}
+                            {currentDisplayFields.showAgent && (
+                              <TableCell>
+                                <div className="flex items-center">
+                                  <FaUserTie className="mr-2 text-purple-500" />
+                                  <Typography variant="body2" className="text-gray-700 font-medium">
+                                    {p.agent || '-'}
+                                  </Typography>
+                                </div>
+                              </TableCell>
+                            )}
+                            <TableCell>
+                              <Chip
+                                label={p.medicalType}
+                                size="medium"
+                                sx={{
+                                  background: getMedicalTypeColor(p.medicalType),
+                                  color: 'white',
+                                  fontWeight: '600',
+                                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                                }}
+                              />
                             </TableCell>
                             {/* Removed Delete button */}
                           </TableRow>
@@ -1111,11 +2111,12 @@ const FrontOffice = () => {
                     </p>
                   </div>
                 </TableContainer>
+                  </CardContent>
+                </Card>
               </div>
-            </div>
-          </Container>
+            </Container>
+          </div>
         </div>
-      </div>
       <Footer />
       <ToastContainer 
         position="bottom-right"

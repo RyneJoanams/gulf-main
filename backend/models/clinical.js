@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 
 const clinicalSchema = new mongoose.Schema(
   {
+    // Patient basic information
+    passportNumber: { type: String },
+    gender: { type: String },
+    age: { type: Number },
     selectedReport: {
       patientName: { type: String, required: true },
       labNumber: { type: String, required: true },

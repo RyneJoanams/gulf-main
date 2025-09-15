@@ -67,12 +67,19 @@ const LeftBar = () => {
       fetchPhlebotomyReports();
     };
 
+    // Listen for clinical report submissions to refresh the list
+    const handleClinicalReportSubmission = () => {
+      fetchClinicalReports();
+    };
+
     window.addEventListener('labNumberSubmitted', handleLabNumberSubmission);
     window.addEventListener('labReportSubmitted', handleLabReportSubmission);
+    window.addEventListener('clinicalReportSubmitted', handleClinicalReportSubmission);
 
     return () => {
       window.removeEventListener('labNumberSubmitted', handleLabNumberSubmission);
       window.removeEventListener('labReportSubmitted', handleLabReportSubmission);
+      window.removeEventListener('clinicalReportSubmitted', handleClinicalReportSubmission);
     };
   }, []);
 
@@ -898,7 +905,7 @@ const LeftBar = () => {
               ) : clinicalReports.length === 0 ? (
                 <p className="text-teal-100 text-sm">No clinical reports available.</p>
               ) : (
-                clinicalReports.slice(0, 8).map((report) => (
+                clinicalReports.map((report) => (
                   <div
                     key={report._id}
                     className="p-3 rounded-md bg-white/10 hover:bg-teal-700/40 transition-colors"

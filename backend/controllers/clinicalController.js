@@ -4,7 +4,7 @@ const { validationResult } = require("express-validator");
 // Fetch all clinical reports
 exports.getAllReports = async (req, res) => {
     try {
-        const reports = await clinical.find();
+        const reports = await clinical.find().sort({ createdAt: -1 }); // Sort by newest first
         res.status(200).json(reports);
     } catch (error) {
         console.error(error);
