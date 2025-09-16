@@ -202,6 +202,24 @@ const customSelectStyles = {
     color: '#1e293b',
     fontWeight: '500',
   }),
+  menu: (base) => ({
+    ...base,
+    zIndex: 9999,
+    position: 'absolute',
+    top: '100%',
+    marginTop: '4px',
+    borderRadius: '12px',
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+    border: '1px solid #e2e8f0',
+    overflow: 'hidden',
+  }),
+  menuList: (base) => ({
+    ...base,
+    padding: '8px',
+    maxHeight: '200px',
+    overflowY: 'auto',
+    background: 'white',
+  }),
 };
 
 const FrontOffice = () => {
@@ -639,6 +657,8 @@ const FrontOffice = () => {
             styles={customSelectStyles}
             className="rounded-xl"
             isSearchable={false}
+            menuPortalTarget={document.body}
+            menuPosition="fixed"
           />
         </div>
 
@@ -712,6 +732,8 @@ const FrontOffice = () => {
                   styles={customSelectStyles}
                   className="rounded-xl"
                   isSearchable
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
                   formatOptionLabel={(option) => (
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <span style={{ marginRight: '8px', fontSize: '16px', display: 'flex', alignItems: 'center' }}>

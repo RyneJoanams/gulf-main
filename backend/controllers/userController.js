@@ -9,7 +9,7 @@ const generateToken = (id) => {
 
 // Register a new user
 const registerUser = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, age, role, status, departments, permissions } = req.body;
 
   try {
     // Check if the user already exists
@@ -19,14 +19,29 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Create new user
-    const user = await User.create({ name, email, password });
+    // Create new user with additional fields
+    const user = await User.create({ 
+      name, 
+      email, 
+      password,
+      age: age || undefined,
+      role: role || 'User',
+      status: status || 'Active',
+      departments: departments || [],
+      permissions: permissions || {}
+    });
 
     if (user) {
       res.status(201).json({
         _id: user._id,
         name: user.name,
         email: user.email,
+        age: user.age,
+        role: user.role,
+        status: user.status,
+        departments: user.departments,
+        permissions: user.permissions,
+        createdAt: user.createdAt,
         token: generateToken(user._id),
       });
     } else {
@@ -105,13 +120,11 @@ const deleteUser = async (req, res) => {
   const { id } = req.params; // User ID to be deleted
 
   try {
-    const user = await User.findById(id);
+    const user = await User.findByIdAndDelete(id);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
-    await user.remove(); // Remove user from the database
 
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
@@ -120,4 +133,76 @@ const deleteUser = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, getUserProfile, getAllUsers, deleteUser };
+// Update a user (admin or authorized)
+const updateUser = async (req, res) => {
+  const { id } = req.params;
+  const { name, email, age, role, status, departments, permissions } = req.body;
+
+  try {
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update user fields
+    user.name = name || user.name;
+    user.email = email || user.email;
+    user.age = age !== undefined ? age : user.age;
+    user.role = role || user.role;
+    user.status = status || user.status;
+    user.departments = departments !== undefined ? departments : user.departments;
+    user.permissions = permissions !== undefined ? permissions : user.permissions;
+
+    const updatedUser = await user.save();
+
+    res.json({
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      age: updatedUser.age,
+      role: updatedUser.role,
+      status: updatedUser.status,
+      departments: updatedUser.departments,
+      permissions: updatedUser.permissions,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Reset/Change user password (admin only)
+const resetUserPassword = async (req, res) => {
+  const { id } = req.params;
+  const { newPassword } = req.body;
+
+  try {
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    
+    // Update user password
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { registerUser, loginUser, getUserProfile, getAllUsers, updateUser, deleteUser, resetUserPassword };

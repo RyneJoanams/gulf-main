@@ -18,6 +18,28 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  age: {
+    type: Number,
+    required: false,
+  },
+  role: {
+    type: String,
+    enum: ['Super Admin', 'Admin', 'Manager', 'Supervisor', 'User', 'Guest'],
+    default: 'User',
+  },
+  status: {
+    type: String,
+    enum: ['Active', 'Inactive'],
+    default: 'Active',
+  },
+  departments: [{
+    type: String,
+    enum: ['Agent', 'Front Office', 'Phlebotomy', 'Laboratory', 'Radiology', 'Clinical', 'Accounts', 'Admin'],
+  }],
+  permissions: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
+  },
 }, { timestamps: true }); // Enable timestamps
 
 // Hash password before saving the user
