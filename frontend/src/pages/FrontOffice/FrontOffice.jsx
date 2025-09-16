@@ -301,9 +301,7 @@ const FrontOffice = () => {
     if (!displayFields.showOccupation) {
       updatedFormValues.occupation = '';
     }
-    if (!displayFields.showAgent) {
-      updatedFormValues.agent = '';
-    }
+    // Agent field is now mandatory for all medical types, so we don't clear it
 
     setFormValues(updatedFormValues);
   };
@@ -490,10 +488,10 @@ const FrontOffice = () => {
     e.preventDefault();
 
     // Basic validation checks
-    const requiredFields = ['name', 'age', 'sex', 'passportNumber', 'medicalType'];
+    const requiredFields = ['name', 'age', 'sex', 'passportNumber', 'medicalType', 'agent'];
     for (const field of requiredFields) {
       if (!formValues[field]) {
-        toast.error(`${field} is required.`);
+        toast.error(`${field === 'agent' ? 'Agent' : field} is required.`);
         return; // Prevent form submission if a required field is missing
       }
     }
@@ -845,6 +843,54 @@ const FrontOffice = () => {
         return (
           <div className="space-y-6">
             {commonFields}
+            
+            <div className="md:col-span-2">
+              <TextField
+                name="agent"
+                label="Agent"
+                value={formValues.agent}
+                onChange={handleChange}
+                fullWidth
+                required
+                variant="outlined"
+                className="bg-white"
+                placeholder="Enter agent name or code"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <FaUserTie className="text-blue-500" />
+                    </InputAdornment>
+                  ),
+                  className: "rounded-xl",
+                  style: { 
+                    fontSize: '16px',
+                    background: '#ffffff',
+                    borderRadius: '12px'
+                  }
+                }}
+                InputLabelProps={{
+                  style: { 
+                    color: '#475569',
+                    fontWeight: '500'
+                  }
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                    '&:hover fieldset': {
+                      borderColor: '#3b82f6',
+                      borderWidth: '2px',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#2563eb',
+                      borderWidth: '2px',
+                      boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.1)',
+                    },
+                  },
+                }}
+              />
+            </div>
+            
             {renderPhotoInput()}
           </div>
         );
@@ -1221,7 +1267,7 @@ const FrontOffice = () => {
         return {
           showIssuingCountry: false,
           showOccupation: false,
-          showAgent: false
+          showAgent: true // Agent field is now mandatory for all types
         };
       default:
         return {
@@ -1259,8 +1305,8 @@ const FrontOffice = () => {
     const medicalTypeMatch = selectedMedicalType === 'ALL' || patient.medicalType === selectedMedicalType;
     
     // Filter by search query (case-insensitive search in name or agent)
-    const searchMatch = searchQuery === '' || 
-      patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const searchMatch = !searchQuery || searchQuery === '' || 
+      (patient.name && patient.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (patient.agent && patient.agent.toLowerCase().includes(searchQuery.toLowerCase()));
     
     // Filter by date range (default to today's records, or custom range if specified)
@@ -1280,8 +1326,8 @@ const FrontOffice = () => {
   // Get patient counts for each medical type (considering search and date filters)
   const getPatientCount = (medicalType) => {
     const baseFilter = patients.filter(patient => {
-      const searchMatch = searchQuery === '' || 
-        patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      const searchMatch = !searchQuery || searchQuery === '' || 
+        (patient.name && patient.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (patient.agent && patient.agent.toLowerCase().includes(searchQuery.toLowerCase()));
       
       let dateMatch = true;
@@ -2065,10 +2111,10 @@ const FrontOffice = () => {
                             <TableCell>
                               <div className="flex flex-col">
                                 <Typography variant="body1" className="font-semibold text-gray-900 mb-1">
-                                  {p.name}
+                                  {p.name || 'Unknown Patient'}
                                 </Typography>
                                 <Typography variant="body2" className="text-gray-500">
-                                  Patient ID: {p._id.slice(-6)}
+                                  Patient ID: {p._id ? p._id.slice(-6) : 'N/A'}
                                 </Typography>
                               </div>
                             </TableCell>

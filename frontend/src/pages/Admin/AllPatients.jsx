@@ -81,9 +81,9 @@ const AllPatients = () => {
 
   const applyFilters = (searchTerm, medicalTypeFilter, sexFilter) => {
     let filtered = patients.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           p.passportNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           p.contactNumber.includes(searchTerm);
+      const matchesSearch = (p.name && p.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                           (p.passportNumber && p.passportNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                           (p.contactNumber && p.contactNumber.includes(searchTerm));
       const matchesMedicalType = medicalTypeFilter === 'All' || p.medicalType === medicalTypeFilter;
       const matchesSex = sexFilter === 'All' || p.sex === sexFilter;
       
@@ -169,18 +169,18 @@ const AllPatients = () => {
 
   const exportToExcel = () => {
     const sheetData = filteredPatients.map(record => ({
-      PatientName: record.name,
-      Age: record.age,
-      Sex: record.sex,
-      PassportNumber: record.passportNumber,
-      MedicalType: record.medicalType,
-      IssuingCountry: record.issuingCountry,
-      Address: record.address,
-      ContactNumber: record.contactNumber,
-      DateOfBirth: record.dateOfBirth,
-      Occupation: record.occupation,
-      Height: record.height,
-      Weight: record.weight,
+      PatientName: record.name || 'N/A',
+      Age: record.age || 'N/A',
+      Sex: record.sex || 'N/A',
+      PassportNumber: record.passportNumber || 'N/A',
+      MedicalType: record.medicalType || 'N/A',
+      IssuingCountry: record.issuingCountry || 'N/A',
+      Address: record.address || 'N/A',
+      ContactNumber: record.contactNumber || 'N/A',
+      DateOfBirth: record.dateOfBirth || 'N/A',
+      Occupation: record.occupation || 'N/A',
+      Height: record.height || 'N/A',
+      Weight: record.weight || 'N/A',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(sheetData);
@@ -226,12 +226,12 @@ const AllPatients = () => {
             <tbody>
               ${filteredPatients.map(patient => `
                 <tr>
-                  <td>${patient.name}</td>
-                  <td>${patient.age}</td>
-                  <td>${patient.sex}</td>
-                  <td>${patient.passportNumber}</td>
-                  <td>${patient.medicalType}</td>
-                  <td>${patient.contactNumber}</td>
+                  <td>${patient.name || 'N/A'}</td>
+                  <td>${patient.age || 'N/A'}</td>
+                  <td>${patient.sex || 'N/A'}</td>
+                  <td>${patient.passportNumber || 'N/A'}</td>
+                  <td>${patient.medicalType || 'N/A'}</td>
+                  <td>${patient.contactNumber || 'N/A'}</td>
                   <td>${patient.occupation || 'N/A'}</td>
                 </tr>
               `).join('')}
@@ -463,24 +463,24 @@ const AllPatients = () => {
                         className="hover:bg-gray-50 transition-colors duration-200"
                         component={TableRow}
                       >
-                        <TableCell className="font-medium">{patient.name}</TableCell>
-                        <TableCell>{patient.age}</TableCell>
+                        <TableCell className="font-medium">{patient.name || 'N/A'}</TableCell>
+                        <TableCell>{patient.age || 'N/A'}</TableCell>
                         <TableCell>
                           <Chip 
-                            label={patient.sex} 
+                            label={patient.sex || 'N/A'} 
                             size="small"
                             color={patient.sex === 'Male' ? 'primary' : 'secondary'}
                           />
                         </TableCell>
-                        <TableCell>{patient.passportNumber}</TableCell>
+                        <TableCell>{patient.passportNumber || 'N/A'}</TableCell>
                         <TableCell>
                           <Chip 
-                            label={patient.medicalType} 
+                            label={patient.medicalType || 'N/A'} 
                             size="small"
                             variant="outlined"
                           />
                         </TableCell>
-                        <TableCell>{patient.issuingCountry}</TableCell>
+                        <TableCell>{patient.issuingCountry || 'N/A'}</TableCell>
                         <TableCell>{patient.occupation || 'N/A'}</TableCell>
                         <TableCell>{patient.height || 'N/A'}</TableCell>
                         <TableCell>{patient.weight || 'N/A'}</TableCell>

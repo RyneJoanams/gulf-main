@@ -30,7 +30,7 @@ const convertImageToBase64 = (filePath) => {
 
 // Create a new patient
 exports.createPatient = async (req, res) => {
-  const { name, passportNumber, issuingCountry, occupation, sex, height, weight, age, medicalType } = req.body;
+  const { name, passportNumber, issuingCountry, occupation, sex, height, weight, age, medicalType, agent } = req.body;
   let photoBase64 = '';
 
   // Convert image to base64 and store it in the database
@@ -49,6 +49,7 @@ exports.createPatient = async (req, res) => {
     age,
     photo: photoBase64, // Storing the photo as a base64 string
     medicalType,
+    agent, // Include agent field
   });
 
   try {

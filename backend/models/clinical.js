@@ -6,6 +6,7 @@ const clinicalSchema = new mongoose.Schema(
     passportNumber: { type: String },
     gender: { type: String },
     age: { type: Number },
+    agent: { type: String }, // Add agent field
     selectedReport: {
       patientName: { type: String, required: true },
       labNumber: { type: String, required: true },

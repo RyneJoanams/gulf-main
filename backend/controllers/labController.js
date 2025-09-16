@@ -1,4 +1,6 @@
 const Lab = require('../models/lab');
+const Clinical = require('../models/clinical');
+const Patient = require('../models/Patient');
 const fs = require('fs');
 
 // Helper function to convert image to base64
@@ -51,6 +53,75 @@ exports.createLabReport = async (req, res) => {
 
     const lab = new Lab(labData);
     const savedLab = await lab.save();
+
+    // Auto-create clinical report for S-series tests
+    if (labData.labNumber && labData.labNumber.includes('-S')) {
+      try {
+        console.log("Creating automatic clinical report for S-series test:", labData.labNumber);
+        
+        // Fetch patient details to get complete information
+        let patientDetails = null;
+        if (labData.patientName) {
+          const patient = await Patient.findOne({ 
+            name: { $regex: new RegExp(labData.patientName, 'i') }
+          });
+          if (patient) {
+            patientDetails = {
+              passportNumber: patient.passportNumber,
+              gender: patient.sex,
+              age: patient.age,
+              agent: patient.agent
+            };
+          }
+        }
+
+        // Create automatic clinical report for S-series
+        const autoClinicalReport = new Clinical({
+          selectedReport: {
+            patientName: labData.patientName,
+            labNumber: labData.labNumber,
+            medicalType: labData.medicalType || 'N/A',
+            patientImage: labData.patientImage,
+            timeStamp: labData.timeStamp,
+            // Include all lab test data
+            urineTest: labData.urineTest,
+            bloodTest: labData.bloodTest,
+            area1: labData.area1,
+            renalFunction: labData.renalFunction,
+            fullHaemogram: labData.fullHaemogram,
+            liverFunction: labData.liverFunction,
+            labRemarks: labData.labRemarks
+          },
+          // Include patient details if available
+          ...(patientDetails && {
+            passportNumber: patientDetails.passportNumber,
+            gender: patientDetails.gender,
+            age: patientDetails.age,
+            agent: patientDetails.agent
+          }),
+          // Default clinical data for S-series (no additional clinical examination needed)
+          generalExamination: {},
+          systemicExamination: {},
+          otherTests: {},
+          clinicalNotes: "Auto-generated for S-series test - No additional clinical examination required",
+          clinicalOfficerName: "System Auto-Generated",
+          height: "",
+          weight: "",
+          historyOfPastIllness: "",
+          allergy: "",
+          radiologyData: {
+            heafMantouxTest: null,
+            chestXRayTest: null
+          }
+        });
+
+        await autoClinicalReport.save();
+        console.log("Auto-clinical report created successfully for S-series:", labData.labNumber);
+      } catch (clinicalError) {
+        console.error("Error creating auto-clinical report for S-series:", clinicalError);
+        // Don't fail the lab report creation if clinical auto-creation fails
+      }
+    }
 
     res.status(201).json({
       success: true,

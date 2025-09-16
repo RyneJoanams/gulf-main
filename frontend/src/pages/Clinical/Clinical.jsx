@@ -73,9 +73,12 @@ const Clinical = () => {
                 });
 
                 // Filter reports to show only those that have lab results but haven't been processed by clinical
-                // Include both F-series and S-series patients
+                // Exclude S-series tests as they are auto-processed, only include F-series for manual clinical processing
                 const unprocessedReports = labReports
-                    .filter(report => !processedByClinical.has(report.labNumber))
+                    .filter(report => 
+                        !processedByClinical.has(report.labNumber) && 
+                        (!report.labNumber || !report.labNumber.includes('-S')) // Exclude S-series tests
+                    )
                     .map(report => {
                         // Check if this report has radiology data
                         const radiologyData = radiologyDataMap.get(report.labNumber);
@@ -246,6 +249,7 @@ const Clinical = () => {
                 passportNumber: selectedPatientDetails?.passportNumber,
                 gender: selectedPatientDetails?.gender,
                 age: selectedPatientDetails?.age,
+                agent: selectedPatientDetails?.agent, // Add agent field
                 ...filteredData,
                 clinicalNotes: formData.clinicalNotes,
                 clinicalOfficerName: formData.clinicalOfficerName,
@@ -312,7 +316,8 @@ const Clinical = () => {
                 setSelectedPatientDetails({
                     passportNumber: patient.passportNumber,
                     gender: patient.sex, // Patient model uses 'sex' field
-                    age: patient.age
+                    age: patient.age,
+                    agent: patient.agent // Add agent field
                 });
             } else {
                 setSelectedPatientDetails(null);
@@ -440,17 +445,16 @@ const Clinical = () => {
                             <>
                                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                     <p className="text-sm text-blue-800 font-medium">
-                                        📋 Patients ready for clinical assessment ({filteredReports.length} total)
+                                        📋 F-series patients ready for clinical assessment ({filteredReports.length} total)
                                     </p>
                                     <p className="text-xs text-blue-600 mt-1">
-                                        Including both F-series and S-series patients
+                                        S-series tests are automatically processed and appear directly in clinical reports
                                     </p>
                                 </div>
                                 {paginatedReports.map((report) => {
                                     const labNumber = report.labNumber || '';
                                     const isFSeries = labNumber.includes('-F');
-                                    const isSeries = labNumber.includes('-S');
-                                    const seriesType = isFSeries ? 'F' : isSeries ? 'S' : 'Unknown';
+                                    const seriesType = isFSeries ? 'F' : 'Unknown';
                                     const hasRadiology = report.source === 'radiology';
                                     
                                     return (
@@ -468,8 +472,6 @@ const Clinical = () => {
                                                 <span className={`px-2 py-1 text-xs font-bold rounded ${
                                                     isFSeries 
                                                         ? 'bg-green-100 text-green-800 border border-green-200' 
-                                                        : isSeries 
-                                                        ? 'bg-purple-100 text-purple-800 border border-purple-200'
                                                         : 'bg-gray-100 text-gray-800 border border-gray-200'
                                                 }`}>
                                                     {seriesType}-Series
@@ -575,6 +577,9 @@ const Clinical = () => {
                                                 </p>
                                                 <p className="text-gray-600">
                                                     Age: <span className="font-semibold">{selectedPatientDetails?.age || 'N/A'}</span>
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Agent: <span className="font-semibold">{selectedPatientDetails?.agent || 'N/A'}</span>
                                                 </p>
                                             </div>
                                         </div>

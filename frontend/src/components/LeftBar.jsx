@@ -105,11 +105,44 @@ const LeftBar = () => {
     }
   };
 
+  // Function to enhance report with complete patient data if missing
+  const enhanceReportWithPatientData = async (report) => {
+    try {
+      // If patient data is missing or incomplete, fetch it from patient collection
+      if (!report.gender || !report.agent || !report.age || !report.passportNumber) {
+        const response = await axios.get('http://localhost:5000/api/patient');
+        const patients = response.data;
+        
+        // Find patient by name (case-insensitive)
+        const patient = patients.find(p => 
+          p.name.toLowerCase() === report.selectedReport?.patientName?.toLowerCase()
+        );
+        
+        if (patient) {
+          return {
+            ...report,
+            passportNumber: report.passportNumber || patient.passportNumber,
+            gender: report.gender || patient.sex,
+            age: report.age || patient.age,
+            agent: report.agent || patient.agent
+          };
+        }
+      }
+      return report;
+    } catch (error) {
+      console.error('Error enhancing report with patient data:', error);
+      return report;
+    }
+  };
+
   const printReport = async (report) => {
     if (!report) {
       toast.error("No report selected for printing");
       return;
     }
+
+    // Enhance report with complete patient data
+    const enhancedReport = await enhanceReportWithPatientData(report);
 
     // Convert logo to base64
     const getLogoBase64 = async () => {
@@ -356,7 +389,12 @@ const LeftBar = () => {
     `;
 
     const formatData = (data) => {
-      return data || 'N/A';
+      // Handle different data types appropriately
+      if (data === null || data === undefined) return 'N/A';
+      if (data === '') return 'N/A';
+      if (typeof data === 'number' && data === 0) return '0'; // Age could be 0
+      if (typeof data === 'string' && data.trim() === '') return 'N/A';
+      return String(data);
     };
 
     // Render functions for different sections using compact tables
@@ -714,16 +752,16 @@ const LeftBar = () => {
 
     // Prepare sections data
     const basicInfo = {
-      height: report.height,
-      weight: report.weight,
-      clinicalOfficerName: report.clinicalOfficerName,
-      clinicalNotes: report.clinicalNotes
+      height: enhancedReport.height,
+      weight: enhancedReport.weight,
+      clinicalOfficerName: enhancedReport.clinicalOfficerName,
+      clinicalNotes: enhancedReport.clinicalNotes
     };
 
     const printContent = `
       <html>
         <head>
-          <title>Clinical Report - ${formatData(report.selectedReport?.patientName)}</title>
+          <title>Clinical Report - ${formatData(enhancedReport.selectedReport?.patientName)}</title>
           ${printStyles}
         </head>
         <body>
@@ -735,26 +773,26 @@ const LeftBar = () => {
               <div class="patient-info-section">
                 <table class="patient-info-table">
                   <tr>
-                    <td><strong>Patient Name:</strong> ${formatData(report.selectedReport?.patientName)}</td>
-                    <td><strong>Gender:</strong> ${formatData(report.gender)}</td>
-                    <td><strong>Age:</strong> ${formatData(report.age)}</td>
+                    <td><strong>Patient Name:</strong> ${formatData(enhancedReport.selectedReport?.patientName)}</td>
+                    <td><strong>Gender:</strong> ${formatData(enhancedReport.gender)}</td>
+                    <td><strong>Age:</strong> ${formatData(enhancedReport.age)}</td>
                   </tr>
                   <tr>
-                    <td><strong>Passport Number:</strong> ${formatData(report.passportNumber)}</td>
-                    <td><strong>Lab Number:</strong> ${formatData(report.selectedReport?.labNumber)}</td>
-                    <td></td>
+                    <td><strong>Passport Number:</strong> ${formatData(enhancedReport.passportNumber)}</td>
+                    <td><strong>Lab Number:</strong> ${formatData(enhancedReport.selectedReport?.labNumber)}</td>
+                    <td><strong>Agent:</strong> ${formatData(enhancedReport.agent)}</td>
                   </tr>
                   <tr>
-                    <td><strong>Report Date:</strong> ${new Date(report.selectedReport?.timeStamp).toLocaleDateString()}</td>
-                    <td><strong>Report Time:</strong> ${new Date(report.selectedReport?.timeStamp).toLocaleTimeString()}</td>
+                    <td><strong>Report Date:</strong> ${new Date(enhancedReport.selectedReport?.timeStamp).toLocaleDateString()}</td>
+                    <td><strong>Report Time:</strong> ${new Date(enhancedReport.selectedReport?.timeStamp).toLocaleTimeString()}</td>
                     <td></td>
                   </tr>
                 </table>
                 
                 <div class="patient-image-container">
-                  ${report.selectedReport?.patientImage ? `
+                  ${enhancedReport.selectedReport?.patientImage ? `
                     <img 
-                      src="data:image/jpeg;base64,${report.selectedReport.patientImage}" 
+                      src="data:image/jpeg;base64,${enhancedReport.selectedReport.patientImage}" 
                       alt="Patient Photo" 
                       class="patient-image">
                   ` : `
@@ -769,44 +807,44 @@ const LeftBar = () => {
             <div class="main-content">
               <!-- Tests Section with Fluid Layout -->
               <div class="tests-container">
-                ${renderSectionIfHasData('General Examination', report.generalExamination, renderGeneralExam)}
-                ${renderSectionIfHasData('Systemic Examination', report.systemicExamination, renderSystemicExam)}
-                ${renderSectionIfHasData('Urine Test', report.selectedReport?.urineTest, renderUrineTest)}
-                ${renderSectionIfHasData('Blood Tests', report.selectedReport?.bloodTest, renderBloodTests)}
-                ${renderSectionIfHasData('Laboratory Tests', report.selectedReport?.area1, renderArea1Tests)}
+                ${renderSectionIfHasData('General Examination', enhancedReport.generalExamination, renderGeneralExam)}
+                ${renderSectionIfHasData('Systemic Examination', enhancedReport.systemicExamination, renderSystemicExam)}
+                ${renderSectionIfHasData('Urine Test', enhancedReport.selectedReport?.urineTest, renderUrineTest)}
+                ${renderSectionIfHasData('Blood Tests', enhancedReport.selectedReport?.bloodTest, renderBloodTests)}
+                ${renderSectionIfHasData('Laboratory Tests', enhancedReport.selectedReport?.area1, renderArea1Tests)}
               </div>
               
               <!-- Full-width sections for larger test tables -->
               <div class="full-width-section">
-                ${renderSectionIfHasData('Full Haemogram', report.selectedReport?.fullHaemogram, renderHaemogram)}
+                ${renderSectionIfHasData('Full Haemogram', enhancedReport.selectedReport?.fullHaemogram, renderHaemogram)}
               </div>
               
               <div class="full-width-section">
-                ${renderSectionIfHasData('Renal Function Test', report.selectedReport?.renalFunction, renderRenalFunction)}
+                ${renderSectionIfHasData('Renal Function Test', enhancedReport.selectedReport?.renalFunction, renderRenalFunction)}
               </div>
               
               <div class="full-width-section">
-                ${renderSectionIfHasData('Liver Function Test', report.selectedReport?.liverFunction, renderLiverFunction)}
+                ${renderSectionIfHasData('Liver Function Test', enhancedReport.selectedReport?.liverFunction, renderLiverFunction)}
               </div>
               
               <!-- Clinical Notes and Lab Remarks at the Bottom -->
               <div class="bottom-section">
-                ${hasData(report.historyOfPastIllness) || hasData(report.allergy) ? `
+                ${hasData(enhancedReport.historyOfPastIllness) || hasData(enhancedReport.allergy) ? `
                   <div class="section">
                     <h3 class="section-title">Medical History</h3>
                     <div class="section-content">
-                      ${renderMedicalHistory(report)}
+                      ${renderMedicalHistory(enhancedReport)}
                     </div>
                   </div>
                 ` : ''}
                 
                 ${renderSectionIfHasData('Clinical Information', basicInfo, renderClinicalInfo)}
                 
-                ${hasData(report.selectedReport?.labRemarks) ? `
+                ${hasData(enhancedReport.selectedReport?.labRemarks) ? `
                   <div class="section">
                     <h3 class="section-title">Lab Remarks & Conclusions</h3>
                     <div class="section-content">
-                      ${renderLabRemarks(report.selectedReport?.labRemarks)}
+                      ${renderLabRemarks(enhancedReport.selectedReport?.labRemarks)}
                     </div>
                   </div>
                 ` : ''}

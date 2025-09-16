@@ -71,6 +71,38 @@ const Agent = () => {
         return () => clearTimeout(timeoutId);
     }, [searchTerm]);
 
+    // Function to fetch complete patient details and enhance report data
+    const enhanceReportWithPatientData = async (report) => {
+        try {
+            const response = await axios.get('http://localhost:5000/api/patient');
+            const patients = response.data;
+            
+            // Find patient by name (case-insensitive)
+            const patient = patients.find(p => 
+                p.name.toLowerCase() === report.selectedReport.patientName.toLowerCase()
+            );
+            
+            if (patient) {
+                // Enhance the report with complete patient data
+                const enhancedReport = {
+                    ...report,
+                    passportNumber: patient.passportNumber,
+                    gender: patient.sex, // Patient model uses 'sex' field  
+                    age: patient.age,
+                    agent: patient.agent
+                };
+                setSelectedReport(enhancedReport);
+            } else {
+                setSelectedReport(report);
+                toast.warning(`Complete patient details not found for: ${report.selectedReport.patientName}`);
+            }
+        } catch (error) {
+            console.error('Error fetching patient details:', error);
+            setSelectedReport(report);
+            toast.error('Failed to fetch complete patient details');
+        }
+    };
+
     const printReport = async () => {
         if (!selectedReport) {
             toast.error("No report selected for printing");
@@ -252,6 +284,10 @@ const Agent = () => {
                                     <span class="info-value">${formatData(selectedReport.passportNumber)}</span>
                                 </div>
                                 <div class="info-item">
+                                    <span class="info-label">Agent:</span>
+                                    <span class="info-value">${formatData(selectedReport.agent)}</span>
+                                </div>
+                                <div class="info-item">
                                     <span class="info-label">Report Date:</span>
                                     <span class="info-value">${new Date(selectedReport.selectedReport.timeStamp).toLocaleDateString()}</span>
                                 </div>
@@ -259,7 +295,7 @@ const Agent = () => {
                         </div>
 
                         <div class="fitness-status">
-                            <div class="fitness-label">FITNESS EVALUATION</div>
+                            <div class="fitness-label">MEDICAL STATUS</div>
                             <div class="fitness-value">${getFitnessEvaluation()}</div>
                         </div>
 
@@ -327,7 +363,7 @@ const Agent = () => {
                             paginatedReports.map((report) => (
                                 <div
                                     key={report._id}
-                                    onClick={() => setSelectedReport(report)}
+                                    onClick={() => enhanceReportWithPatientData(report)}
                                     className={`
                                         relative p-6 rounded-xl mb-4 transition-all duration-300 ease-in-out 
                                         hover:scale-105 border shadow-lg hover:shadow-xl cursor-pointer
@@ -452,13 +488,13 @@ const Agent = () => {
                                                 <div>
                                                     <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Gender:</span>
                                                     <p className="text-lg font-semibold text-gray-800 dark:text-white">
-                                                        {selectedReport.selectedReport.gender || 'N/A'}
+                                                        {selectedReport.gender || 'N/A'}
                                                     </p>
                                                 </div>
                                                 <div>
                                                     <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Age:</span>
                                                     <p className="text-lg font-semibold text-gray-800 dark:text-white">
-                                                        {selectedReport.selectedReport.age || 'N/A'}
+                                                        {selectedReport.age || 'N/A'}
                                                     </p>
                                                 </div>
                                                 <div>
@@ -470,7 +506,13 @@ const Agent = () => {
                                                 <div>
                                                     <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Passport Number:</span>
                                                     <p className="text-lg font-semibold text-gray-800 dark:text-white">
-                                                        {selectedReport.selectedReport.passportNumber || 'N/A'}
+                                                        {selectedReport.passportNumber || 'N/A'}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Agent:</span>
+                                                    <p className="text-lg font-semibold text-gray-800 dark:text-white">
+                                                        {selectedReport.agent || 'N/A'}
                                                     </p>
                                                 </div>
                                                 <div>
@@ -502,7 +544,7 @@ const Agent = () => {
                                     <div className="bg-gray-50 dark:bg-gray-600 rounded-lg p-6">
                                         <div className="text-center">
                                             <span className="text-sm font-medium text-gray-600 dark:text-gray-300 block mb-2">
-                                                Overall Status
+                                                Medical Status
                                             </span>
                                             <div className={`inline-flex items-center px-6 py-3 rounded-full text-lg font-bold ${
                                                 selectedReport?.selectedReport?.labRemarks?.fitnessEvaluation?.overallStatus?.toLowerCase().includes('fit') 
