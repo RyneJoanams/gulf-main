@@ -24,6 +24,7 @@
     "cors": "^2.8.5",
     "countries": "^1.0.2",
     "countries-list": "^3.1.1",
+    "country-flag-icons": "^1.5.20",
     "country-state-city": "^3.2.1",
     "date-fns": "^4.1.0",
     "docx": "^9.5.1",

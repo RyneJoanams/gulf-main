@@ -4482,6 +4482,11 @@ countries@^1.0.2:
   resolved "https://registry.npmjs.org/countries/-/countries-1.0.2.tgz"
   integrity sha512-jCvHARyZ/51LjqWMl8RJEg7J/Vg/ESpaWHMfIrRoTwIu1X3N3oHfJwgRhrxP2zV8o+h5xl4F3htl9GumOM0KTw==
 
+country-flag-icons@^1.5.20:
+  version "1.5.20"
+  resolved "https://registry.npmjs.org/country-flag-icons/-/country-flag-icons-1.5.20.tgz"
+  integrity sha512-ldchBFYlw2dXXGXO6q/xCYaFiiK/eg5qSctBRDzUTDvHqAdIMOVTj1sp0OWVo7g6h+RURTjlu+5BhtGwIbe9tg==
+
 country-state-city@^3.2.1:
   version "3.2.1"
   resolved "https://registry.npmjs.org/country-state-city/-/country-state-city-3.2.1.tgz"

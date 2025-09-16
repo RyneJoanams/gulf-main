@@ -9,6 +9,8 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Select from 'react-select';
 import { Country } from 'country-state-city';
+import { getCountryCallingCode } from 'country-flag-icons';
+import * as flags from 'country-flag-icons/react/3x2';
 import axios from 'axios';
 import TopBar from '../../components/TopBar'
 import Footer from '../../components/Footer';
@@ -41,6 +43,28 @@ import {
   FaSpinner
 } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
+
+// Helper function to get country flag component
+const getCountryFlag = (countryCode) => {
+  if (!countryCode) return null;
+  
+  try {
+    const FlagComponent = flags[countryCode.toUpperCase()];
+    if (FlagComponent) {
+      return <FlagComponent style={{ width: '20px', height: '15px' }} />;
+    }
+  } catch (error) {
+    console.warn(`Flag not found for country code: ${countryCode}`);
+  }
+  
+  // Fallback to Unicode emoji
+  const codePoints = countryCode
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt());
+  
+  return String.fromCodePoint(...codePoints);
+};
 
 // Custom CSS animations
 const customStyles = `
@@ -118,6 +142,7 @@ const medicalTypes = ['MAURITIUS', 'SM-VDRL', 'MEDICAL', 'FM', 'NORMAL'];
 const countryOptions = Country.getAllCountries().map((country) => ({
   value: country.isoCode,
   label: country.name,
+  flag: getCountryFlag(country.isoCode),
 }));
 
 const sexOptions = [
@@ -687,6 +712,14 @@ const FrontOffice = () => {
                   styles={customSelectStyles}
                   className="rounded-xl"
                   isSearchable
+                  formatOptionLabel={(option) => (
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ marginRight: '8px', fontSize: '16px', display: 'flex', alignItems: 'center' }}>
+                        {React.isValidElement(option.flag) ? option.flag : option.flag}
+                      </span>
+                      <span>{option.label}</span>
+                    </div>
+                  )}
                 />
               </div>
               
@@ -1550,9 +1583,7 @@ const FrontOffice = () => {
                   >
                     Patient Registration
                   </Typography>
-                  <Typography variant="h6" className="text-gray-600 max-w-2xl mx-auto">
-                    Complete the form below to register a new patient. All required fields are marked with an asterisk (*).
-                  </Typography>
+                  
                   <div className="w-24 h-1 bg-gradient-to-r from-blue-600 to-indigo-600 mx-auto mt-4 rounded-full"></div>
                 </div>
               
