@@ -201,6 +201,12 @@ const AllUsers = () => {
     const targetUser = isEditing ? editingUser : permissionsUser;
     const setTargetUser = isEditing ? setEditingUser : setPermissionsUser;
     
+    // Add null check to prevent errors
+    if (!targetUser) {
+      console.warn('Target user is null, cannot toggle department');
+      return;
+    }
+    
     setTargetUser(prev => {
       const currentDepts = prev.departments || [];
       const updatedDepts = currentDepts.includes(department)
@@ -215,16 +221,23 @@ const AllUsers = () => {
   };
 
   const handlePermissionChange = (department, permission, value) => {
-    setPermissionsUser(prev => ({
-      ...prev,
-      permissions: {
-        ...prev.permissions,
-        [department]: {
-          ...prev.permissions[department],
-          [permission]: value
-        }
+    setPermissionsUser(prev => {
+      if (!prev) {
+        console.warn('Permissions user is null, cannot change permission');
+        return prev;
       }
-    }));
+      
+      return {
+        ...prev,
+        permissions: {
+          ...prev.permissions,
+          [department]: {
+            ...prev.permissions?.[department],
+            [permission]: value
+          }
+        }
+      };
+    });
   };
 
   const calculateUserAccess = (user) => {

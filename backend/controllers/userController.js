@@ -76,6 +76,9 @@ const loginUser = async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
+      role: user.role,
+      departments: user.departments,
+      permissions: user.permissions,
       token: generateToken(user._id),
     });
   } catch (error) {

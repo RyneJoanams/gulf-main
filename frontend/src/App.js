@@ -14,6 +14,11 @@ import Phlebotomy from "./pages/Phlebotomy/Phlebotomy.jsx";
 import Lab from "./pages/Lab/Lab.jsx";
 import Admin from "./pages/Admin/Admin.jsx";
 import AccountsLogin from "./pages/Accounts/AccountsLogin.jsx";
+import ClinicalLogin from "./pages/Clinical/ClinicalLogin.jsx";
+import LabLogin from "./pages/Lab/LabLogin.jsx";
+import RadiologyLogin from "./pages/Radiology/RadiologyLogin.jsx";
+import PhlebotomyLogin from "./pages/Phlebotomy/PhlebotomyLogin.jsx";
+import AgentLogin from "./pages/Agent/AgentLogin.jsx";
 import { PatientProvider } from "./context/patientContext.jsx";
 import "react-toastify/dist/ReactToastify.css";
 import AllPatients from "./pages/Admin/AllPatients.jsx";
@@ -24,11 +29,11 @@ import Clinical from "./pages/Clinical/Clinical.jsx";
 import Radiology from "./pages/Radiology/Radiology.jsx";
 import Agent from "./pages/Agent/Agent.jsx";
 import AdminAuth from "./pages/Admin/AdminAuth.jsx";
-import ErrorPage from "./pages/ErrorPage.jsx";
+import ErrorBoundary from "./pages/ErrorPage.jsx";
 
 const App = () => {
   return (
-    <ErrorPage>
+    <ErrorBoundary>
         <PatientProvider>
           <Router>
             <Routes>
@@ -37,6 +42,11 @@ const App = () => {
               <Route path="/front-office" element={<FrontOffice />} />
               <Route path="/accounts" element={<Accounts />} />
               <Route path="/accounts-login" element={<AccountsLogin />} />
+              <Route path="/clinical-login" element={<ClinicalLogin />} />
+              <Route path="/lab-login" element={<LabLogin />} />
+              <Route path="/radiology-login" element={<RadiologyLogin />} />
+              <Route path="/phlebotomy-login" element={<PhlebotomyLogin />} />
+              <Route path="/agent-login" element={<AgentLogin />} />
               <Route path="/phlebotomy" element={<Phlebotomy />} />
               <Route path="/lab" element={<Lab />} />
               <Route path="/clinical" element={<Clinical />} />
@@ -67,7 +77,7 @@ const App = () => {
             pauseOnHover
           />
         </PatientProvider>
-    </ErrorPage>
+    </ErrorBoundary>
   );
 };
 

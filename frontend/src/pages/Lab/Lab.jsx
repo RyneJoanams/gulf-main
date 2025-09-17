@@ -11,7 +11,7 @@ import { FaSave, FaEye, FaEdit, FaArrowLeft } from 'react-icons/fa';
 import Footer from '../../components/Footer';
 
 const Lab = () => {
-  const { patientData, updatePateintData } = usePatient();
+  const { patientData, updatePatientData } = usePatient();
   const [selectedPatient, setSelectedPatient] = useState('Select Patient')
   const [bloodGroups, setBloodGroups] = useState([]);
   const [selectedUnits, setSelectedUnits] = useState({});

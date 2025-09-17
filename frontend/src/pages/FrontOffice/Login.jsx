@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { motion } from 'framer-motion';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { enhancedLogin } from '../../utils/departmentAuth';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -27,9 +27,7 @@ const Login = () => {
     
 
     try {
-      await axios.post('http://localhost:5000/api/user/login', { ...formData, rememberMe });
-      toast.success('Login successful! Redirecting to FrontOffice...');
-      navigate('/front-office');
+      await enhancedLogin(formData, 'Front Office', navigate, toast);
     } catch (error) {
       setError('Invalid email or password');
       toast.error('Invalid email or password');

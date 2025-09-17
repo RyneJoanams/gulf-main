@@ -871,8 +871,10 @@ const LeftBar = () => {
     };
   };
 
-  const viewReport = (report) => {
-    setSelectedReport(report);
+  const viewReport = async (report) => {
+    // Enhance report with complete patient data before viewing
+    const enhancedReport = await enhanceReportWithPatientData(report);
+    setSelectedReport(enhancedReport);
     setShowReportModal(true);
   };
 
@@ -1017,7 +1019,7 @@ const LeftBar = () => {
                   <p><strong>Age:</strong> {selectedReport.age || 'N/A'}</p>
                   <p><strong>Passport Number:</strong> {selectedReport.passportNumber || 'N/A'}</p>
                   <p><strong>Lab Number:</strong> {selectedReport.selectedReport?.labNumber || 'N/A'}</p>
-                  <p></p>
+                  <p><strong>Agent:</strong> {selectedReport.agent || 'N/A'}</p>
                   <p><strong>Date:</strong> {new Date(selectedReport.selectedReport?.timeStamp).toLocaleDateString()}</p>
                   <p><strong>Time:</strong> {new Date(selectedReport.selectedReport?.timeStamp).toLocaleTimeString()}</p>
                   <p></p>

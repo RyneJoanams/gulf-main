@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { motion } from 'framer-motion';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { enhancedLogin } from '../../utils/departmentAuth';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -24,20 +24,17 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
 
     try {
-      await axios.post('http://localhost:5000/api/user/login', { ...formData, rememberMe });
-      toast.success('Login successful! Redirecting to FrontOffice...');
-      navigate('/front-office');
+      await enhancedLogin(formData, 'Clinical', navigate, toast);
     } catch (error) {
       setError('Invalid email or password');
       toast.error('Invalid email or password');
     } finally {
       setIsSubmitting(false);
     }
-  };  
-     
+  };
+  
 
   return (
     <div className="relative flex items-center justify-center min-h-screen">
@@ -49,7 +46,7 @@ const Login = () => {
         className="relative z-10 w-full max-w-md bg-white shadow-lg rounded-lg p-8"
       >
         <h2 className="text-2xl font-semibold text-center text-gray-700 mb-6">Login</h2>
-      <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
             <input
               type="email"
@@ -126,7 +123,7 @@ const Login = () => {
           >
             {isSubmitting ? 'Logging in...' : 'Login'}
           </motion.button>
-        </form> 
+        </form>
 
         <div className="text-center mt-4">
           <p className="text-sm text-gray-600">Don't have an account?</p>
@@ -137,6 +134,6 @@ const Login = () => {
       </motion.div>
     </div>
   );
-}; 
+};
 
 export default Login;
