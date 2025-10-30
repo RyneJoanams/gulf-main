@@ -75,6 +75,8 @@ const clinicalSchema = new mongoose.Schema(
     historyOfPastIllness: String,
     allergy: String,
     radiologyData: mongoose.Schema.Types.Mixed,
+    // Flag to track if this clinical report is from phlebotomy F-series routing
+    isFromPhlebotomy: { type: Boolean, default: false },
   },
   {
     timestamps: true,

@@ -8,6 +8,7 @@ import {
   MousePointer,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { QRCodeCanvas } from 'qrcode.react';
 import logo from '../assets/GULF HEALTHCARE KENYA LTD.png';
 
 const LeftBar = () => {
@@ -22,15 +23,44 @@ const LeftBar = () => {
   useEffect(() => {
     const fetchPhlebotomyReports = async () => {
       try {
-        // Fetch lab numbers instead of phlebotomy reports
-        const response = await axios.get('http://localhost:5000/api/number');
-        const labNumbers = response.data.labNumbers || [];
+        // Fetch lab numbers and clinical reports to determine which can be processed by lab
+        const [labNumbersResponse, clinicalResponse] = await Promise.all([
+          axios.get('http://localhost:5000/api/number'),
+          axios.get('http://localhost:5000/api/clinical')
+        ]);
         
-        // Filter to only show pending lab numbers (not completed)
-        const pendingLabNumbers = labNumbers.filter(lab => lab.status !== 'completed');
+        const labNumbers = labNumbersResponse.data.labNumbers || [];
+        const clinicalReports = clinicalResponse.data || [];
+        
+        // Create a set of lab numbers that have been processed by clinical
+        const processedByClinical = new Set(
+          clinicalReports.map(report => report.selectedReport?.labNumber).filter(Boolean)
+        );
+        
+        // Filter lab numbers based on routing rules:
+        // - S-series: Can go directly to lab (bypass clinical)
+        // - F-series: Must go through clinical first, only show in lab after clinical processing
+        const availableForLab = labNumbers.filter(lab => {
+          const isCompleted = lab.status === 'completed';
+          const isSeries = lab.number && lab.number.includes('-S');
+          const isFSeries = lab.number && lab.number.includes('-F');
+          const hasBeenProcessedByClinical = processedByClinical.has(lab.number);
+          
+          // Don't show completed tests
+          if (isCompleted) return false;
+          
+          // S-series can go directly to lab
+          if (isSeries) return true;
+          
+          // F-series can only go to lab after clinical processing
+          if (isFSeries) return hasBeenProcessedByClinical;
+          
+          // Default: allow other types to go to lab
+          return true;
+        });
         
         // Sort by most recent first
-        const sortedReports = pendingLabNumbers.sort((a, b) => 
+        const sortedReports = availableForLab.sort((a, b) => 
           new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp)
         );
         
@@ -161,6 +191,54 @@ const LeftBar = () => {
     };
     const logoBase64 = await getLogoBase64();
 
+    // Generate QR code data for lab result access
+    // Use lab number directly without encoding for cleaner URL
+    const reportId = enhancedReport.selectedReport?.labNumber || 
+                    `${enhancedReport.selectedReport?.patientName?.replace(/\s+/g, '-')}-${Date.now()}`;
+    const qrUrl = `${window.location.origin}/lab-result/${reportId}`;
+    
+    // Store report data for QR code access (in real app, this would be stored in backend)
+    const reportData = {
+      id: reportId,
+      patientName: enhancedReport.selectedReport?.patientName,
+      labNumber: enhancedReport.selectedReport?.labNumber,
+      reportDate: new Date(enhancedReport.selectedReport?.timeStamp).toLocaleDateString(),
+      data: enhancedReport
+    };
+    
+    // Store in localStorage for demo purposes (in production, store in backend)
+    try {
+      localStorage.setItem(`lab-result-${reportId}`, JSON.stringify(reportData));
+      console.log('Lab result stored for QR code access:', reportId);
+      console.log('QR code will link to:', qrUrl);
+      toast.info(`QR code generated - Lab #${enhancedReport.selectedReport?.labNumber}`);
+    } catch (error) {
+      console.error('Error storing report data:', error);
+      toast.error('Error generating QR code data');
+    }
+
+    // Generate QR code as base64 image using qrcode library
+    const generateQRCodeBase64 = async (url) => {
+      try {
+        const QRCode = require('qrcode');
+        const qrCodeDataUrl = await QRCode.toDataURL(url, {
+          width: 130,
+          margin: 2,
+          errorCorrectionLevel: 'H',
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        });
+        return qrCodeDataUrl;
+      } catch (error) {
+        console.error('Error generating QR code:', error);
+        return '';
+      }
+    };
+    
+    const qrCodeBase64 = await generateQRCodeBase64(qrUrl);
+
     // Helper function to check if section has data
     const hasData = (section) => {
       if (!section) return false;
@@ -264,6 +342,17 @@ const LeftBar = () => {
             color: #0f766e;
             font-weight: bold;
           }
+          .qr-code-container {
+            background: #FFFFFF;
+            padding: 8px;
+            border-radius: 5px;
+            display: inline-block;
+          }
+          .qr-code-container canvas {
+            display: block;
+            background: #FFFFFF !important;
+          }
+          }
           .main-content {
             flex: 1;
             display: block;
@@ -356,9 +445,9 @@ const LeftBar = () => {
             margin-top: 12px;
             padding-top: 8px;
             border-top: 2px solid #2dd4bf;
-            text-align: center;
             font-size: 10px;
             color: #64748b;
+            page-break-inside: avoid;
           }
           .two-column-layout {
             display: grid;
@@ -430,12 +519,20 @@ const LeftBar = () => {
     const renderClinicalInfo = (data) => {
       const items = [
         { label: 'Height', value: data.height ? `${formatData(data.height)} cm` : 'N/A' },
-        { label: 'Weight', value: data.weight ? `${formatData(data.weight)} kg` : 'N/A' },
-        { label: 'Clinical Officer', value: formatData(data.clinicalOfficerName) },
-        { label: 'Clinical Notes', value: formatData(data.clinicalNotes) }
-      ].filter(item => item.value !== 'N/A');
+        { label: 'Weight', value: data.weight ? `${formatData(data.weight)} kg` : 'N/A' }
+      ];
+      
+      // Only include clinical officer and notes if they exist in the data (excluded for SM-VDRL)
+      if (data.clinicalOfficerName) {
+        items.push({ label: 'Clinical Officer', value: formatData(data.clinicalOfficerName) });
+      }
+      if (data.clinicalNotes) {
+        items.push({ label: 'Clinical Notes', value: formatData(data.clinicalNotes) });
+      }
+      
+      const filteredItems = items.filter(item => item.value !== 'N/A');
 
-      if (items.length === 0) return '';
+      if (filteredItems.length === 0) return '';
 
       return `
         <table class="compact-table">
@@ -446,7 +543,7 @@ const LeftBar = () => {
             </tr>
           </thead>
           <tbody>
-            ${items.map(item => `
+            ${filteredItems.map(item => `
               <tr>
                 <td class="label">${item.label}</td>
                 <td class="value">${item.value}</td>
@@ -751,11 +848,18 @@ const LeftBar = () => {
     };
 
     // Prepare sections data
+    // Check if this is an SM-VDRL (S-series) report to exclude clinical officer and notes sections
+    const isSmVdrlReport = enhancedReport.selectedReport?.labNumber?.includes('-S') || 
+                           enhancedReport.selectedReport?.medicalType === 'SM-VDRL';
+    
     const basicInfo = {
       height: enhancedReport.height,
       weight: enhancedReport.weight,
-      clinicalOfficerName: enhancedReport.clinicalOfficerName,
-      clinicalNotes: enhancedReport.clinicalNotes
+      // Only include clinical officer and notes for non-SM-VDRL reports
+      ...(isSmVdrlReport ? {} : {
+        clinicalOfficerName: enhancedReport.clinicalOfficerName,
+        clinicalNotes: enhancedReport.clinicalNotes
+      })
     };
 
     const printContent = `
@@ -767,7 +871,9 @@ const LeftBar = () => {
         <body>
           <div class="report-container">
             <div class="header">
-              ${logoBase64 ? `<img src="${logoBase64}" alt="Gulf Healthcare Kenya Ltd" style="width: 200px; height: auto; display: block; margin: 0 auto 10px auto;" />` : ''}
+              <div style="text-align: center; margin-bottom: 10px;">
+                ${logoBase64 ? `<img src="${logoBase64}" alt="Gulf Healthcare Kenya Ltd" style="width: 300px; height: auto; max-width: 100%;" />` : ''}
+              </div>
               <h2 class="report-title" style="margin-top: 10px;">Clinical Report</h2>
               
               <div class="patient-info-section">
@@ -852,10 +958,24 @@ const LeftBar = () => {
             </div>
 
             <div class="footer">
-              <p><strong>Gulf Healthcare Kenya Ltd.</strong> • Computer-generated report</p>
-              <p>This is an official medical report. For any queries, contact our laboratory department.</p>
+              <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
+                <div style="flex: 0 0 auto;">
+                  ${qrCodeBase64 ? `
+                    <div style="display: inline-block; text-align: center; padding: 8px; background: #FFFFFF; border-radius: 4px; border: 1px solid #e5e7eb;">
+                      <img src="${qrCodeBase64}" alt="QR Code" style="width: 130px; height: 130px; display: block;" />
+                      <div style="font-size: 8px; margin-top: 3px; color: #2dd4bf; font-weight: bold;">Scan for Digital Copy</div>
+                    </div>
+                  ` : ''}
+                </div>
+                <div style="flex: 1; text-align: center;">
+                  <p><strong>Gulf Healthcare Kenya Ltd.</strong> • Computer-generated report</p>
+                  <p>This is an official medical report. For any queries, contact our laboratory department.</p>
+                </div>
+                <div style="flex: 0 0 auto; width: 130px;"></div>
+              </div>
             </div>
           </div>
+          
         </body>
       </html>
     `;
@@ -863,11 +983,15 @@ const LeftBar = () => {
     const printWindow = window.open("", "", "width=800,height=600");
     printWindow.document.write(printContent);
     printWindow.document.close();
+    
+    // Print after content loads
     printWindow.onload = () => {
-      printWindow.print();
-      printWindow.onafterprint = () => {
-        printWindow.close();
-      };
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.onafterprint = () => {
+          printWindow.close();
+        };
+      }, 500); // Short delay to ensure rendering
     };
   };
 
@@ -1032,8 +1156,13 @@ const LeftBar = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <p><strong>Height:</strong> {selectedReport.height || 'N/A'} cm</p>
                   <p><strong>Weight:</strong> {selectedReport.weight || 'N/A'} kg</p>
-                  <p><strong>Clinical Officer:</strong> {selectedReport.clinicalOfficerName || 'N/A'}</p>
-                  <p><strong>Clinical Notes:</strong> {selectedReport.clinicalNotes || 'N/A'}</p>
+                  {/* Only show clinical officer and notes for non-SM-VDRL reports */}
+                  {!(selectedReport.selectedReport?.labNumber?.includes('-S') || selectedReport.selectedReport?.medicalType === 'SM-VDRL') && (
+                    <>
+                      <p><strong>Clinical Officer:</strong> {selectedReport.clinicalOfficerName || 'N/A'}</p>
+                      <p><strong>Clinical Notes:</strong> {selectedReport.clinicalNotes || 'N/A'}</p>
+                    </>
+                  )}
                   <p><strong>Past Illness:</strong> {selectedReport.historyOfPastIllness || 'N/A'}</p>
                   <p><strong>Allergies:</strong> {selectedReport.allergy || 'N/A'}</p>
                 </div>

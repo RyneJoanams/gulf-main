@@ -250,7 +250,7 @@ const Agent = () => {
                 <body>
                     <div class="report-container">
                         <div class="header">
-                            ${logoBase64 ? `<img src="${logoBase64}" alt="Gulf Healthcare Kenya Ltd" style="width: 200px; height: auto; display: block; margin: 0 auto 10px auto;" />` : ''}
+                            ${logoBase64 ? `<img src="${logoBase64}" alt="Gulf Healthcare Kenya Ltd" style="width: 300px; height: auto; display: block; margin: 0 auto 10px auto; max-width: 100%;" />` : ''}
                             <h2 style="color: #64748b; margin: 10px 0;">Agent Summary Report</h2>
                             ${selectedReport.selectedReport.patientImage ? `
                                 <img 

@@ -30,6 +30,7 @@ import Radiology from "./pages/Radiology/Radiology.jsx";
 import Agent from "./pages/Agent/Agent.jsx";
 import AdminAuth from "./pages/Admin/AdminAuth.jsx";
 import ErrorBoundary from "./pages/ErrorPage.jsx";
+import LabResultViewer from "./pages/LabResult/LabResultViewer.jsx";
 
 const App = () => {
   return (
@@ -61,6 +62,7 @@ const App = () => {
                 element={<FinancialStatements />}
               />
               <Route path="/all-users" element={<AllUsers />} />
+              <Route path="/lab-result/:reportId" element={<LabResultViewer />} />
 
               {/* Add more routes as needed */}
             </Routes>

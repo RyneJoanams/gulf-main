@@ -50,6 +50,8 @@ exports.createReport = async (req, res) => {
             historyOfPastIllness,
             allergy,
             radiologyData,
+            // Track if this report is from phlebotomy F-series routing
+            isFromPhlebotomy: req.body.isFromPhlebotomy || false,
         });
 
         const savedReport = await newReport.save();

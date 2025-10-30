@@ -47,16 +47,18 @@ const Clinical = () => {
     useEffect(() => {
         const fetchReports = async () => {
             try {
-                // Fetch lab reports, radiology reports, and clinical reports
-                const [labResponse, radiologyResponse, clinicalResponse] = await Promise.all([
+                // Fetch lab reports, radiology reports, clinical reports, and lab numbers from phlebotomy
+                const [labResponse, radiologyResponse, clinicalResponse, labNumbersResponse] = await Promise.all([
                     axios.get("http://localhost:5000/api/lab"),
                     axios.get("http://localhost:5000/api/radiology"),
-                    axios.get("http://localhost:5000/api/clinical")
+                    axios.get("http://localhost:5000/api/clinical"),
+                    axios.get("http://localhost:5000/api/number")
                 ]);
 
-                const labReports = labResponse.data.data;
-                const radiologyReports = radiologyResponse.data;
-                const clinicalReports = clinicalResponse.data;
+                const labReports = labResponse.data.data || [];
+                const radiologyReports = radiologyResponse.data || [];
+                const clinicalReports = clinicalResponse.data || [];
+                const labNumbers = labNumbersResponse.data.labNumbers || [];
 
                 // Get lab numbers that have already been processed by clinical
                 const processedByClinical = new Set(
@@ -72,9 +74,32 @@ const Clinical = () => {
                     });
                 });
 
-                // Filter reports to show only those that have lab results but haven't been processed by clinical
-                // Exclude S-series tests as they are auto-processed, only include F-series for manual clinical processing
-                const unprocessedReports = labReports
+                // Get F-series lab numbers that haven't been processed by clinical yet
+                const pendingFSeriesLabNumbers = labNumbers
+                    .filter(labNum => 
+                        labNum.number && 
+                        labNum.number.includes('-F') && 
+                        !processedByClinical.has(labNum.number) &&
+                        labNum.status !== 'completed'
+                    )
+                    .map(labNum => ({
+                        _id: `phlebotomy-${labNum._id}`, // Unique identifier for phlebotomy reports
+                        labNumber: labNum.number,
+                        patientName: labNum.patient,
+                        timestamp: labNum.createdAt || labNum.timestamp || new Date(),
+                        testType: 'F-Series Medical',
+                        source: 'phlebotomy',
+                        radiologyData: radiologyDataMap.get(labNum.number) || {
+                            heafMantouxTest: null,
+                            chestXRayTest: null
+                        },
+                        // Mark as phlebotomy report for easy identification
+                        isFromPhlebotomy: true
+                    }));
+
+                // Filter lab reports to show only those that have lab results but haven't been processed by clinical
+                // Exclude S-series tests as they are auto-processed
+                const unprocessedLabReports = labReports
                     .filter(report => 
                         !processedByClinical.has(report.labNumber) && 
                         (!report.labNumber || !report.labNumber.includes('-S')) // Exclude S-series tests
@@ -93,8 +118,11 @@ const Clinical = () => {
                         };
                     });
 
-                setReports(unprocessedReports);
-                setFilteredReports(unprocessedReports);
+                // Combine F-series lab numbers from phlebotomy with existing lab reports
+                const allReports = [...pendingFSeriesLabNumbers, ...unprocessedLabReports];
+
+                setReports(allReports);
+                setFilteredReports(allReports);
                 toast.success('Reports Successfully Fetched.')
                 setIsLoading(false);
             } catch (error) {
@@ -125,10 +153,12 @@ const Clinical = () => {
             filtered = filtered.filter((report) => report.testType === testTypeFilter);
         }
 
-        // Filter by source (lab only vs radiology complete)
+        // Filter by source (phlebotomy, lab only vs radiology complete)
         if (sourceFilter !== "All") {
             filtered = filtered.filter((report) => {
-                if (sourceFilter === "Lab Only") {
+                if (sourceFilter === "Phlebotomy") {
+                    return report.source === "phlebotomy";
+                } else if (sourceFilter === "Lab Only") {
                     return report.source === "lab";
                 } else if (sourceFilter === "Radiology Complete") {
                     return report.source === "radiology";
@@ -257,7 +287,9 @@ const Clinical = () => {
                 weight: formData.weight,
                 historyOfPastIllness: formData.historyOfPastIllness,
                 allergy: formData.allergy,
-                radiologyData: selectedReport?.radiologyData
+                radiologyData: selectedReport?.radiologyData,
+                // Add flag to indicate if this is from phlebotomy (F-series routing)
+                isFromPhlebotomy: selectedReport?.isFromPhlebotomy || false
             };
             console.log(clinicalReport);
 
@@ -409,7 +441,7 @@ const Clinical = () => {
                 <div className="flex justify-between items-center p-4 bg-gray-800 text-white shadow-md">
                     <div>
                         <h1 className="text-2xl font-bold">Clinical Assessment</h1>
-                        <p className="text-sm text-gray-300 mt-1">Processing F-series and S-series patients</p>
+                        <p className="text-sm text-gray-300 mt-1">Processing F-series from Phlebotomy, Lab reports, and Radiology reports</p>
                     </div>
                 </div>
 
@@ -432,6 +464,7 @@ const Clinical = () => {
                             className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
                         >
                             <option value="All">All Reports</option>
+                            <option value="Phlebotomy">From Phlebotomy (F-Series)</option>
                             <option value="Lab Only">Lab Only</option>
                             <option value="Radiology Complete">Radiology Complete</option>
                         </select>
@@ -445,7 +478,7 @@ const Clinical = () => {
                             <>
                                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                     <p className="text-sm text-blue-800 font-medium">
-                                        📋 F-series patients ready for clinical assessment ({filteredReports.length} total)
+                                        📋 Patients ready for clinical assessment ({filteredReports.length} total)
                                     </p>
                                     <p className="text-xs text-blue-600 mt-1">
                                         S-series tests are automatically processed and appear directly in clinical reports
@@ -481,7 +514,7 @@ const Clinical = () => {
                                                         ? 'bg-green-100 text-green-800' 
                                                         : 'bg-yellow-100 text-yellow-800'
                                                 }`}>
-                                                    {hasRadiology ? 'With Radiology' : 'Lab Only'}
+                                                    {report.source === 'phlebotomy' ? 'F-Series from Phlebotomy' : hasRadiology ? 'With Radiology' : 'Lab Only'}
                                                 </span>
                                             </div>
 
@@ -585,11 +618,13 @@ const Clinical = () => {
                                         </div>
                                         <div className="flex flex-col space-y-2">
                                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                                selectedReport.source === 'radiology' 
-                                                    ? 'bg-green-100 text-green-800 border border-green-200' 
-                                                    : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                                                selectedReport.source === 'phlebotomy' 
+                                                    ? 'bg-purple-100 text-purple-800 border border-purple-200' 
+                                                    : selectedReport.source === 'radiology' 
+                                                        ? 'bg-green-100 text-green-800 border border-green-200' 
+                                                        : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
                                             }`}>
-                                                {selectedReport.source === 'radiology' ? '✓ Radiology Complete' : '⏳ Lab Only'}
+                                                {selectedReport.source === 'phlebotomy' ? '🩸 From Phlebotomy (F-Series)' : selectedReport.source === 'radiology' ? '✓ Radiology Complete' : '⏳ Lab Only'}
                                             </span>
                                             {selectedReport.radiologyData?.heafMantouxTest || selectedReport.radiologyData?.chestXRayTest ? (
                                                 <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
@@ -604,6 +639,27 @@ const Clinical = () => {
                                     </div>
                                 </div>
 
+                                {/* F-Series Phlebotomy Notice */}
+                                {selectedReport.isFromPhlebotomy && (
+                                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
+                                        <div className="flex items-start gap-3">
+                                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                                <span className="text-purple-600">🩸</span>
+                                            </div>
+                                            <div>
+                                                <h3 className="text-purple-800 font-semibold mb-2">F-Series Test from Phlebotomy</h3>
+                                                <p className="text-purple-700 text-sm mb-2">
+                                                    This patient is coming directly from the Phlebotomy department. Complete the clinical examination below, 
+                                                    and the patient will then proceed to the Lab department for blood/urine tests.
+                                                </p>
+                                                <p className="text-purple-600 text-xs">
+                                                    ℹ️ Lab test results will be available after clinical assessment is submitted and lab work is completed.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Test Results Section with Enhanced Tables */}
                                 <div className="space-y-6">
                                     <div className="flex items-center justify-between">
@@ -611,7 +667,7 @@ const Clinical = () => {
                                             <span className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
                                                 <span className="text-white text-sm">🧪</span>
                                             </span>
-                                            Laboratory Test Results
+                                            {selectedReport.isFromPhlebotomy ? 'Laboratory Test Results (Pending - Will be completed after clinical assessment)' : 'Laboratory Test Results'}
                                         </h2>
                                         <div className="flex gap-2">
                                             <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">Haemogram</span>
