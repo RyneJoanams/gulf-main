@@ -13,6 +13,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import PrintIcon from '@mui/icons-material/Print';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import { FaFileExcel, FaPlus } from 'react-icons/fa';
+import { API_BASE_URL } from '../../config/api.config';
 import 'react-toastify/dist/ReactToastify.css';
 import { motion } from 'framer-motion';
 import debounce from 'lodash.debounce';
@@ -43,7 +44,7 @@ const AllPatients = () => {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/patient');
+        const response = await axios.get(`${API_BASE_URL}/api/patient`);
         setPatients(response.data);
         setFilteredPatients(response.data);
         calculateMedicalTypeCounts(response.data);
@@ -112,7 +113,7 @@ const AllPatients = () => {
 
   const handleSaveChanges = async () => {
     try {
-      await axios.put(`http://localhost:5000/api/patient/${editablePatient._id}`, editablePatient);
+      await axios.put(`${API_BASE_URL}/api/patient/${editablePatient._id}`, editablePatient);
       toast.success('Patient details updated successfully!');
       setPatients(prev => prev.map(p => (p._id === editablePatient._id ? editablePatient : p)));
       handleCloseModal();
@@ -123,7 +124,7 @@ const AllPatients = () => {
 
   const handleDeletePatient = async (patientId) => {
     try {
-      await axios.delete(`http://localhost:5000/api/patient/${patientId}`);
+      await axios.delete(`${API_BASE_URL}/api/patient/${patientId}`);
       toast.success('Patient deleted successfully!');
       setPatients(prev => prev.filter(p => p._id !== patientId));
     } catch (error) {

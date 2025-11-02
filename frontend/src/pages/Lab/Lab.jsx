@@ -9,6 +9,9 @@ import { TESTS_BY_UNIT, initialValues } from './LabFunctions';
 import LeftBar from '../../components/LeftBar';
 import { FaSave, FaEye, FaEdit, FaArrowLeft } from 'react-icons/fa';
 import Footer from '../../components/Footer';
+import { API_BASE_URL } from '../../config/api.config';
+
+
 
 const Lab = () => {
   const { patientData, updatePatientData } = usePatient();
@@ -38,7 +41,7 @@ const Lab = () => {
     const fetchLabNumbers = async () => {
       setIsLoadingLabNumbers(true);
       try {
-        const response = await axios.get('http://localhost:5000/api/number');
+        const response = await axios.get(`${API_BASE_URL}/api/number`);
         setLabNumbers(response.data.labNumbers);
         setLoading(false);
       } catch (err) {
@@ -82,7 +85,7 @@ const Lab = () => {
   const fetchLabData = async (patientId, labNumber) => {
     try {
       console.log('Fetching lab data for:', patientId, labNumber);
-      const response = await axios.get(`http://localhost:5000/api/lab/${patientId}/${labNumber}`);
+      const response = await axios.get(`${API_BASE_URL}/api/lab/${patientId}/${labNumber}`);
       console.log('API Response:', response.data);
       
       if (response.data.success) {
@@ -485,14 +488,14 @@ const Lab = () => {
       console.log("Payload:", payload);
       
       // Send the payload to the server
-      const response = await axios.post("http://localhost:5000/api/lab", payload);
+      const response = await axios.post(`${API_BASE_URL}/api/lab`, payload);
       const data = response.data;
       console.log("Response data:", data);
       
       if (data.success) {
         // Mark the lab number as completed
         try {
-          await axios.put("http://localhost:5000/api/number/complete", {
+          await axios.put(`${API_BASE_URL}/api/number/complete`, {
             labNumber: selectedLabNumber
           });
           console.log("Lab number marked as completed successfully");

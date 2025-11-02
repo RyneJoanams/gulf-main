@@ -8,8 +8,8 @@ import {
   MousePointer,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { QRCodeCanvas } from 'qrcode.react';
 import logo from '../assets/GULF HEALTHCARE KENYA LTD.png';
+import { API_ENDPOINTS, FRONTEND_URL } from '../config/api.config';
 
 const LeftBar = () => {
   const [phlebotomyReports, setPhlebotomyReports] = useState([]);
@@ -25,8 +25,8 @@ const LeftBar = () => {
       try {
         // Fetch lab numbers and clinical reports to determine which can be processed by lab
         const [labNumbersResponse, clinicalResponse] = await Promise.all([
-          axios.get('http://localhost:5000/api/number'),
-          axios.get('http://localhost:5000/api/clinical')
+          axios.get(API_ENDPOINTS.labNumbers),
+          axios.get(API_ENDPOINTS.clinical)
         ]);
         
         const labNumbers = labNumbersResponse.data.labNumbers || [];
@@ -75,7 +75,7 @@ const LeftBar = () => {
 
     const fetchClinicalReports = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/clinical');
+        const response = await axios.get(API_ENDPOINTS.clinical);
         setClinicalReports(response.data || []);
       } catch (error) {
         console.error('Error fetching clinical reports:', error);
@@ -140,7 +140,7 @@ const LeftBar = () => {
     try {
       // If patient data is missing or incomplete, fetch it from patient collection
       if (!report.gender || !report.agent || !report.age || !report.passportNumber) {
-        const response = await axios.get('http://localhost:5000/api/patient');
+        const response = await axios.get(API_ENDPOINTS.patients);
         const patients = response.data;
         
         // Find patient by name (case-insensitive)
@@ -195,9 +195,9 @@ const LeftBar = () => {
     // Use lab number directly without encoding for cleaner URL
     const reportId = enhancedReport.selectedReport?.labNumber || 
                     `${enhancedReport.selectedReport?.patientName?.replace(/\s+/g, '-')}-${Date.now()}`;
-    const qrUrl = `${window.location.origin}/lab-result/${reportId}`;
+    const qrUrl = `${FRONTEND_URL}/lab-result/${reportId}`;
     
-    // Store report data for QR code access (in real app, this would be stored in backend)
+    // Store report data for QR code access
     const reportData = {
       id: reportId,
       patientName: enhancedReport.selectedReport?.patientName,
@@ -206,15 +206,30 @@ const LeftBar = () => {
       data: enhancedReport
     };
     
-    // Store in localStorage for demo purposes (in production, store in backend)
+    // Store in localStorage for immediate access and backward compatibility
     try {
       localStorage.setItem(`lab-result-${reportId}`, JSON.stringify(reportData));
-      console.log('Lab result stored for QR code access:', reportId);
-      console.log('QR code will link to:', qrUrl);
-      toast.info(`QR code generated - Lab #${enhancedReport.selectedReport?.labNumber}`);
+      console.log('Lab result stored locally for QR code access:', reportId);
     } catch (error) {
-      console.error('Error storing report data:', error);
-      toast.error('Error generating QR code data');
+      console.error('Error storing report data locally:', error);
+    }
+    
+    // Save to backend for persistent storage (production-ready)
+    try {
+      const response = await axios.post(`${API_ENDPOINTS.patients.replace('/patient', '')}/lab-result/save`, {
+        labNumber: reportId,
+        patientName: enhancedReport.selectedReport?.patientName,
+        reportData: reportData
+      });
+      
+      if (response.data && response.data.success) {
+        console.log('Lab result saved to backend:', reportId);
+        toast.success(`QR code generated - Lab #${enhancedReport.selectedReport?.labNumber}`);
+      }
+    } catch (backendError) {
+      console.error('Failed to save to backend:', backendError);
+      toast.warning('QR generated (local only) - backend storage failed');
+      // Don't fail the operation, localStorage is still available
     }
 
     // Generate QR code as base64 image using qrcode library

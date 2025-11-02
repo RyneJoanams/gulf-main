@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import TopBar from "../../components/TopBar";
 import logo from '../../assets/GULF HEALTHCARE KENYA LTD.png';
+import { API_BASE_URL } from '../../config/api.config';
 
 const Agent = () => {
     const [reports, setReports] = useState([]);
@@ -29,7 +30,7 @@ const Agent = () => {
         setIsLoading(true);
         setHasSearched(true);
         try {
-            const response = await axios.get("http://localhost:5000/api/clinical");
+            const response = await axios.get(`${API_BASE_URL}/api/clinical`);
             const allReports = response.data;
             
             // Filter by search term (passport number or ID only for identity confirmation)
@@ -74,7 +75,7 @@ const Agent = () => {
     // Function to fetch complete patient details and enhance report data
     const enhanceReportWithPatientData = async (report) => {
         try {
-            const response = await axios.get('http://localhost:5000/api/patient');
+            const response = await axios.get(`${API_BASE_URL}/api/patient`);
             const patients = response.data;
             
             // Find patient by name (case-insensitive)

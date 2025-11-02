@@ -1,33 +1,54 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 import html2canvas from 'html2canvas';
 import logo from '../../assets/GULF HEALTHCARE KENYA LTD.png';
+import { API_BASE_URL } from '../../config/api.config';
 
 const LabResultViewer = () => {
   const { reportId } = useParams();
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [imageUrl, setImageUrl] = useState(null);
+  const [dataSource, setDataSource] = useState(null);
 
   useEffect(() => {
-    const fetchReportData = () => {
+    const fetchReportData = async () => {
       try {
-        // Get report data from localStorage (in production, this would be from backend API)
-        // Try with and without decodeURIComponent for backward compatibility
+        // Strategy 1: Try to fetch from backend API (production-ready)
+        try {
+          console.log(`Fetching lab result from backend: ${reportId}`);
+          const response = await axios.get(`${API_BASE_URL}/api/lab-result/${reportId}`);
+          
+          if (response.data && response.data.success) {
+            console.log('Lab result fetched from backend:', response.data.source);
+            setReportData(response.data.data);
+            setDataSource(response.data.source || 'backend');
+            generateReportImage(response.data.data);
+            return;
+          }
+        } catch (apiError) {
+          console.log('Backend fetch failed, trying localStorage...', apiError.message);
+        }
+        
+        // Strategy 2: Fallback to localStorage (for backward compatibility)
         let storedData = localStorage.getItem(`lab-result-${reportId}`);
         if (!storedData) {
           storedData = localStorage.getItem(`lab-result-${decodeURIComponent(reportId)}`);
         }
         
         if (storedData) {
+          console.log('Lab result fetched from localStorage');
           const parsedData = JSON.parse(storedData);
           setReportData(parsedData);
+          setDataSource('localStorage');
           generateReportImage(parsedData);
         } else {
           toast.error('Lab result not found');
           setLoading(false);
         }
+        
       } catch (error) {
         console.error('Error fetching report data:', error);
         toast.error('Error loading lab result');
@@ -413,6 +434,13 @@ const LabResultViewer = () => {
           <div className="text-center mt-8 text-gray-500 text-sm">
             <p>© Gulf Healthcare Kenya Ltd. | Official Digital Lab Report</p>
             <p className="mt-2">For any inquiries, please contact our support team</p>
+            {dataSource && (
+              <p className="mt-2 text-xs text-gray-400">
+                Data source: {dataSource === 'localStorage' ? 'Local Cache' : 
+                            dataSource === 'snapshot' ? 'Database Snapshot' : 
+                            dataSource === 'lab-collection' ? 'Lab Records' : 'Backend'}
+              </p>
+            )}
           </div>
         </div>
       </div>

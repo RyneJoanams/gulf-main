@@ -13,6 +13,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Document as DocxDocument, Packer, Paragraph, Table, TableRow, TableCell, HeadingLevel, ImageRun } from "docx";
 import pdfMake from "pdfmake/build/pdfmake";
+import { API_BASE_URL } from '../../config/api.config';
 import pdfFonts from "pdfmake/build/vfs_fonts";
 pdfMake.vfs = pdfFonts.vfs;
 
@@ -87,7 +88,7 @@ const Accounts = () => {
   const fetchPendingPatients = async () => {
     try {
       console.log('Fetching pending patients...');
-      const response = await axios.get('http://localhost:5000/api/patient/pending-payment');
+      const response = await axios.get(`${API_BASE_URL}/api/patient/pending-payment`);
       console.log('Fetched pending patients response:', response.data);
       
       const pendingPatientsData = Array.isArray(response.data) ? response.data : [];
@@ -106,7 +107,7 @@ const Accounts = () => {
   useEffect(() => {
     const fetchPaymentRecords = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/patient/account/id');
+        const response = await axios.get(`${API_BASE_URL}/api/patient/account/id`);
         setPaymentRecords(response.data);
       } catch (error) {
         console.error('Error fetching payment records:', error);
@@ -117,7 +118,7 @@ const Accounts = () => {
     const fetchAllPatients = async () => {
       try {
         console.log('Fetching patients for Accounts...');
-        const response = await axios.get('http://localhost:5000/api/patient');
+        const response = await axios.get(`${API_BASE_URL}/api/patient`);
         console.log('Fetched patients response:', response.data);
         
         // Handle different response structures - backend returns array directly
@@ -166,7 +167,7 @@ const Accounts = () => {
 
   const fetchExpenses = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/expenses');
+      const response = await axios.get(`${API_BASE_URL}/api/expenses`);
       setExpenses(response.data);
     } catch (error) {
       console.error('Error fetching expenses:', error);
@@ -193,11 +194,11 @@ const Accounts = () => {
     };
 
     try {
-      const response = await axios.post('http://localhost:5000/api/patient/account', newPayment);
+      const response = await axios.post(`${API_BASE_URL}/api/patient/account`, newPayment);
       const savedPayment = response.data;
 
       // Mark patient payment as recorded
-      await axios.put('http://localhost:5000/api/patient/mark-payment-recorded', {
+      await axios.put(`${API_BASE_URL}/api/patient/mark-payment-recorded`, {
         patientName: selectedPatient
       });
 
@@ -238,7 +239,7 @@ const Accounts = () => {
     };
 
     try {
-      await axios.put(`http://localhost:5000/api/patient/account/${currentRecord._id}`, updatedPayment);
+      await axios.put(`${API_BASE_URL}/api/patient/account/${currentRecord._id}`, updatedPayment);
       setPaymentRecords(paymentRecords.map(record =>
         record._id === currentRecord._id ? updatedPayment : record
       ));
@@ -264,7 +265,7 @@ const Accounts = () => {
       return;
     }
     try {
-      const response = await axios.post('http://localhost:5000/api/expenses', {
+      const response = await axios.post(`${API_BASE_URL}/api/expenses`, {
         description: expenseDescription,
         amount: parseFloat(expenseAmount),
       });
@@ -279,7 +280,7 @@ const Accounts = () => {
 
   const handleDeleteExpense = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/expenses/${id}`);
+      await axios.delete(`${API_BASE_URL}/api/expenses/${id}`);
       setExpenses(expenses.filter(exp => exp._id !== id));
       toast.success('Expense deleted.');
     } catch (error) {

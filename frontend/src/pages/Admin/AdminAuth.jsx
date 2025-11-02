@@ -4,6 +4,7 @@ import axios from 'axios';
 import { motion } from 'framer-motion';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { API_BASE_URL } from '../../config/api.config';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -26,7 +27,7 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      await axios.post('http://localhost:5000/api/user/login', { ...formData, rememberMe });
+      await axios.post(`${API_BASE_URL}/api/user/login`, { ...formData, rememberMe });
       toast.success('Login successful! Redirecting to Admin...');
       navigate('/admin');
     } catch (error) {

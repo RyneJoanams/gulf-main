@@ -4,6 +4,7 @@ import { FaChevronCircleLeft, FaChevronCircleRight } from "react-icons/fa";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import TopBar from "../../components/TopBar";
+import { API_BASE_URL } from '../../config/api.config';
 
 const Radiology = () => {
     const [reports, setReports] = useState([]);
@@ -25,8 +26,8 @@ const Radiology = () => {
             try {
                 // Fetch lab reports and radiology reports to determine which haven't been processed
                 const [labResponse, radiologyResponse] = await Promise.all([
-                    axios.get("http://localhost:5000/api/lab"),
-                    axios.get("http://localhost:5000/api/radiology")
+                    axios.get(`${API_BASE_URL}/api/lab`),
+                    axios.get(`${API_BASE_URL}/api/radiology`)
                 ]);
 
                 const labReports = labResponse.data.data;
@@ -126,7 +127,7 @@ const Radiology = () => {
         console.log(selectedReport);
 
         try {
-            await axios.post("http://localhost:5000/api/radiology", radiologyReport);
+            await axios.post(`${API_BASE_URL}/api/radiology`, radiologyReport);
             toast.success("Report successfully created");
             
             // Remove the processed report from the list

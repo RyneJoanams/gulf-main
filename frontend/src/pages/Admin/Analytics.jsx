@@ -13,6 +13,7 @@ import {
   PointElement,
 } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
+import { API_BASE_URL } from '../../config/api.config';
 import { motion } from 'framer-motion';
 import { 
   Card, 
@@ -59,11 +60,11 @@ const Analytics = () => {
     try {
       setLoading(true);
       const [patientsRes, labRes, clinicalRes, radiologyRes, usersRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/patient'),
-        axios.get('http://localhost:5000/api/lab'),
-        axios.get('http://localhost:5000/api/clinical'),
-        axios.get('http://localhost:5000/api/radiology'),
-        axios.get('http://localhost:5000/api/user/all')
+        axios.get(`${API_BASE_URL}/api/patient`),
+        axios.get(`${API_BASE_URL}/api/lab`),
+        axios.get(`${API_BASE_URL}/api/clinical`),
+        axios.get(`${API_BASE_URL}/api/radiology`),
+        axios.get(`${API_BASE_URL}/api/user/all`)
       ]);
 
       setPatients(patientsRes.data);

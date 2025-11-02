@@ -6,6 +6,7 @@ import ReportSection from "../Admin/ReportSection";
 import "react-toastify/dist/ReactToastify.css";
 import { TESTS_BY_UNIT } from '../Lab/LabFunctions';
 import TopBar from "../../components/TopBar";
+import { API_BASE_URL } from '../../config/api.config';
 
 
 const Clinical = () => {
@@ -49,10 +50,10 @@ const Clinical = () => {
             try {
                 // Fetch lab reports, radiology reports, clinical reports, and lab numbers from phlebotomy
                 const [labResponse, radiologyResponse, clinicalResponse, labNumbersResponse] = await Promise.all([
-                    axios.get("http://localhost:5000/api/lab"),
-                    axios.get("http://localhost:5000/api/radiology"),
-                    axios.get("http://localhost:5000/api/clinical"),
-                    axios.get("http://localhost:5000/api/number")
+                    axios.get(`${API_BASE_URL}/api/lab`),
+                    axios.get(`${API_BASE_URL}/api/radiology`),
+                    axios.get(`${API_BASE_URL}/api/clinical`),
+                    axios.get(`${API_BASE_URL}/api/number`)
                 ]);
 
                 const labReports = labResponse.data.data || [];
@@ -293,7 +294,7 @@ const Clinical = () => {
             };
             console.log(clinicalReport);
 
-            await axios.post("http://localhost:5000/api/clinical", clinicalReport);
+            await axios.post(`${API_BASE_URL}/api/clinical`, clinicalReport);
             toast.success("Report successfully created");
 
             // Remove the processed report from the list
@@ -336,7 +337,7 @@ const Clinical = () => {
     // Function to fetch patient details based on patient name
     const fetchPatientDetails = async (patientName) => {
         try {
-            const response = await axios.get('http://localhost:5000/api/patient');
+            const response = await axios.get(`${API_BASE_URL}/api/patient`);
             const patients = response.data;
             
             // Find patient by name (case-insensitive)

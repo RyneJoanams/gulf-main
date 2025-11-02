@@ -12,7 +12,8 @@ import { Country } from 'country-state-city';
 import { getCountryCallingCode } from 'country-flag-icons';
 import * as flags from 'country-flag-icons/react/3x2';
 import axios from 'axios';
-import TopBar from '../../components/TopBar'
+import TopBar from '../../components/TopBar';
+import { API_BASE_URL } from '../../config/api.config';
 import Footer from '../../components/Footer';
 import { QRCodeCanvas } from 'qrcode.react';
 import logo from '../../assets/GULF HEALTHCARE KENYA LTD.png';
@@ -256,7 +257,7 @@ const FrontOffice = () => {
     const fetchAllPatients = async () => {
       try {
         console.log('Fetching patients...');
-        const response = await axios.get('http://localhost:5000/api/patient');
+        const response = await axios.get(`${API_BASE_URL}/api/patient`);
         console.log('Fetched patients response:', response.data);
         
         // Handle different response structures - backend returns array directly
@@ -521,7 +522,7 @@ const FrontOffice = () => {
     });
 
     try {
-      await axios.post('http://localhost:5000/api/patient', formData, {
+      await axios.post(`${API_BASE_URL}/api/patient`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
@@ -541,7 +542,7 @@ const FrontOffice = () => {
     }
 
     try {
-      await axios.delete(`http://localhost:5000/api/patient/${selectedPatientId}`);
+      await axios.delete(`${API_BASE_URL}/api/patient/${selectedPatientId}`);
       toast.success('Patient deleted successfully');
       setPatients(patients.filter((p) => p._id !== selectedPatientId)); // Update the patient list
       handleDialogClose();

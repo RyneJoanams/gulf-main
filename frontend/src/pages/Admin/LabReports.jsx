@@ -8,6 +8,7 @@ import ReportSection from './ReportSection';
 import { motion } from 'framer-motion';
 import { confirmAlert } from 'react-confirm-alert';
 import 'react-confirm-alert/src/react-confirm-alert.css';
+import { API_BASE_URL } from '../../config/api.config';
 
 const Card = ({ children, className }) => (
   <div className={`bg-white rounded-lg shadow-lg ${className}`}>{children}</div>
@@ -45,7 +46,7 @@ const LabReports = () => {
   useEffect(() => {
     const fetchReports = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/lab');
+        const response = await axios.get(`${API_BASE_URL}/api/lab`);
         setReports(response.data.data);
         setFilteredReports(response.data.data);
         // Initialize all reports as collapsed
@@ -118,7 +119,7 @@ const LabReports = () => {
           label: 'Yes, Delete',
           onClick: async () => {
             try {
-              await axios.delete(`http://localhost:5000/api/lab/${id}`);
+              await axios.delete(`${API_BASE_URL}/api/lab/${id}`);
               setReports(reports.filter((report) => report._id !== id));
               toast.success('Report deleted successfully');
             } catch (error) {
@@ -143,7 +144,7 @@ const LabReports = () => {
 
   const handleSaveEdit = async () => {
     try {
-      await axios.put(`http://localhost:5000/api/lab/${editingReport._id}`, editingReport);
+      await axios.put(`${API_BASE_URL}/api/lab/${editingReport._id}`, editingReport);
       setReports(reports.map(report => 
         report._id === editingReport._id ? editingReport : report
       ));

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import {toast, ToastContainer} from 'react-toastify';
 import { usePatient } from '../../context/patientContext';
+import { API_BASE_URL } from '../../config/api.config';
 
 const LabNumber = () => {
   const { patientData } = usePatient();
@@ -22,7 +23,7 @@ const LabNumber = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:5000/api/lab/generate', {
+      const response = await axios.post(`${API_BASE_URL}/api/lab/generate`, {
         number: labNumber,
         patient: selectedPatient,
       });

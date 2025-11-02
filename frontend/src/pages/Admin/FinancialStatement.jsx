@@ -8,6 +8,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { FaSearch, FaFilter, FaDownload, FaPrint, FaChartLine, FaMoneyBillWave, FaMinusCircle } from 'react-icons/fa';
+import { API_BASE_URL } from '../../config/api.config';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
@@ -32,7 +33,7 @@ const FinancialStatements = () => {
       try {
         // The backend route expects an ID but the controller gets all records anyway
         // Using 'all' as a placeholder ID since the controller ignores the parameter
-        const response = await axios.get('http://localhost:5000/api/patient/account/all');
+        const response = await axios.get(`${API_BASE_URL}/api/patient/account/all`);
         console.log('Payment records:', response.data);
         console.log('Payment records type:', typeof response.data);
         console.log('Payment records length:', response.data?.length);
@@ -98,7 +99,7 @@ const FinancialStatements = () => {
 
   const fetchExpenses = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/expenses');
+      const response = await axios.get(`${API_BASE_URL}/api/expenses`);
       setExpenses(response.data);
     } catch (error) {
       toast.error('Error fetching expenses.');
@@ -111,7 +112,7 @@ const FinancialStatements = () => {
       return;
     }
     try {
-      const response = await axios.post('http://localhost:5000/api/expenses', {
+      const response = await axios.post(`${API_BASE_URL}/api/expenses`, {
         description: expenseDescription,
         amount: parseFloat(expenseAmount),
       });
@@ -126,7 +127,7 @@ const FinancialStatements = () => {
 
   const handleDeleteExpense = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/expenses/${id}`);
+      await axios.delete(`${API_BASE_URL}/api/expenses/${id}`);
       setExpenses(expenses.filter(exp => exp._id !== id));
       toast.success('Expense deleted.');
     } catch (error) {

@@ -13,6 +13,7 @@ import {
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { API_BASE_URL } from '../../config/api.config';
 import img from '../../assets/undraw_medical-care_7m9g.svg'
 
 // Department definitions (same as AllUsers)
@@ -153,7 +154,7 @@ const Signup = () => {
     };
 
     try {
-      const response = await axios.post('http://localhost:5000/api/user/register', dataToSend);
+      const response = await axios.post(`${API_BASE_URL}/api/user/register`, dataToSend);
       toast.success('Registration successful! User account created with department access.');
       navigate('/admin', { state: { fromSignup: true, newUser: response.data } });
     } catch (error) {

@@ -1,4 +1,6 @@
 // Department access validation utility
+import { API_BASE_URL } from '../config/api.config';
+
 export const validateDepartmentAccess = (userDepartments, requestedDepartment) => {
   if (!userDepartments || !Array.isArray(userDepartments)) {
     return false;
@@ -38,7 +40,7 @@ export const getPrimaryDepartmentRedirect = (userDepartments) => {
 // Enhanced login function that includes department validation
 export const enhancedLogin = async (formData, requestedDepartment, navigate, toast) => {
   try {
-    const response = await fetch('http://localhost:5000/api/user/login', {
+    const response = await fetch(`${API_BASE_URL}/api/user/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

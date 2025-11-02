@@ -27,6 +27,7 @@ import {
 } from 'react-icons/fa';
 import 'react-toastify/dist/ReactToastify.css';
 import 'react-confirm-alert/src/react-confirm-alert.css';
+import { API_BASE_URL } from '../../config/api.config';
 
 // Department definitions with priority levels
 const DEPARTMENTS = {
@@ -120,7 +121,7 @@ const AllUsers = () => {
   const [passwordStrength, setPasswordStrength] = useState('');  useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/user/all');
+        const response = await axios.get(`${API_BASE_URL}/api/user/all`);
         setUsers(response.data);
         setFilteredUsers(response.data);
       } catch (error) {
@@ -152,7 +153,7 @@ const AllUsers = () => {
 
   const handleDeleteUser = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/user/delete/${id}`);
+      await axios.delete(`${API_BASE_URL}/api/user/delete/${id}`);
       setUsers(users.filter(user => user._id !== id));
       toast.success('User deleted successfully!');
     } catch (error) {
@@ -257,7 +258,7 @@ const AllUsers = () => {
         permissions: editingUser.permissions || {}
       };
       
-      await axios.put(`http://localhost:5000/api/user/update/${editingUser._id}`, updatedUser);
+      await axios.put(`${API_BASE_URL}/api/user/update/${editingUser._id}`, updatedUser);
       setUsers(users.map(user => user._id === editingUser._id ? updatedUser : user));
       setShowEditModal(false);
       setEditingUser(null);
@@ -276,7 +277,7 @@ const AllUsers = () => {
         permissions: permissionsUser.permissions || {}
       };
       
-      await axios.put(`http://localhost:5000/api/user/update/${permissionsUser._id}`, updatedUser);
+      await axios.put(`${API_BASE_URL}/api/user/update/${permissionsUser._id}`, updatedUser);
       setUsers(users.map(user => user._id === permissionsUser._id ? updatedUser : user));
       setShowPermissionsModal(false);
       setPermissionsUser(null);
@@ -327,7 +328,7 @@ const AllUsers = () => {
         return;
       }
 
-      await axios.put(`http://localhost:5000/api/user/reset-password/${passwordResetUser._id}`, {
+      await axios.put(`${API_BASE_URL}/api/user/reset-password/${passwordResetUser._id}`, {
         newPassword: newPassword
       });
       
@@ -387,7 +388,7 @@ const AllUsers = () => {
         permissions: newUser.permissions || {}
       };
       
-      const response = await axios.post('http://localhost:5000/api/user/register', newUserData);
+      const response = await axios.post(`${API_BASE_URL}/api/user/register`, newUserData);
       setUsers([...users, response.data]);
       setShowAddModal(false);
       setNewUser({ 
@@ -420,7 +421,7 @@ const AllUsers = () => {
         permissions: newUser.permissions || {}
       };
       
-      const response = await axios.post('http://localhost:5000/api/user/register', newUserData);
+      const response = await axios.post(`${API_BASE_URL}/api/user/register`, newUserData);
       setUsers([...users, response.data]);
       setShowAddModal(false);
       setNewUser({ 

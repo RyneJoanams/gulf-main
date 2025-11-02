@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api.config';
+
 
 const PatientContext = createContext();
 
@@ -9,7 +11,7 @@ export const PatientProvider = ({ children }) => {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/patient');
+        const response = await axios.get(`${API_BASE_URL}/api/patient`);
         setPatientData((prevState) => ({
           ...prevState,
           patients: response.data,

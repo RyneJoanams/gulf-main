@@ -5,6 +5,7 @@ import { usePatient } from '../../context/patientContext';
 import 'react-toastify/dist/ReactToastify.css';
 import img from '../../assets/logo1-removebg-preview.png';
 import TopBar from '../../components/TopBar';
+import { API_BASE_URL } from '../../config/api.config';
 
 const Phlebotomy = () => {
   const { patientData } = usePatient();
@@ -34,7 +35,7 @@ const Phlebotomy = () => {
 
   const fetchLabNumbers = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/number');
+      const res = await axios.get(`${API_BASE_URL}/api/number`);
       console.log('Fetched lab numbers:', res.data.labNumbers);
       toast.success('Lab numbers fetched successfully');
       setSubmittedLabNumbers(res.data.labNumbers);
@@ -47,7 +48,7 @@ const Phlebotomy = () => {
   const fetchAllPatients = async () => {
     try {
       console.log('Fetching patients for Phlebotomy...');
-      const response = await axios.get('http://localhost:5000/api/patient');
+      const response = await axios.get(`${API_BASE_URL}/api/patient`);
       console.log('Fetched patients response:', response.data);
       
       // Handle different response structures - backend returns array directly
@@ -70,7 +71,7 @@ const Phlebotomy = () => {
   const fetchPatientsWithoutLabNumbers = async () => {
     try {
       console.log('Fetching patients without lab numbers...');
-      const response = await axios.get('http://localhost:5000/api/patient/without-lab-numbers');
+      const response = await axios.get(`${API_BASE_URL}/api/patient/without-lab-numbers`);
       console.log('Patients without lab numbers:', response.data);
       
       const patientsData = Array.isArray(response.data) ? response.data : [];
@@ -191,7 +192,7 @@ const Phlebotomy = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:5000/api/number/generate', {
+      const response = await axios.post(`${API_BASE_URL}/api/number/generate`, {
         patientId: selectedPatientData._id,
         medicalType: selectedPatientData.medicalType,
         passportNumber: selectedPatientData.passportNumber,
@@ -218,7 +219,7 @@ const Phlebotomy = () => {
 
     setIsLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/number', {
+      const response = await axios.post(`${API_BASE_URL}/api/number`, {
         number: labNumber,
         patient: selectedPatientData.name,
       });
