@@ -231,6 +231,10 @@ const labSchema = new mongoose.Schema({
         required: true,
       },
     },
+    notepadContent: {
+      type: String,
+      required: false,
+    },
   },
   medicalType: {
     type: String,

@@ -946,18 +946,35 @@ const LeftBar = () => {
         items.push({ label: 'Lab Superintendent', value: formatData(data.labSuperintendent.name) });
       }
 
-      if (items.length === 0) return '';
+      if (items.length === 0 && !data?.notepadContent) return '';
 
-      return `
-        <table class="compact-table">
-          ${items.map(item => `
-            <tr>
-              <td class="label">${item.label}</td>
-              <td class="value">${item.value}</td>
-            </tr>
-          `).join('')}
-        </table>
-      `;
+      let content = '';
+      
+      if (items.length > 0) {
+        content += `
+          <table class="compact-table">
+            ${items.map(item => `
+              <tr>
+                <td class="label">${item.label}</td>
+                <td class="value">${item.value}</td>
+              </tr>
+            `).join('')}
+          </table>
+        `;
+      }
+      
+      if (data?.notepadContent) {
+        content += `
+          <div style="margin-top: ${items.length > 0 ? '15px' : '0'}; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+            <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 12px; font-weight: bold;">Clinical Notes:</h4>
+            <div style="font-size: 11px; line-height: 1.4; white-space: pre-wrap; color: #374151;">
+              ${formatData(data.notepadContent)}
+            </div>
+          </div>
+        `;
+      }
+      
+      return content;
     };
 
     // Prepare sections data

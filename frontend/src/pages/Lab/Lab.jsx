@@ -162,6 +162,7 @@ const Lab = () => {
           setOverallStatus(labData.labRemarks.fitnessEvaluation?.overallStatus || '');
           setOtherAspectsFit(labData.labRemarks.fitnessEvaluation?.otherAspectsFit || '');
           setLabSuperintendent(labData.labRemarks.labSuperintendent?.name || '');
+          setNotepadContent(labData.labRemarks.notepadContent || ''); // Load notepad content
         }
 
         setIsViewMode(true);
@@ -421,7 +422,8 @@ const Lab = () => {
     },
     labSuperintendent: {
       name: labSuperintendent
-    }
+    },
+    notepadContent: notepadContent
   };
 
   const selectedPatientData = patientData?.patients.find(
@@ -911,6 +913,19 @@ const Lab = () => {
                               </div>
                             </div>
                           </div>
+                          
+                          {/* Notepad Content Display */}
+                          {existingLabData.labRemarks.notepadContent && (
+                            <div className="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                              <div className="flex items-center gap-2 mb-2">
+                                <i className="fas fa-sticky-note text-blue-600"></i>
+                                <span className="font-semibold text-blue-800">Clinical Notes:</span>
+                              </div>
+                              <div className="bg-white p-3 rounded border border-blue-100 text-gray-800 whitespace-pre-wrap">
+                                {existingLabData.labRemarks.notepadContent}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

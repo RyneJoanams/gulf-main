@@ -554,18 +554,35 @@ const Agent = () => {
                 items.push({ label: 'Lab Superintendent', value: formatData(data.labSuperintendent.name) });
             }
 
-            if (items.length === 0) return '';
+            if (items.length === 0 && !data?.notepadContent) return '';
 
-            return `
-                <table class="compact-table">
-                    ${items.map(item => `
-                        <tr>
-                            <td class="label">${item.label}</td>
-                            <td class="value">${item.value}</td>
-                        </tr>
-                    `).join('')}
-                </table>
-            `;
+            let content = '';
+            
+            if (items.length > 0) {
+                content += `
+                    <table class="compact-table">
+                        ${items.map(item => `
+                            <tr>
+                                <td class="label">${item.label}</td>
+                                <td class="value">${item.value}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                `;
+            }
+            
+            if (data?.notepadContent) {
+                content += `
+                    <div style="margin-top: ${items.length > 0 ? '15px' : '0'}; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                        <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 12px; font-weight: bold;">Clinical Notes:</h4>
+                        <div style="font-size: 11px; line-height: 1.4; white-space: pre-wrap; color: #374151;">
+                            ${formatData(data.notepadContent)}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return content;
         };
 
         // Prepare sections data
@@ -1190,6 +1207,23 @@ const Agent = () => {
                                                         <p className="text-lg font-semibold text-gray-800 dark:text-white">
                                                             {selectedReport.selectedReport.labRemarks.labSuperintendent.name}
                                                         </p>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Clinical Notes Section */}
+                                                {selectedReport?.selectedReport?.labRemarks?.notepadContent && (
+                                                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-500">
+                                                        <div className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <i className="fas fa-sticky-note text-blue-600 dark:text-blue-400"></i>
+                                                                <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                                                                    Clinical Notes:
+                                                                </span>
+                                                            </div>
+                                                            <div className="bg-white dark:bg-gray-800 p-3 rounded border border-blue-100 dark:border-blue-600 text-gray-800 dark:text-gray-200 whitespace-pre-wrap text-sm">
+                                                                {selectedReport.selectedReport.labRemarks.notepadContent}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
