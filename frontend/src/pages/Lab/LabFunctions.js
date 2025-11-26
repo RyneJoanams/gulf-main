@@ -3,6 +3,7 @@ export const TESTS_BY_UNIT = {
   bloodTest: ['hivTest', 'hbsAg', 'hcv', 'esr', 'vdrlTest', 'pregnancyTest', 'bloodGroup'],
   generalExamination: ['hernia', 'varicoseVein', 'rightEye', 'leftEye'],
   systemicExamination: ['heart', 'bloodPressure', 'pulseRate'],
+  otherTests: ['skin', 'cardiovascular', 'respiratory', 'nervous', 'abdominal', 'musculoskeletal'],
   fullHaemogram: [],
   liverFunction: [],
   renalFunction: [],

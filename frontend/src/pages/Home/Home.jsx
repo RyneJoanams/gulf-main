@@ -13,8 +13,8 @@ const Home = () => {
     // Initialize AOS for scroll animations
     AOS.init({ duration: 1000 });
 
-    // Simulate a loading delay, e.g., 5 seconds
-    const timer = setTimeout(() => setLoading(false), 5000);
+    // Simulate a loading delay, e.g., 1 second
+    const timer = setTimeout(() => setLoading(false), 1000);
 
     // Clean up the timer when the component is unmounted
     return () => clearTimeout(timer);

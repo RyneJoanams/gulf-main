@@ -3,8 +3,7 @@ import { ToastContainer } from "react-toastify";
 import {
   BrowserRouter as Router,
   Route,
-  Routes,
-  BrowserRouter,
+  Routes
 } from "react-router-dom";
 import Login from "./pages/FrontOffice/Login.jsx";
 import FrontOffice from "./pages/FrontOffice/FrontOffice.jsx";

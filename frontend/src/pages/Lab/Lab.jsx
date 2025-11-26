@@ -36,6 +36,9 @@ const Lab = () => {
   const [existingLabData, setExistingLabData] = useState(null);
   const [isViewMode, setIsViewMode] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  
+  // Notepad state
+  const [notepadContent, setNotepadContent] = useState('');
 
   useEffect(() => {
     const fetchLabNumbers = async () => {
@@ -174,6 +177,7 @@ const Lab = () => {
       setOverallStatus('');
       setOtherAspectsFit('');
       setLabSuperintendent('');
+      setNotepadContent(''); // Clear notepad content when no data found
       toast.info('No existing lab report found. You can create a new one.');
     }
   };
@@ -206,6 +210,7 @@ const Lab = () => {
       setOverallStatus('');
       setOtherAspectsFit('');
       setLabSuperintendent('');
+      setNotepadContent(''); // Clear notepad content when deselecting lab number
     }
   };
 
@@ -518,6 +523,7 @@ const Lab = () => {
         setExistingLabData(null);
         setIsViewMode(false);
         setIsEditMode(false);
+        setNotepadContent(''); // Clear notepad content
 
         // Dispatch event to refresh the lab numbers in LeftBar
         const event = new CustomEvent('labReportSubmitted', {
@@ -580,6 +586,7 @@ const Lab = () => {
                           setOverallStatus('');
                           setOtherAspectsFit('');
                           setLabSuperintendent('');
+                          setNotepadContent(''); // Clear notepad content when going back to form
                         }}
                         className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded flex items-center gap-2 text-sm"
                       >
@@ -992,13 +999,13 @@ const Lab = () => {
                     </div>
 
                     {/* Enhanced Laboratory Test Section (now includes Blood Tests) */}
-                    <div className="bg-white rounded-xl shadow-lg border border-green-200 overflow-hidden">
-                      <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4">
+                    <div className="bg-white rounded-xl shadow-lg border border-blue-200 overflow-hidden">
+                      <div className="bg-gradient-to-r from-blue-500 to-cyan-600 px-6 py-4">
                         <h3 className="flex items-center gap-3 text-xl font-bold text-white">
                           <label className="flex items-center gap-3 cursor-pointer">
                             <input 
                               type="checkbox" 
-                              className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-green-600 focus:ring-2 focus:ring-white" 
+                              className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-blue-600 focus:ring-2 focus:ring-white" 
                               checked={selectedUnits.area1 || false} 
                               onChange={() => handleUnitSelect('area1')} 
                             />
@@ -1376,6 +1383,43 @@ const Lab = () => {
                                     onChange={(e) => setLabSuperintendent(e.target.value)}
                                   />
                                 </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Notepad Section */}
+                          <div className="bg-white rounded-xl shadow-lg border border-amber-200 overflow-hidden">
+                            <div className="bg-gradient-to-r from-amber-500 to-yellow-600 px-6 py-4">
+                              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <i className="fas fa-sticky-note"></i>
+                                Lab Notes & Observations
+                              </h3>
+                            </div>
+                            <div className="p-6 bg-gradient-to-br from-amber-50 to-yellow-50 space-y-4">
+                              <div className="flex items-center gap-2 text-gray-600 mb-2">
+                                <i className="fas fa-info-circle"></i>
+                                <span className="text-sm">Use this notepad to record additional observations, clinical notes, or important remarks about the patient.</span>
+                              </div>
+                              <textarea
+                                value={notepadContent}
+                                onChange={(e) => setNotepadContent(e.target.value)}
+                                placeholder="Type your notes here... (e.g., patient history, observations, follow-up requirements, special instructions)"
+                                className="w-full h-48 px-4 py-3 border-2 border-amber-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition duration-200 resize-vertical font-mono text-sm"
+                                style={{ minHeight: '120px', maxHeight: '400px' }}
+                              />
+                              <div className="flex justify-between items-center text-sm text-gray-500">
+                                <span className="flex items-center gap-2">
+                                  <i className="fas fa-keyboard"></i>
+                                  {notepadContent.length} characters
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setNotepadContent('')}
+                                  className="text-red-600 hover:text-red-800 flex items-center gap-1 transition duration-200"
+                                >
+                                  <i className="fas fa-eraser"></i>
+                                  Clear Notes
+                                </button>
                               </div>
                             </div>
                           </div>

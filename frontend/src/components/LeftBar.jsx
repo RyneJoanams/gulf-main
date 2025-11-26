@@ -6,6 +6,11 @@ import {
   ChevronDown,
   ChevronUp,
   MousePointer,
+  Search,
+  X,
+  FileText,
+  Calendar,
+  User,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import logo from '../assets/GULF HEALTHCARE KENYA LTD.png';
@@ -19,6 +24,12 @@ const LeftBar = () => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [showClinicalReports, setShowClinicalReports] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  
+  // Search functionality state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   useEffect(() => {
     const fetchPhlebotomyReports = async () => {
@@ -139,7 +150,7 @@ const LeftBar = () => {
   const enhanceReportWithPatientData = async (report) => {
     try {
       // If patient data is missing or incomplete, fetch it from patient collection
-      if (!report.gender || !report.agent || !report.age || !report.passportNumber) {
+      if (!report.gender || !report.agent || !report.age || !report.passportNumber || !report.selectedReport?.patientImage) {
         const response = await axios.get(API_ENDPOINTS.patients);
         const patients = response.data;
         
@@ -154,7 +165,11 @@ const LeftBar = () => {
             passportNumber: report.passportNumber || patient.passportNumber,
             gender: report.gender || patient.sex,
             age: report.age || patient.age,
-            agent: report.agent || patient.agent
+            agent: report.agent || patient.agent,
+            selectedReport: {
+              ...report.selectedReport,
+              patientImage: report.selectedReport?.patientImage || patient.photo
+            }
           };
         }
       }
@@ -163,6 +178,58 @@ const LeftBar = () => {
       console.error('Error enhancing report with patient data:', error);
       return report;
     }
+  };
+
+  // Search functionality for previous lab results
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+    
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setShowSearchResults(true);
+
+    try {
+      // Fetch all clinical reports (completed lab results)
+      const response = await axios.get(API_ENDPOINTS.clinical);
+      const allReports = response.data || [];
+
+      // Filter reports based on search query
+      const filtered = allReports.filter(report => {
+        const patientName = report.selectedReport?.patientName?.toLowerCase() || '';
+        const labNumber = report.selectedReport?.labNumber?.toLowerCase() || '';
+        const passportNumber = report.passportNumber?.toLowerCase() || '';
+        const searchTerm = query.toLowerCase();
+
+        return patientName.includes(searchTerm) || 
+               labNumber.includes(searchTerm) || 
+               passportNumber.includes(searchTerm);
+      });
+
+      // Sort by most recent first
+      const sortedResults = filtered.sort((a, b) => 
+        new Date(b.selectedReport?.timeStamp || b.createdAt) - 
+        new Date(a.selectedReport?.timeStamp || a.createdAt)
+      );
+
+      setSearchResults(sortedResults);
+    } catch (error) {
+      console.error('Error searching lab results:', error);
+      toast.error('Failed to search lab results');
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchResults(false);
   };
 
   const printReport = async (report) => {
@@ -195,7 +262,17 @@ const LeftBar = () => {
     // Use lab number directly without encoding for cleaner URL
     const reportId = enhancedReport.selectedReport?.labNumber || 
                     `${enhancedReport.selectedReport?.patientName?.replace(/\s+/g, '-')}-${Date.now()}`;
-    const qrUrl = `${FRONTEND_URL}/lab-result/${reportId}`;
+    
+    // Ensure we have a complete, absolute URL with protocol
+    let baseUrl = FRONTEND_URL;
+    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+      baseUrl = `https://${baseUrl}`;
+    }
+    // Remove trailing slash if present
+    baseUrl = baseUrl.replace(/\/$/, '');
+    
+    const qrUrl = `${baseUrl}/lab-result/${reportId}`;
+    console.log('Generated QR URL:', qrUrl); // Debug log
     
     // Store report data for QR code access
     const reportData = {
@@ -736,6 +813,27 @@ const LeftBar = () => {
       `;
     };
 
+    // Renders Radiology Tests data
+    const renderRadiologyTests = (data) => {
+      const items = [
+        { label: 'Heaf/Mantoux Test', value: formatData(data.heafMantouxTest) },
+        { label: 'Chest X-ray', value: formatData(data.chestXray) }
+      ].filter(item => item.value !== 'N/A');
+
+      if (items.length === 0) return '';
+
+      return `
+        <table class="compact-table">
+          ${items.map(item => `
+            <tr>
+              <td class="label">${item.label}</td>
+              <td class="value">${item.value}</td>
+            </tr>
+          `).join('')}
+        </table>
+      `;
+    };
+
     const renderRenalFunction = (data) => {
       const renalTests = [
         { test: 'Urea', key: 'urea' },
@@ -933,6 +1031,7 @@ const LeftBar = () => {
                 ${renderSectionIfHasData('Urine Test', enhancedReport.selectedReport?.urineTest, renderUrineTest)}
                 ${renderSectionIfHasData('Blood Tests', enhancedReport.selectedReport?.bloodTest, renderBloodTests)}
                 ${renderSectionIfHasData('Laboratory Tests', enhancedReport.selectedReport?.area1, renderArea1Tests)}
+                ${renderSectionIfHasData('Radiology Tests', enhancedReport.radiologyData, renderRadiologyTests)}
               </div>
               
               <!-- Full-width sections for larger test tables -->
@@ -1027,6 +1126,138 @@ const LeftBar = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-transparent animate-pulse" />
 
       <div className="relative z-10 backdrop-blur-sm bg-white/5 h-full overflow-y-auto">
+       
+        {/* Search Bar for Previous Lab Results */}
+        <div className="px-6 pt-6 pb-4">
+          <div className="mb-3">
+            <h4 className="text-teal-100 font-semibold text-base flex items-center gap-2">
+              <Search size={18} className="text-teal-300" />
+              Search Lab Results
+            </h4>
+            <p className="text-xs text-teal-200/70 mt-1">Find previous patient lab reports</p>
+          </div>
+          
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-teal-500/20 to-cyan-500/20 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-teal-300 group-focus-within:text-teal-200 transition-colors" size={20} />
+              <input
+                type="text"
+                placeholder="Search by name, lab number, or passport..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-full pl-12 pr-12 py-3 bg-white/10 backdrop-blur-sm border-2 border-teal-400/30 rounded-lg text-white placeholder-teal-200/50 focus:outline-none focus:ring-2 focus:ring-teal-400/50 focus:border-teal-400 focus:bg-white/15 transition-all duration-200 text-sm shadow-lg"
+              />
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-teal-300 hover:text-white hover:bg-teal-600/30 rounded-full p-1 transition-all duration-200"
+                  title="Clear search"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Search Results */}
+          {showSearchResults && (
+            <div className="mt-4 space-y-2 max-h-[55vh] overflow-y-auto bg-gradient-to-b from-white/5 to-white/10 rounded-lg p-4 shadow-2xl border border-teal-400/20 scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-transparent backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-teal-400/20">
+                <h5 className="text-teal-100 font-semibold text-sm flex items-center gap-2">
+                  <FileText size={16} className="text-teal-300" />
+                  Search Results
+                </h5>
+                {!isSearching && (
+                  <span className="text-xs bg-teal-600/30 px-2 py-1 rounded-full text-teal-100 font-medium">
+                    {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
+                  </span>
+                )}
+              </div>
+
+              {isSearching ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-300 mb-2"></div>
+                  <p className="text-teal-100 text-sm">Searching records...</p>
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div className="text-center py-8">
+                  <Search className="mx-auto mb-3 text-teal-300/50" size={32} />
+                  <p className="text-teal-100 text-sm font-medium">No lab results found</p>
+                  <p className="text-teal-200/60 text-xs mt-1">Try a different search term</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {searchResults.map((report, index) => (
+                    <div
+                      key={report._id}
+                      className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg p-4 hover:from-teal-700/40 hover:to-teal-600/30 transition-all duration-200 border border-teal-400/10 hover:border-teal-400/30 shadow-md hover:shadow-lg group animate-fadeIn"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <User size={14} className="text-teal-300" />
+                            <p className="text-sm font-semibold text-white group-hover:text-teal-100 transition-colors">
+                              {report.selectedReport?.patientName || 'Unknown Patient'}
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-1 ml-6">
+                            <div className="flex items-center gap-2">
+                              <FileText size={12} className="text-teal-300/70" />
+                              <p className="text-xs text-teal-200">
+                                Lab No: <span className="font-medium text-teal-100">{report.selectedReport?.labNumber || 'N/A'}</span>
+                              </p>
+                            </div>
+                            
+                            {report.passportNumber && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-teal-300/70">🛂</span>
+                                <p className="text-xs text-teal-200">
+                                  Passport: <span className="font-medium text-teal-100">{report.passportNumber}</span>
+                                </p>
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center gap-2">
+                              <Calendar size={12} className="text-teal-300/70" />
+                              <p className="text-xs text-teal-300">
+                                {new Date(report.selectedReport?.timeStamp || report.createdAt).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2 mt-3 pt-3 border-t border-teal-400/10">
+                        <button
+                          onClick={() => viewReport(report)}
+                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 rounded-md text-xs font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                        >
+                          <Eye size={14} />
+                          View Report
+                        </button>
+                        <button
+                          onClick={() => printReport(report)}
+                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 rounded-md text-xs font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                        >
+                          <Printer size={14} />
+                          Print
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Recent Phlebotomy Reports Section */}
         <div className="px-6 mt-4 space-y-2">
           <div className="flex items-center justify-between">
@@ -1054,6 +1285,9 @@ const LeftBar = () => {
                     <p className="text-xs text-teal-200">
                       Lab No: {labNumberData.number} •{' '}
                       {new Date(labNumberData.createdAt || labNumberData.timestamp).toLocaleDateString()}
+                    </p>
+                    <p className="text-xs text-teal-300">
+                      Type: {labNumberData.medicalType || 'N/A'}
                     </p>
                   </div>
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1216,6 +1450,21 @@ const LeftBar = () => {
                     <p><strong>Blood Group:</strong> {selectedReport.selectedReport.area1.bloodGroup || 'N/A'}</p>
                     <p><strong>Pregnancy Test:</strong> {selectedReport.selectedReport.area1.pregnancyTest || 'N/A'}</p>
                     <p><strong>VDRL Test:</strong> {selectedReport.selectedReport.area1.vdrlTest || 'N/A'}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Radiology Tests */}
+              {selectedReport.radiologyData && (
+                <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Radiology Tests</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedReport.radiologyData.heafMantouxTest && (
+                      <p><strong>Heaf/Mantoux Test:</strong> {selectedReport.radiologyData.heafMantouxTest}</p>
+                    )}
+                    {selectedReport.radiologyData.chestXray && (
+                      <p><strong>Chest X-ray:</strong> {selectedReport.radiologyData.chestXray}</p>
+                    )}
                   </div>
                 </div>
               )}

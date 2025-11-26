@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { usePatient } from '../../context/patientContext';
 import 'react-toastify/dist/ReactToastify.css';
 import img from '../../assets/logo1-removebg-preview.png';
 import TopBar from '../../components/TopBar';
+import PhlebotomySidebar from './PhlebotomySidebar';
 import { API_BASE_URL } from '../../config/api.config';
 
 const Phlebotomy = () => {
   const { patientData } = usePatient();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filteredPatients, setFilteredPatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState('');
   const [labNumber, setLabNumber] = useState('');
   const [submissionStatus, setSubmissionStatus] = useState('');
@@ -18,11 +17,11 @@ const Phlebotomy = () => {
   const [labCounter, setLabCounter] = useState(1);
   const [submittedLabNumbers, setSubmittedLabNumbers] = useState([]);
   
-  // New states for direct patient data fetching
+  // States for direct patient data fetching
   const [patients, setPatients] = useState([]);
   const [loadingPatients, setLoadingPatients] = useState(true);
   
-  // New states for sidebar functionality
+  // States for sidebar functionality
   const [patientsWithoutLabNumbers, setPatientsWithoutLabNumbers] = useState([]);
   const [filteredSidebarPatients, setFilteredSidebarPatients] = useState([]);
   const [loadingSidebarPatients, setLoadingSidebarPatients] = useState(true);
@@ -30,6 +29,7 @@ const Phlebotomy = () => {
   
   // Search and filter states for sidebar
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState(''); // Temporary input before search is triggered
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]); // Today's date
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]); // Today's date
 
@@ -56,13 +56,11 @@ const Phlebotomy = () => {
       console.log('Processed patients data:', patientsData);
       
       setPatients(patientsData);
-      setFilteredPatients(patientsData);
       toast.success(`Loaded ${patientsData.length} patients for lab work`);
     } catch (error) {
       console.error('Error fetching patients:', error);
       toast.error('Failed to fetch patients data.');
       setPatients([]);
-      setFilteredPatients([]);
     } finally {
       setLoadingPatients(false);
     }
@@ -88,7 +86,7 @@ const Phlebotomy = () => {
     }
   };
 
-  const filterSidebarPatients = (patients, searchQuery, startDateFilter, endDateFilter) => {
+  const filterSidebarPatients = useCallback((patients, searchQuery, startDateFilter, endDateFilter) => {
     let filtered = patients;
 
     // Apply search filter
@@ -111,25 +109,37 @@ const Phlebotomy = () => {
     }
 
     setFilteredSidebarPatients(filtered);
-  };
+  }, []); // Empty dependency array since we pass all dependencies as parameters
 
   const handleSidebarSearch = (query) => {
     setSidebarSearchQuery(query);
-    filterSidebarPatients(patientsWithoutLabNumbers, query, startDate, endDate);
+    setSearchInput(query); // Keep input in sync when search is triggered
+    // Don't call filterSidebarPatients here - let useEffect handle it
+  };
+
+  const handleSearchIconClick = () => {
+    setSidebarSearchQuery(searchInput);
+  };
+
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      setSidebarSearchQuery(searchInput);
+    }
   };
 
   const handleDateRangeChange = (newStartDate, newEndDate) => {
     setStartDate(newStartDate);
     setEndDate(newEndDate);
-    filterSidebarPatients(patientsWithoutLabNumbers, sidebarSearchQuery, newStartDate, newEndDate);
+    // Don't call filterSidebarPatients here - let useEffect handle it
   };
 
   const resetSidebarFilters = () => {
     const today = new Date().toISOString().split('T')[0];
     setSidebarSearchQuery('');
+    setSearchInput('');
     setStartDate(today);
     setEndDate(today);
-    filterSidebarPatients(patientsWithoutLabNumbers, '', today, today);
+    // Don't call filterSidebarPatients here - let useEffect handle it
   };
 
   useEffect(() => {
@@ -159,25 +169,10 @@ const Phlebotomy = () => {
   // Filter sidebar patients when data or filters change
   useEffect(() => {
     filterSidebarPatients(patientsWithoutLabNumbers, sidebarSearchQuery, startDate, endDate);
-  }, [patientsWithoutLabNumbers, sidebarSearchQuery, startDate, endDate]);
-
-  const handleSearch = (e) => {
-    const query = e.target.value.toLowerCase();
-    setSearchQuery(query);
-    setFilteredPatients(
-      patients.filter((patient) =>
-        patient.name.toLowerCase().includes(query)
-      )
-    );
-  };
+  }, [patientsWithoutLabNumbers, sidebarSearchQuery, startDate, endDate, filterSidebarPatients]);
 
   const handleSidebarPatientSelect = (patient) => {
     setSelectedPatient(patient.name);
-    setSearchQuery(patient.name);
-    // Ensure the patient is in the filtered list
-    if (!filteredPatients.find(p => p.name === patient.name)) {
-      setFilteredPatients([patient, ...patients.filter(p => p.name !== patient.name)]);
-    }
     toast.info(`Selected patient: ${patient.name}`);
   };
 
@@ -222,6 +217,7 @@ const Phlebotomy = () => {
       const response = await axios.post(`${API_BASE_URL}/api/number`, {
         number: labNumber,
         patient: selectedPatientData.name,
+        medicalType: selectedPatientData.medicalType,
       });
 
       setSubmissionStatus(`Lab number submitted successfully: ${response.data.labNumber}`);
@@ -240,6 +236,7 @@ const Phlebotomy = () => {
       window.dispatchEvent(event);
       
       fetchLabNumbers(); // Refresh list
+      fetchPatientsWithoutLabNumbers(); // Refresh sidebar to remove patient immediately
     } catch (error) {
       toast.error('Failed to submit lab number. Please try again.');
       console.error('Submission error:', error);
@@ -249,8 +246,6 @@ const Phlebotomy = () => {
   };
 
   const resetForm = () => {
-    setSearchQuery('');
-    setFilteredPatients(patientData?.patients || []);
     setSelectedPatient('');
     setLabNumber('');
     setSubmissionStatus('');
@@ -315,195 +310,29 @@ const Phlebotomy = () => {
     </div>
   );
 
-  const Sidebar = () => (
-    <div className={`fixed left-0 top-0 h-full bg-gray-900 border-r border-gray-700 transition-all duration-300 z-50 ${
-      sidebarCollapsed ? 'w-16' : 'w-80'
-    }`}>
-      <div className="p-4 border-b border-gray-700">
-        <div className="flex items-center justify-between">
-          {!sidebarCollapsed && (
-            <h2 className="text-lg font-bold text-teal-400">Pending Lab Numbers</h2>
-          )}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="text-gray-400 hover:text-teal-400 transition-colors"
-          >
-            {sidebarCollapsed ? (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            ) : (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            )}
-          </button>
-        </div>
-        {!sidebarCollapsed && (
-          <div className="mt-1">
-            <p className="text-sm text-gray-400">
-              {loadingSidebarPatients ? (
-                'Loading...'
-              ) : (
-                <>
-                  <span className="text-teal-300 font-medium">{filteredSidebarPatients.length}</span>
-                  {filteredSidebarPatients.length !== patientsWithoutLabNumbers.length && (
-                    <span> of <span className="text-yellow-300">{patientsWithoutLabNumbers.length}</span></span>
-                  )}
-                  <span> patients {filteredSidebarPatients.length !== patientsWithoutLabNumbers.length ? 'shown' : 'pending'}</span>
-                </>
-              )}
-            </p>
-            {startDate === endDate && startDate === new Date().toISOString().split('T')[0] && (
-              <p className="text-xs text-blue-400 mt-1">📅 Today's patients</p>
-            )}
-          </div>
-        )}
-      </div>
-      
-      {!sidebarCollapsed && (
-        <div className="p-4">
-          {/* Search Input */}
-          <div className="mb-4">
-            <input
-              type="text"
-              placeholder="Search patients..."
-              value={sidebarSearchQuery}
-              onChange={(e) => handleSidebarSearch(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:border-teal-500"
-            />
-          </div>
-
-          {/* Date Range Filters */}
-          <div className="mb-4 space-y-2">
-            <label className="text-xs text-gray-400 font-medium">Date Range</label>
-            <div className="grid grid-cols-1 gap-2">
-              <div className="relative">
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => handleDateRangeChange(e.target.value, endDate)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white focus:outline-none focus:border-teal-500"
-                />
-                <label className="absolute -top-2 left-2 text-xs text-gray-500 bg-gray-900 px-1">From</label>
-              </div>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => handleDateRangeChange(startDate, e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white focus:outline-none focus:border-teal-500"
-                />
-                <label className="absolute -top-2 left-2 text-xs text-gray-500 bg-gray-900 px-1">To</label>
-              </div>
-            </div>
-          </div>
-
-          {/* Filter Controls */}
-          <div className="mb-4 flex gap-2">
-            <button
-              onClick={resetSidebarFilters}
-              className="flex-1 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded-lg transition-colors"
-            >
-              Today
-            </button>
-            <button
-              onClick={() => {
-                setSidebarSearchQuery('');
-                setStartDate('');
-                setEndDate('');
-                filterSidebarPatients(patientsWithoutLabNumbers, '', '', '');
-              }}
-              className="flex-1 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded-lg transition-colors"
-            >
-              All
-            </button>
-          </div>
-
-          <button
-            onClick={fetchPatientsWithoutLabNumbers}
-            className="w-full mb-4 px-3 py-2 bg-teal-600 hover:bg-teal-500 text-white text-sm rounded-lg transition-colors"
-            disabled={loadingSidebarPatients}
-          >
-            {loadingSidebarPatients ? 'Refreshing...' : 'Refresh List'}
-          </button>
-          
-          <div className="space-y-2 max-h-[calc(100vh-400px)] overflow-y-auto">
-            {loadingSidebarPatients ? (
-              <div className="text-center text-gray-400 py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-400 mx-auto"></div>
-                <p className="mt-2 text-sm">Loading patients...</p>
-              </div>
-            ) : filteredSidebarPatients.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">
-                <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-sm">
-                  {patientsWithoutLabNumbers.length === 0 
-                    ? 'All patients have lab numbers assigned!' 
-                    : 'No patients match your filters'
-                  }
-                </p>
-              </div>
-            ) : (
-              filteredSidebarPatients.map((patient) => (
-                <div
-                  key={patient._id}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 hover:bg-gray-800 hover:border-teal-400 ${
-                    selectedPatient === patient.name
-                      ? 'bg-teal-900/50 border-teal-500 ring-1 ring-teal-500/50'
-                      : 'bg-gray-800/50 border-gray-600'
-                  }`}
-                  onClick={() => handleSidebarPatientSelect(patient)}
-                >
-                  <div className="flex items-start space-x-3">
-                    {patient.photo ? (
-                      <img
-                        src={`data:image/jpeg;base64,${patient.photo}`}
-                        alt="Patient"
-                        className="w-10 h-10 rounded-full object-cover border border-gray-600"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center">
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-white text-sm truncate">{patient.name}</p>
-                      <p className="text-xs text-gray-400 truncate">{patient.passportNumber}</p>
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          patient.medicalType === 'SM-VDRL' 
-                            ? 'bg-red-900/50 text-red-300 border border-red-700/50' 
-                            : 'bg-blue-900/50 text-blue-300 border border-blue-700/50'
-                        }`}>
-                          {patient.medicalType}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        📅 {new Date(patient.createdAt).toLocaleDateString()}
-                      </p>
-                      {selectedPatient === patient.name && (
-                        <p className="text-xs text-teal-300 mt-1 font-medium">✓ Selected</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <>
       <TopBar />
-      <Sidebar />
+      <PhlebotomySidebar
+        sidebarCollapsed={sidebarCollapsed}
+        setSidebarCollapsed={setSidebarCollapsed}
+        loadingSidebarPatients={loadingSidebarPatients}
+        filteredSidebarPatients={filteredSidebarPatients}
+        patientsWithoutLabNumbers={patientsWithoutLabNumbers}
+        startDate={startDate}
+        endDate={endDate}
+        searchInput={searchInput}
+        setSearchInput={setSearchInput}
+        sidebarSearchQuery={sidebarSearchQuery}
+        setSidebarSearchQuery={setSidebarSearchQuery}
+        handleSearchIconClick={handleSearchIconClick}
+        handleSearchKeyPress={handleSearchKeyPress}
+        handleDateRangeChange={handleDateRangeChange}
+        resetSidebarFilters={resetSidebarFilters}
+        fetchPatientsWithoutLabNumbers={fetchPatientsWithoutLabNumbers}
+        selectedPatient={selectedPatient}
+        handleSidebarPatientSelect={handleSidebarPatientSelect}
+      />
       <div className={`min-h-screen bg-black text-gray-200 transition-all duration-300 ${
         sidebarCollapsed ? 'ml-16' : 'ml-80'
       }`}>
@@ -524,35 +353,21 @@ const Phlebotomy = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div>
-                <input
-                  type="text"
-                  placeholder={loadingPatients ? "Loading patients..." : "Search patients..."}
-                  value={searchQuery}
-                  onChange={handleSearch}
-                  className="w-full px-4 py-3 mb-4 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none"
-                  disabled={loadingPatients}
-                />
-                <select
-                  value={selectedPatient}
-                  onChange={(e) => setSelectedPatient(e.target.value)}
-                  className="w-full px-4 py-3 mb-6 rounded-lg bg-gray-800 border border-gray-700"
-                  disabled={loadingPatients}
-                >
-                  <option value="">
-                    {loadingPatients ? 'Loading patients...' : 'Select Patient'}
-                  </option>
-                  {filteredPatients.map((p) => (
-                    <option key={p._id} value={p.name}>
-                      {p.name} - {p.passportNumber} ({p.medicalType})
-                    </option>
-                  ))}
-                </select>
-
-                {selectedPatientData && (
+                {selectedPatientData ? (
                   <PatientDetailsCard
                     patient={selectedPatientData}
                     labNumber={labNumber}
                   />
+                ) : (
+                  <div className="p-8 bg-gray-900 rounded-xl shadow-2xl border-2 border-teal-500/30 text-center">
+                    <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <h3 className="text-xl font-semibold text-gray-400 mb-2">No Patient Selected</h3>
+                    <p className="text-gray-500">
+                      Please select a patient from the sidebar to generate a lab number
+                    </p>
+                  </div>
                 )}
               </div>
 

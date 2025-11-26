@@ -25,21 +25,9 @@ const clinicalSchema = new mongoose.Schema(
         hcv: String,
         hivTest: String,
       },
-      fullHaemogram: {
-        wbc: {
-          value: String,
-          units: String,
-          status: String,
-          range: String,
-        },
-        rbc: {
-          value: String,
-          units: String,
-          status: String,
-          range: String,
-        },
-        // ... other haemogram fields
-      },
+      fullHaemogram: mongoose.Schema.Types.Mixed, // Use Mixed type to support all dynamic test fields
+      renalFunction: mongoose.Schema.Types.Mixed, // Add renal function tests
+      liverFunction: mongoose.Schema.Types.Mixed, // Add liver function tests
       urineTest: {
         albumin: String,
         sugar: String,

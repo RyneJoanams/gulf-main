@@ -33,9 +33,17 @@ exports.createReport = async (req, res) => {
             allergy,
             radiologyData,
             medicalType,
+            passportNumber,
+            gender,
+            age,
+            agent,
         } = req.body;
 
         const newReport = new clinical({
+            passportNumber: passportNumber || selectedReport?.passportNumber,
+            gender: gender || selectedReport?.gender,
+            age: age || selectedReport?.age,
+            agent: agent || selectedReport?.agent,
             selectedReport: {
                 ...selectedReport,
                 medicalType: medicalType || selectedReport?.medicalType || 'N/A', // Ensure medicalType is included

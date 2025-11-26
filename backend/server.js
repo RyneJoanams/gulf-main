@@ -21,7 +21,10 @@ const PORT = process.env.PORT;
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5000',
-  process.env.FRONTEND_URL // Add your production frontend URL to .env
+  process.env.FRONTEND_URL,
+  process.env.PRODUCTION_FRONTEND_URL,
+  'https://www.ghck.co.ke',
+  'https://ghck.co.ke'
 ].filter(Boolean); // Remove undefined values
 
 app.use(cors({
@@ -33,10 +36,12 @@ app.use(cors({
       callback(null, true);
     } else {
       console.warn(`CORS blocked request from origin: ${origin}`);
-      callback(null, true); // Allow all origins for now, tighten in production
+      callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 app.use(bodyParser.json({ limit: '50mb' }));

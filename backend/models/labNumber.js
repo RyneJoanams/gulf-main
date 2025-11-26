@@ -10,6 +10,10 @@ const labNumberSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  medicalType: {
+    type: String,
+    default: 'N/A',
+  },
   status: {
     type: String,
     enum: ['pending', 'completed'],

@@ -53,10 +53,14 @@ exports.generateLabNumber = async (req, res) => {
 
 // Controller to handle lab number submission
 exports.createLabNumber = async (req, res) => {
-  const { number, patient } = req.body;
+  const { number, patient, medicalType } = req.body;
 
   try {
-    const newLabNumber = new LabNumber({ number, patient });
+    const newLabNumber = new LabNumber({ 
+      number, 
+      patient,
+      medicalType: medicalType || 'N/A'
+    });
     const savedLabNumber = await newLabNumber.save();
     res.status(201).json({
       success: true,
