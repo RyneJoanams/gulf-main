@@ -328,7 +328,17 @@ const Clinical = () => {
             console.log(clinicalReport);
 
             await axios.post(`${API_BASE_URL}/api/clinical`, clinicalReport);
-            toast.success("Report successfully created");
+            
+            // Enhanced notification for FM patients about next steps
+            if (selectedPatientDetails?.medicalType === 'FM' || selectedReport?.medicalType === 'FM') {
+              toast.success("FM Clinical Assessment completed successfully!");
+              toast.info('✅ Patient now available for Lab Testing - Check LeftBar Lab Reports', {
+                autoClose: 8000,
+                position: "top-center"
+              });
+            } else {
+              toast.success("Clinical Report successfully created");
+            }
 
             // Remove the processed report from the list
             const updatedReports = reports.filter(report => report._id !== selectedReport._id);
@@ -510,6 +520,13 @@ const Clinical = () => {
                                             <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-900">
                                                 {selectedReport.patientName}'s Clinical Report
                                             </h2>
+                                            {(selectedPatientDetails?.medicalType === 'FM' || selectedReport?.medicalType === 'FM') && (
+                                                <div className="bg-orange-100 border border-orange-300 rounded-lg px-3 py-2 mt-3 inline-block">
+                                                    <span className="text-orange-800 text-sm font-medium">
+                                                        🏥 FM Patient - Clinical Assessment Required Before Lab Testing
+                                                    </span>
+                                                </div>
+                                            )}
                                             <p className="text-gray-600 mt-2">Lab Number: <span className="font-semibold">{selectedReport.labNumber}</span></p>
                                             <p className="text-gray-600">Test Date: <span className="font-semibold">{new Date(selectedReport.timestamp || selectedReport.timeStamp || selectedReport.createdAt).toLocaleDateString()}</span></p>
                                             
@@ -568,6 +585,13 @@ const Clinical = () => {
                                                 <p className="text-purple-600 text-xs">
                                                     ℹ️ Lab test results will be available after clinical assessment is submitted and lab work is completed.
                                                 </p>
+                                                {(selectedPatientDetails?.medicalType === 'FM' || selectedReport?.medicalType === 'FM') && (
+                                                    <div className="bg-blue-50 border border-blue-200 rounded p-2 mt-2">
+                                                        <span className="text-blue-800 text-xs font-medium">
+                                                            🔄 FM Workflow: Complete Clinical → Patient proceeds to Lab → Final Results
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

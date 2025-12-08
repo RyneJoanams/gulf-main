@@ -123,6 +123,48 @@ exports.createLabReport = async (req, res) => {
       }
     }
 
+    // Update existing clinical report for F-series (FM patients)
+    // FM patients go through: Phlebotomy -> Clinical -> Lab
+    // When Lab completes the work, update the existing clinical report with complete lab data
+    if (labData.labNumber && labData.labNumber.includes('-F')) {
+      try {
+        console.log("Updating clinical report with complete lab data for F-series:", labData.labNumber);
+        
+        // Find the existing clinical report for this lab number
+        const existingClinicalReport = await Clinical.findOne({ 
+          'selectedReport.labNumber': labData.labNumber 
+        });
+
+        if (existingClinicalReport) {
+          console.log("Found existing clinical report, updating with lab data...");
+          
+          // Update the selectedReport with complete lab data
+          existingClinicalReport.selectedReport = {
+            ...existingClinicalReport.selectedReport.toObject(),
+            // Update with the complete lab test results
+            urineTest: labData.urineTest || existingClinicalReport.selectedReport.urineTest,
+            bloodTest: labData.bloodTest || existingClinicalReport.selectedReport.bloodTest,
+            area1: labData.area1 || existingClinicalReport.selectedReport.area1,
+            renalFunction: labData.renalFunction || existingClinicalReport.selectedReport.renalFunction,
+            fullHaemogram: labData.fullHaemogram || existingClinicalReport.selectedReport.fullHaemogram,
+            liverFunction: labData.liverFunction || existingClinicalReport.selectedReport.liverFunction,
+            labRemarks: labData.labRemarks || existingClinicalReport.selectedReport.labRemarks,
+            // Update timestamp to reflect lab completion
+            timeStamp: labData.timeStamp
+          };
+
+          await existingClinicalReport.save();
+          console.log("Clinical report updated successfully with complete lab data for F-series:", labData.labNumber);
+        } else {
+          console.log("No existing clinical report found for F-series lab number:", labData.labNumber);
+          console.log("This might be expected if clinical assessment hasn't been completed yet.");
+        }
+      } catch (clinicalError) {
+        console.error("Error updating clinical report for F-series:", clinicalError);
+        // Don't fail the lab report creation if clinical update fails
+      }
+    }
+
     res.status(201).json({
       success: true,
       data: savedLab,
