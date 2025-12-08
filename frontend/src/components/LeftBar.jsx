@@ -1376,195 +1376,654 @@ const LeftBar = () => {
         </div>
       </div>
 
-      {/* Report Modal */}
+      {/* Enhanced Report Modal */}
       {showReportModal && selectedReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">Clinical Report Details</h2>
-                <div className="flex gap-2">
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-teal-600 to-teal-700 p-6 text-white sticky top-0 z-10 shadow-lg">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-3xl font-bold mb-1">Clinical Report Details</h2>
+                  <p className="text-teal-100 text-sm">Comprehensive Medical Assessment Report</p>
+                </div>
+                <div className="flex gap-3">
                   <button
                     onClick={() => printReport(selectedReport)}
-                    className="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700 transition-colors flex items-center"
+                    className="bg-white text-teal-600 px-5 py-2.5 rounded-lg hover:bg-teal-50 transition-all duration-200 flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
                   >
-                    <Printer size={16} className="mr-2" />
-                    Print Report
+                    <Printer size={18} />
+                    Print
                   </button>
                   <button
                     onClick={closeModal}
-                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+                    className="bg-teal-800 text-white px-5 py-2.5 rounded-lg hover:bg-teal-900 transition-all duration-200 font-semibold shadow-md"
                   >
                     Close
                   </button>
                 </div>
               </div>
+            </div>
 
-              {/* Patient Information */}
-              <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Patient Information</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <p><strong>Name:</strong> {selectedReport.selectedReport?.patientName || 'N/A'}</p>
-                  <p><strong>Gender:</strong> {selectedReport.gender || 'N/A'}</p>
-                  <p><strong>Age:</strong> {selectedReport.age || 'N/A'}</p>
-                  <p><strong>Passport Number:</strong> {selectedReport.passportNumber || 'N/A'}</p>
-                  <p><strong>Lab Number:</strong> {selectedReport.selectedReport?.labNumber || 'N/A'}</p>
-                  <p><strong>Agent:</strong> {selectedReport.agent || 'N/A'}</p>
-                  <p><strong>Date:</strong> {new Date(selectedReport.selectedReport?.timeStamp).toLocaleDateString()}</p>
-                  <p><strong>Time:</strong> {new Date(selectedReport.selectedReport?.timeStamp).toLocaleTimeString()}</p>
-                  <p></p>
-                </div>
-              </div>
-
-              {/* Basic Information */}
-              <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Basic Information</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <p><strong>Height:</strong> {selectedReport.height || 'N/A'} cm</p>
-                  <p><strong>Weight:</strong> {selectedReport.weight || 'N/A'} kg</p>
-                  {/* Only show clinical officer and notes for non-SM-VDRL reports */}
-                  {!(selectedReport.selectedReport?.labNumber?.includes('-S') || selectedReport.selectedReport?.medicalType === 'SM-VDRL') && (
-                    <>
-                      <p><strong>Clinical Officer:</strong> {selectedReport.clinicalOfficerName || 'N/A'}</p>
-                      <p><strong>Clinical Notes:</strong> {selectedReport.clinicalNotes || 'N/A'}</p>
-                    </>
-                  )}
-                  <p><strong>Past Illness:</strong> {selectedReport.historyOfPastIllness || 'N/A'}</p>
-                  <p><strong>Allergies:</strong> {selectedReport.allergy || 'N/A'}</p>
-                </div>
-              </div>
-
-              {/* General Examination */}
-              {selectedReport.generalExamination && (
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">General Examination</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <p><strong>Left Eye:</strong> {selectedReport.generalExamination.leftEye || 'N/A'}</p>
-                    <p><strong>Right Eye:</strong> {selectedReport.generalExamination.rightEye || 'N/A'}</p>
-                    <p><strong>Hernia:</strong> {selectedReport.generalExamination.hernia || 'N/A'}</p>
-                    <p><strong>Varicose Vein:</strong> {selectedReport.generalExamination.varicoseVein || 'N/A'}</p>
+            {/* Modal Body - Scrollable */}
+            <div className="overflow-y-auto max-h-[calc(90vh-100px)] p-6 bg-gray-50">
+              <div className="space-y-6">
+                {/* Patient Information Card - Enhanced */}
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-md border-2 border-blue-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Patient Information
+                    </h3>
+                  </div>
+                  <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[
+                      { label: 'Name', value: selectedReport.selectedReport?.patientName, icon: '👤' },
+                      { label: 'Gender', value: selectedReport.gender, icon: '⚥' },
+                      { label: 'Age', value: selectedReport.age, icon: '🎂' },
+                      { label: 'Passport', value: selectedReport.passportNumber, icon: '🛂' },
+                      { label: 'Lab Number', value: selectedReport.selectedReport?.labNumber, icon: '🔬' },
+                      { label: 'Agent', value: selectedReport.agent, icon: '🏢' },
+                      { label: 'Date', value: new Date(selectedReport.selectedReport?.timeStamp).toLocaleDateString(), icon: '📅' },
+                      { label: 'Time', value: new Date(selectedReport.selectedReport?.timeStamp).toLocaleTimeString(), icon: '⏰' },
+                      { label: 'Medical Type', value: selectedReport.selectedReport?.medicalType || 'Standard', icon: '🏥' }
+                    ].map((item, idx) => (
+                      <div key={idx} className="bg-white p-3 rounded-lg border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">{item.icon}</span>
+                          <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">{item.label}</span>
+                        </div>
+                        <p className="text-sm font-bold text-gray-900 ml-7">{item.value || 'N/A'}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )}
 
-              {/* Systemic Examination */}
-              {selectedReport.systemicExamination && (
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Systemic Examination</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <p><strong>Blood Pressure:</strong> {selectedReport.systemicExamination.bloodPressure || 'N/A'}</p>
-                    <p><strong>Heart:</strong> {selectedReport.systemicExamination.heart || 'N/A'}</p>
-                    <p><strong>Pulse Rate:</strong> {selectedReport.systemicExamination.pulseRate || 'N/A'}</p>
+                {/* Basic Information - Only show if data exists */}
+                {(selectedReport.height || selectedReport.weight || selectedReport.clinicalOfficerName || selectedReport.historyOfPastIllness || selectedReport.allergy || selectedReport.clinicalNotes) && (
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-5 py-3">
+                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Basic Information & Medical History
+                      </h3>
+                    </div>
+                    <div className="p-5">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {selectedReport.height && (
+                          <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                            <span className="text-2xl">📏</span>
+                            <div>
+                              <p className="text-xs text-gray-600 font-medium">Height</p>
+                              <p className="text-lg font-bold text-gray-900">{selectedReport.height} cm</p>
+                            </div>
+                          </div>
+                        )}
+                        {selectedReport.weight && (
+                          <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                            <span className="text-2xl">⚖️</span>
+                            <div>
+                              <p className="text-xs text-gray-600 font-medium">Weight</p>
+                              <p className="text-lg font-bold text-gray-900">{selectedReport.weight} kg</p>
+                            </div>
+                          </div>
+                        )}
+                        {!(selectedReport.selectedReport?.labNumber?.includes('-S') || selectedReport.selectedReport?.medicalType === 'SM-VDRL') && selectedReport.clinicalOfficerName && (
+                          <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <span className="text-2xl">👨‍⚕️</span>
+                            <div>
+                              <p className="text-xs text-gray-600 font-medium">Clinical Officer</p>
+                              <p className="text-sm font-bold text-gray-900">{selectedReport.clinicalOfficerName}</p>
+                            </div>
+                          </div>
+                        )}
+                        {selectedReport.historyOfPastIllness && (
+                          <div className="md:col-span-2 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                            <div className="flex items-start gap-2">
+                              <span className="text-xl">🏥</span>
+                              <div className="flex-1">
+                                <p className="text-xs text-gray-600 font-medium mb-1">Past Medical History</p>
+                                <p className="text-sm text-gray-900">{selectedReport.historyOfPastIllness}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {selectedReport.allergy && (
+                          <div className="md:col-span-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                            <div className="flex items-start gap-2">
+                              <span className="text-xl">⚠️</span>
+                              <div className="flex-1">
+                                <p className="text-xs text-gray-600 font-medium mb-1">Known Allergies</p>
+                                <p className="text-sm text-gray-900">{selectedReport.allergy}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {!(selectedReport.selectedReport?.labNumber?.includes('-S') || selectedReport.selectedReport?.medicalType === 'SM-VDRL') && selectedReport.clinicalNotes && (
+                          <div className="md:col-span-2 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                            <div className="flex items-start gap-2">
+                              <span className="text-xl">📝</span>
+                              <div className="flex-1">
+                                <p className="text-xs text-gray-600 font-medium mb-1">Clinical Notes</p>
+                                <p className="text-sm text-gray-900">{selectedReport.clinicalNotes}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Laboratory Tests */}
-              {selectedReport.selectedReport?.area1 && (
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Laboratory Tests</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <p><strong>Blood Group:</strong> {selectedReport.selectedReport.area1.bloodGroup || 'N/A'}</p>
-                    <p><strong>Pregnancy Test:</strong> {selectedReport.selectedReport.area1.pregnancyTest || 'N/A'}</p>
-                    <p><strong>VDRL Test:</strong> {selectedReport.selectedReport.area1.vdrlTest || 'N/A'}</p>
+                {/* General Examination - Only show if data exists */}
+                {selectedReport.generalExamination && Object.keys(selectedReport.generalExamination).filter(key => selectedReport.generalExamination[key]).length > 0 && (
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-purple-500 to-pink-600 px-5 py-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <span>👁️</span>
+                          General Examination
+                        </h3>
+                        <span className="bg-white text-purple-600 px-3 py-1 rounded-full text-xs font-bold">
+                          {Object.keys(selectedReport.generalExamination).filter(key => selectedReport.generalExamination[key]).length} Tests Recorded
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {Object.entries(selectedReport.generalExamination).filter(([key, value]) => value).map(([key, value]) => (
+                        <div key={key} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-200 hover:shadow-md transition-shadow">
+                          <span className="text-sm font-semibold text-gray-700 capitalize">
+                            {key.replace(/([A-Z])/g, ' $1')}:
+                          </span>
+                          <span className="text-sm font-bold text-purple-900 bg-white px-3 py-1 rounded-full">{value}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Radiology Tests */}
-              {selectedReport.radiologyData && (
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Radiology Tests</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {selectedReport.radiologyData.heafMantouxTest && (
-                      <p><strong>Heaf/Mantoux Test:</strong> {selectedReport.radiologyData.heafMantouxTest}</p>
-                    )}
-                    {selectedReport.radiologyData.chestXray && (
-                      <p><strong>Chest X-ray:</strong> {selectedReport.radiologyData.chestXray}</p>
-                    )}
+                {/* Systemic Examination - Only show if data exists */}
+                {selectedReport.systemicExamination && Object.keys(selectedReport.systemicExamination).filter(key => selectedReport.systemicExamination[key]).length > 0 && (
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-red-500 to-rose-600 px-5 py-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <span>❤️</span>
+                          Systemic Examination
+                        </h3>
+                        <span className="bg-white text-red-600 px-3 py-1 rounded-full text-xs font-bold">
+                          {Object.keys(selectedReport.systemicExamination).filter(key => selectedReport.systemicExamination[key]).length} Vitals Recorded
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {Object.entries(selectedReport.systemicExamination).filter(([key, value]) => value).map(([key, value]) => (
+                        <div key={key} className="flex flex-col items-center p-4 bg-red-50 rounded-lg border border-red-200 hover:shadow-md transition-shadow">
+                          <span className="text-xs text-gray-600 font-medium mb-2 uppercase tracking-wide">
+                            {key.replace(/([A-Z])/g, ' $1')}
+                          </span>
+                          <span className="text-xl font-bold text-red-900">{value}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Full Haemogram */}
-              {selectedReport.selectedReport?.fullHaemogram && (
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Full Haemogram</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border-collapse border border-gray-300">
-                      <thead>
-                        <tr className="bg-teal-600 text-white">
-                          <th className="border border-gray-300 px-4 py-2 text-left">Parameter</th>
-                          <th className="border border-gray-300 px-4 py-2 text-left">Value</th>
-                          <th className="border border-gray-300 px-4 py-2 text-left">Units</th>
-                          <th className="border border-gray-300 px-4 py-2 text-left">Status</th>
-                          <th className="border border-gray-300 px-4 py-2 text-left">Reference Range</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.keys(selectedReport.selectedReport.fullHaemogram).map((key) => {
-                          const test = selectedReport.selectedReport.fullHaemogram[key];
-                          if (test && typeof test === 'object' && test.value) {
-                            const parameterName = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                {/* Laboratory Tests - Only show if data exists */}
+                {selectedReport.selectedReport?.area1 && Object.keys(selectedReport.selectedReport.area1).filter(key => selectedReport.selectedReport.area1[key]).length > 0 && (
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <span>🔬</span>
+                          Laboratory Tests
+                        </h3>
+                        <span className="bg-white text-amber-600 px-3 py-1 rounded-full text-xs font-bold">
+                          {Object.keys(selectedReport.selectedReport.area1).filter(key => selectedReport.selectedReport.area1[key]).length} Tests Completed
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {Object.entries(selectedReport.selectedReport.area1).filter(([key, value]) => value).map(([key, value]) => (
+                        <div key={key} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200 hover:shadow-md transition-shadow">
+                          <span className="text-sm font-semibold text-gray-700 capitalize">
+                            {key.replace(/([A-Z])/g, ' $1')}:
+                          </span>
+                          <span className={`text-sm font-bold px-3 py-1 rounded-full ${
+                            value.toLowerCase().includes('negative') || value.toLowerCase().includes('normal') ? 'bg-green-100 text-green-800' :
+                            value.toLowerCase().includes('positive') || value.toLowerCase().includes('abnormal') ? 'bg-red-100 text-red-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}>
+                            {value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Radiology Tests - Only show if data exists */}
+                {selectedReport.radiologyData && (selectedReport.radiologyData.heafMantouxTest || selectedReport.radiologyData.chestXray || selectedReport.radiologyData.chestXRayTest) && (
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <span>🩻</span>
+                          Radiology Tests
+                        </h3>
+                        <span className="bg-white text-cyan-600 px-3 py-1 rounded-full text-xs font-bold">
+                          {[selectedReport.radiologyData.heafMantouxTest, selectedReport.radiologyData.chestXray || selectedReport.radiologyData.chestXRayTest].filter(Boolean).length} Scans Completed
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {selectedReport.radiologyData.heafMantouxTest && (
+                        <div className="p-4 bg-cyan-50 rounded-lg border-2 border-cyan-200 hover:shadow-md transition-shadow">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-gray-700">Heaf/Mantoux Test</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              selectedReport.radiologyData.heafMantouxTest.toLowerCase().includes('negative') ? 'bg-green-100 text-green-800 border border-green-300' :
+                              'bg-red-100 text-red-800 border border-red-300'
+                            }`}>
+                              {selectedReport.radiologyData.heafMantouxTest}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {(selectedReport.radiologyData.chestXray || selectedReport.radiologyData.chestXRayTest) && (
+                        <div className="p-4 bg-cyan-50 rounded-lg border-2 border-cyan-200 hover:shadow-md transition-shadow">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-gray-700">Chest X-Ray</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              (selectedReport.radiologyData.chestXray || selectedReport.radiologyData.chestXRayTest).toLowerCase().includes('normal') ? 'bg-green-100 text-green-800 border border-green-300' :
+                              'bg-red-100 text-red-800 border border-red-300'
+                            }`}>
+                              {selectedReport.radiologyData.chestXray || selectedReport.radiologyData.chestXRayTest}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Full Haemogram - Only show if data exists */}
+                {selectedReport.selectedReport?.fullHaemogram && Object.keys(selectedReport.selectedReport.fullHaemogram).filter(key => {
+                  const test = selectedReport.selectedReport.fullHaemogram[key];
+                  return test && typeof test === 'object' && test.value;
+                }).length > 0 && (
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <span>🔬</span>
+                          Full Haemogram (Complete Blood Count)
+                        </h3>
+                        <span className="bg-white text-indigo-600 px-3 py-1 rounded-full text-xs font-bold">
+                          {Object.keys(selectedReport.selectedReport.fullHaemogram).filter(key => {
+                            const test = selectedReport.selectedReport.fullHaemogram[key];
+                            return test && typeof test === 'object' && test.value;
+                          }).length} Parameters
+                        </span>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b-2 border-indigo-200">
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Parameter</th>
+                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Value</th>
+                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Units</th>
+                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
+                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Reference Range</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {Object.keys(selectedReport.selectedReport.fullHaemogram).map((key) => {
+                            const test = selectedReport.selectedReport.fullHaemogram[key];
+                            if (test && typeof test === 'object' && test.value) {
+                              const parameterName = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                              const isAbnormal = test.status && test.status.toLowerCase() !== 'normal';
+                              return (
+                                <tr key={key} className={`hover:bg-indigo-50 transition-colors ${isAbnormal ? 'bg-red-50' : ''}`}>
+                                  <td className="px-4 py-3 text-sm font-semibold text-gray-900">{parameterName}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className={`font-bold ${isAbnormal ? 'text-red-600' : 'text-gray-900'}`}>
+                                      {test.value || 'N/A'}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-sm text-gray-600">{test.units || '-'}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    {test.status ? (
+                                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                        test.status.toLowerCase() === 'normal' ? 'bg-green-100 text-green-800 border border-green-300' :
+                                        'bg-red-100 text-red-800 border border-red-300'
+                                      }`}>
+                                        {test.status}
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-xs font-mono text-gray-600">{test.range || 'N/A'}</td>
+                                </tr>
+                              );
+                            }
+                            return null;
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Blood Tests - Only show if data exists */}
+                {selectedReport.selectedReport?.bloodTest && Object.keys(selectedReport.selectedReport.bloodTest).filter(key => selectedReport.selectedReport.bloodTest[key]).length > 0 && (
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-rose-500 to-pink-600 px-5 py-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <span>🩸</span>
+                          Blood Tests
+                        </h3>
+                        <span className="bg-white text-rose-600 px-3 py-1 rounded-full text-xs font-bold">
+                          {Object.keys(selectedReport.selectedReport.bloodTest).filter(key => selectedReport.selectedReport.bloodTest[key]).length} Tests
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-5 space-y-3">
+                      {Object.entries(selectedReport.selectedReport.bloodTest).filter(([key, value]) => value).map(([key, value]) => (
+                        <div key={key} className="flex items-center justify-between p-3 bg-rose-50 rounded-lg border border-rose-200 hover:shadow-md transition-shadow">
+                          <span className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                            {key === 'hivTest' ? 'HIV Test' : key === 'hbsAg' ? 'HBsAg' : key === 'hcv' ? 'HCV' : key === 'esr' ? 'ESR' : key.replace(/([A-Z])/g, ' $1')}:
+                          </span>
+                          <span className={`text-sm font-bold px-3 py-1 rounded-full ${
+                            value.toLowerCase().includes('negative') || value.toLowerCase().includes('normal') ? 'bg-green-100 text-green-800 border border-green-300' :
+                            value.toLowerCase().includes('positive') || value.toLowerCase().includes('reactive') ? 'bg-red-100 text-red-800 border border-red-300' :
+                            'bg-gray-100 text-gray-800 border border-gray-300'
+                          }`}>
+                            {value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Urine Tests - Only show if data exists */}
+                {selectedReport.selectedReport?.urineTest && Object.keys(selectedReport.selectedReport.urineTest).filter(key => selectedReport.selectedReport.urineTest[key]).length > 0 && (
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-yellow-500 to-amber-600 px-5 py-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <span>🧪</span>
+                          Urine Tests
+                        </h3>
+                        <span className="bg-white text-yellow-600 px-3 py-1 rounded-full text-xs font-bold">
+                          {Object.keys(selectedReport.selectedReport.urineTest).filter(key => selectedReport.selectedReport.urineTest[key]).length} Parameters
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-5 space-y-3">
+                      {Object.entries(selectedReport.selectedReport.urineTest).filter(([key, value]) => value).map(([key, value]) => (
+                        <div key={key} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200 hover:shadow-md transition-shadow">
+                          <span className="text-sm font-semibold text-gray-700 capitalize">
+                            {key.replace(/([A-Z])/g, ' $1')}:
+                          </span>
+                          <span className={`text-sm font-bold px-3 py-1 rounded-full ${
+                            value.toLowerCase().includes('nil') || value.toLowerCase().includes('negative') || value.toLowerCase().includes('normal') ? 'bg-green-100 text-green-800 border border-green-300' :
+                            value.toLowerCase().includes('trace') || value.toLowerCase().includes('+') ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' :
+                            'bg-gray-100 text-gray-800 border border-gray-300'
+                          }`}>
+                            {value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Renal Function Tests - Only show if data exists */}
+                {selectedReport.selectedReport?.renalFunction && Object.keys(selectedReport.selectedReport.renalFunction).filter(key => {
+                  const test = selectedReport.selectedReport.renalFunction[key];
+                  return test && ((typeof test === 'object' && test.value) || (typeof test === 'string'));
+                }).length > 0 && (
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-teal-500 to-green-600 px-5 py-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <span>🫘</span>
+                          Renal Function Tests
+                        </h3>
+                        <span className="bg-white text-teal-600 px-3 py-1 rounded-full text-xs font-bold">
+                          Kidney Health
+                        </span>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-teal-50 to-green-50 border-b-2 border-teal-200">
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Parameter</th>
+                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">Value</th>
+                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">Status</th>
+                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">Range</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {Object.entries(selectedReport.selectedReport.renalFunction).filter(([key, value]) => {
+                            return value && ((typeof value === 'object' && value.value) || (typeof value === 'string'));
+                          }).map(([key, value]) => {
+                            const displayValue = typeof value === 'object' ? value.value : value;
+                            const status = typeof value === 'object' ? value.status : null;
+                            const range = typeof value === 'object' ? value.range : null;
+                            const isAbnormal = status && status.toLowerCase() !== 'normal';
+                            
                             return (
-                              <tr key={key} className="hover:bg-gray-100">
-                                <td className="border border-gray-300 px-4 py-2 font-medium">{parameterName}</td>
-                                <td className="border border-gray-300 px-4 py-2">{test.value || 'N/A'}</td>
-                                <td className="border border-gray-300 px-4 py-2">{test.units || 'N/A'}</td>
-                                <td className={`border border-gray-300 px-4 py-2 ${test.status && test.status !== 'Normal' ? 'text-red-600 font-bold' : ''}`}>
-                                  {test.status || 'N/A'}
+                              <tr key={key} className={`hover:bg-teal-50 transition-colors ${isAbnormal ? 'bg-red-50' : ''}`}>
+                                <td className="px-4 py-3 text-sm font-semibold text-gray-900 capitalize">
+                                  {key.replace(/([A-Z])/g, ' $1')}
                                 </td>
-                                <td className="border border-gray-300 px-4 py-2 text-sm">{test.range || 'N/A'}</td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className={`font-bold ${isAbnormal ? 'text-red-600' : 'text-gray-900'}`}>
+                                    {displayValue || 'N/A'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  {status ? (
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                      status.toLowerCase() === 'normal' ? 'bg-green-100 text-green-800 border border-green-300' :
+                                      'bg-red-100 text-red-800 border border-red-300'
+                                    }`}>
+                                      {status}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-center text-xs font-mono text-gray-600">{range || 'N/A'}</td>
                               </tr>
                             );
-                          }
-                          return null;
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Lab Remarks */}
-              {selectedReport.selectedReport?.labRemarks && (
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Lab Remarks</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <p><strong>Overall Status:</strong> {selectedReport.selectedReport.labRemarks.fitnessEvaluation?.overallStatus || 'N/A'}</p>
-                    <p><strong>Other Aspects Fit:</strong> {selectedReport.selectedReport.labRemarks.fitnessEvaluation?.otherAspectsFit || 'N/A'}</p>
-                    <p><strong>Lab Superintendent:</strong> {selectedReport.selectedReport.labRemarks.labSuperintendent?.name || 'N/A'}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Test Results Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Blood Tests */}
-                {selectedReport.selectedReport?.bloodTest && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Blood Tests</h3>
-                    <div className="space-y-1">
-                      <p><strong>ESR:</strong> {selectedReport.selectedReport.bloodTest.esr || 'N/A'}</p>
-                      <p><strong>HBsAg:</strong> {selectedReport.selectedReport.bloodTest.hbsAg || 'N/A'}</p>
-                      <p><strong>HCV:</strong> {selectedReport.selectedReport.bloodTest.hcv || 'N/A'}</p>
-                      <p><strong>HIV Test:</strong> {selectedReport.selectedReport.bloodTest.hivTest || 'N/A'}</p>
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )}
 
-                {/* Urine Tests */}
-                {selectedReport.selectedReport?.urineTest && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Urine Tests</h3>
-                    <div className="space-y-1">
-                      <p><strong>Albumin:</strong> {selectedReport.selectedReport.urineTest.albumin || 'N/A'}</p>
-                      <p><strong>Sugar:</strong> {selectedReport.selectedReport.urineTest.sugar || 'N/A'}</p>
-                      <p><strong>Reaction:</strong> {selectedReport.selectedReport.urineTest.reaction || 'N/A'}</p>
-                      <p><strong>Microscopic:</strong> {selectedReport.selectedReport.urineTest.microscopic || 'N/A'}</p>
+                {/* Liver Function Tests - Only show if data exists */}
+                {selectedReport.selectedReport?.liverFunction && Object.keys(selectedReport.selectedReport.liverFunction).filter(key => {
+                  const test = selectedReport.selectedReport.liverFunction[key];
+                  return test && ((typeof test === 'object' && test.value) || (typeof test === 'string'));
+                }).length > 0 && (
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-orange-500 to-red-600 px-5 py-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <span>🫀</span>
+                          Liver Function Tests
+                        </h3>
+                        <span className="bg-white text-orange-600 px-3 py-1 rounded-full text-xs font-bold">
+                          Liver Health
+                        </span>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-orange-50 to-red-50 border-b-2 border-orange-200">
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Parameter</th>
+                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">Value</th>
+                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">Status</th>
+                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">Range</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {Object.entries(selectedReport.selectedReport.liverFunction).filter(([key, value]) => {
+                            return value && ((typeof value === 'object' && value.value) || (typeof value === 'string'));
+                          }).map(([key, value]) => {
+                            const displayValue = typeof value === 'object' ? value.value : value;
+                            const status = typeof value === 'object' ? value.status : null;
+                            const range = typeof value === 'object' ? value.range : null;
+                            const isAbnormal = status && status.toLowerCase() !== 'normal';
+                            
+                            return (
+                              <tr key={key} className={`hover:bg-orange-50 transition-colors ${isAbnormal ? 'bg-red-50' : ''}`}>
+                                <td className="px-4 py-3 text-sm font-semibold text-gray-900 capitalize">
+                                  {key.replace(/([A-Z])/g, ' $1')}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className={`font-bold ${isAbnormal ? 'text-red-600' : 'text-gray-900'}`}>
+                                    {displayValue || 'N/A'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  {status ? (
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                      status.toLowerCase() === 'normal' ? 'bg-green-100 text-green-800 border border-green-300' :
+                                      'bg-red-100 text-red-800 border border-red-300'
+                                    }`}>
+                                      {status}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-center text-xs font-mono text-gray-600">{range || 'N/A'}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )}
+
+                {/* Lab Remarks & Final Assessment - Only show if data exists */}
+                {selectedReport.selectedReport?.labRemarks && (
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl shadow-md border-2 border-green-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-green-600 to-emerald-700 px-5 py-3">
+                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <span>✅</span>
+                        Medical Assessment & Lab Remarks
+                      </h3>
+                    </div>
+                    <div className="p-5 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {selectedReport.selectedReport.labRemarks.fitnessEvaluation?.overallStatus && (
+                          <div className="p-4 bg-white rounded-lg border-2 border-green-300 shadow-sm">
+                            <p className="text-xs text-gray-600 font-medium mb-2 uppercase tracking-wide">Overall Status</p>
+                            <p className={`text-2xl font-bold ${
+                              selectedReport.selectedReport.labRemarks.fitnessEvaluation.overallStatus === 'FIT' ? 'text-green-600' :
+                              selectedReport.selectedReport.labRemarks.fitnessEvaluation.overallStatus === 'UNFIT' ? 'text-red-600' :
+                              'text-yellow-600'
+                            }`}>
+                              {selectedReport.selectedReport.labRemarks.fitnessEvaluation.overallStatus}
+                            </p>
+                          </div>
+                        )}
+                        {selectedReport.selectedReport.labRemarks.fitnessEvaluation?.otherAspectsFit && (
+                          <div className="p-4 bg-white rounded-lg border-2 border-green-300 shadow-sm">
+                            <p className="text-xs text-gray-600 font-medium mb-2 uppercase tracking-wide">Fitness Assessment</p>
+                            <p className={`text-2xl font-bold ${
+                              selectedReport.selectedReport.labRemarks.fitnessEvaluation.otherAspectsFit === 'YES' ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {selectedReport.selectedReport.labRemarks.fitnessEvaluation.otherAspectsFit}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      {selectedReport.selectedReport.labRemarks.labSuperintendent?.name && (
+                        <div className="p-4 bg-white rounded-lg border border-green-200">
+                          <p className="text-xs text-gray-600 font-medium mb-1">Lab Superintendent</p>
+                          <p className="text-lg font-bold text-gray-900">{selectedReport.selectedReport.labRemarks.labSuperintendent.name}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* No Tests Performed Message - Only show if no tests at all */}
+                {!selectedReport.height && 
+                 !selectedReport.weight && 
+                 !selectedReport.clinicalOfficerName && 
+                 !selectedReport.historyOfPastIllness && 
+                 !selectedReport.allergy && 
+                 !selectedReport.clinicalNotes &&
+                 (!selectedReport.generalExamination || Object.keys(selectedReport.generalExamination).filter(key => selectedReport.generalExamination[key]).length === 0) &&
+                 (!selectedReport.systemicExamination || Object.keys(selectedReport.systemicExamination).filter(key => selectedReport.systemicExamination[key]).length === 0) &&
+                 (!selectedReport.selectedReport?.area1 || Object.keys(selectedReport.selectedReport.area1).filter(key => selectedReport.selectedReport.area1[key]).length === 0) &&
+                 (!selectedReport.radiologyData || (!selectedReport.radiologyData.heafMantouxTest && !selectedReport.radiologyData.chestXray && !selectedReport.radiologyData.chestXRayTest)) &&
+                 (!selectedReport.selectedReport?.fullHaemogram || Object.keys(selectedReport.selectedReport.fullHaemogram).filter(key => {
+                   const test = selectedReport.selectedReport.fullHaemogram[key];
+                   return test && typeof test === 'object' && test.value;
+                 }).length === 0) &&
+                 (!selectedReport.selectedReport?.bloodTest || Object.keys(selectedReport.selectedReport.bloodTest).filter(key => selectedReport.selectedReport.bloodTest[key]).length === 0) &&
+                 (!selectedReport.selectedReport?.urineTest || Object.keys(selectedReport.selectedReport.urineTest).filter(key => selectedReport.selectedReport.urineTest[key]).length === 0) &&
+                 (!selectedReport.selectedReport?.renalFunction || Object.keys(selectedReport.selectedReport.renalFunction).filter(key => {
+                   const test = selectedReport.selectedReport.renalFunction[key];
+                   return test && ((typeof test === 'object' && test.value) || (typeof test === 'string'));
+                 }).length === 0) &&
+                 (!selectedReport.selectedReport?.liverFunction || Object.keys(selectedReport.selectedReport.liverFunction).filter(key => {
+                   const test = selectedReport.selectedReport.liverFunction[key];
+                   return test && ((typeof test === 'object' && test.value) || (typeof test === 'string'));
+                 }).length === 0) &&
+                 !selectedReport.selectedReport?.labRemarks && (
+                  <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl shadow-md border-2 border-yellow-300 overflow-hidden">
+                    <div className="p-8 text-center">
+                      <div className="text-6xl mb-4 opacity-40">⏳</div>
+                      <h3 className="text-2xl font-bold text-gray-800 mb-2">No Test Results Available</h3>
+                      <p className="text-gray-600 mb-4">
+                        This patient's medical tests have not been completed yet.
+                      </p>
+                      <div className="bg-white rounded-lg p-4 max-w-md mx-auto border border-yellow-200">
+                        <p className="text-sm text-gray-700">
+                          <strong>Possible Reasons:</strong>
+                        </p>
+                        <ul className="text-sm text-gray-600 text-left mt-2 space-y-1">
+                          <li>• Tests are currently being processed</li>
+                          <li>• Patient is awaiting clinical assessment</li>
+                          <li>• Sample collection is in progress</li>
+                          <li>• Results are pending from laboratory</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Summary Footer */}
+                <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-xl p-6 text-center border-2 border-gray-300">
+                  <p className="text-gray-600 text-sm mb-2">
+                    <strong>Report Generated:</strong> {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    This is a comprehensive medical report. Please consult with a healthcare professional for interpretation.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
