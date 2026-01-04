@@ -16,7 +16,7 @@ const ClinicalSidebar = ({
     itemsPerPage
 }) => {
     return (
-        <div className="bg-white dark:bg-gray-200 rounded-lg shadow-lg p-4 overflow-y-auto">
+        <div className="bg-white dark:bg-teal-200 rounded-lg shadow-lg p-4 overflow-y-auto">
             <input
                 type="text"
                 placeholder="Search by lab number"

@@ -114,7 +114,7 @@ const Footer = () => {
       {/* Footer Bottom */}
       <div className="bg-teal-900 text-center py-6 mt-12 border-t border-teal-700 shadow-md">
         <p className="text-sm">
-          &copy; {new Date().getFullYear()} Gulf Medical Health Centre. All rights reserved.
+          &copy; {new Date().getFullYear()} Gulf Medical Health Centre @2026. All rights reserved.
         </p>
       </div>
     </footer>

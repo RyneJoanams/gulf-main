@@ -950,13 +950,13 @@ const Lab = () => {
                 {(!isViewMode || isEditMode) && (
                   <div className="space-y-8">
                     {/* Enhanced Urine Test Section */}
-                    <div className="bg-white rounded-xl shadow-lg border border-blue-200 overflow-hidden">
-                      <div className="bg-gradient-to-r from-blue-500 to-cyan-600 px-6 py-4">
+                    <div className="bg-white rounded-xl shadow-lg border border-teal-200 overflow-hidden">
+                      <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4">
                         <h3 className="flex items-center gap-3 text-xl font-bold text-white">
                           <label className="flex items-center gap-3 cursor-pointer">
                             <input 
                               type="checkbox" 
-                              className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-blue-600 focus:ring-2 focus:ring-white" 
+                              className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-teal-600 focus:ring-2 focus:ring-white" 
                               checked={selectedUnits.urineTest || false} 
                               onChange={() => handleUnitSelect('urineTest')} 
                             />
@@ -967,7 +967,7 @@ const Lab = () => {
                             <label className="flex items-center gap-2 text-sm ml-auto">
                               <input 
                                 type="checkbox" 
-                                className="w-4 h-4 rounded border-white bg-white/20 checked:bg-white checked:text-blue-600" 
+                                className="w-4 h-4 rounded border-white bg-white/20 checked:bg-white checked:text-teal-600" 
                                 checked={selectAll.urineTest || false} 
                                 onChange={() => handleSelectAllTests('urineTest')} 
                               />
@@ -977,19 +977,19 @@ const Lab = () => {
                         </h3>
                       </div>
                       {selectedUnits.urineTest && (
-                        <div className="p-6 space-y-4 bg-gradient-to-br from-blue-50 to-cyan-50">
+                        <div className="p-6 space-y-4 bg-gradient-to-br from-teal-50 to-cyan-50">
                           {[
                             { key: 'albumin', label: 'Albumin', icon: 'fas fa-circle' },
                             { key: 'sugar', label: 'Sugar', icon: 'fas fa-cube' },
                             { key: 'microscopic', label: 'Microscopic', icon: 'fas fa-microscope' },
                             { key: 'reaction', label: 'Reaction', icon: 'fas fa-flask' }
                           ].map(({ key, label, icon }) => (
-                            <div key={key} className="bg-white rounded-lg p-4 border border-blue-200 shadow-sm">
+                            <div key={key} className="bg-white rounded-lg p-4 border border-teal-200 shadow-sm">
                               <div className="flex items-center gap-4">
                                 <label className="flex items-center gap-3 cursor-pointer min-w-0 flex-1">
                                   <input 
                                     type="checkbox" 
-                                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                                    className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" 
                                     checked={selectedTests.urineTest?.[key] || false} 
                                     onChange={() => handleTestSelect('urineTest', key)} 
                                   />
@@ -1000,7 +1000,7 @@ const Lab = () => {
                                   <div className="flex-1 max-w-xs">
                                     <Field 
                                       name={`urineTest.${key}`} 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition duration-200" 
                                       type="text" 
                                       placeholder={`Enter ${label.toLowerCase()}`}
                                     />
@@ -1014,13 +1014,13 @@ const Lab = () => {
                     </div>
 
                     {/* Enhanced Laboratory Test Section (now includes Blood Tests) */}
-                    <div className="bg-white rounded-xl shadow-lg border border-blue-200 overflow-hidden">
-                      <div className="bg-gradient-to-r from-blue-500 to-cyan-600 px-6 py-4">
+                    <div className="bg-white rounded-xl shadow-lg border border-teal-200 overflow-hidden">
+                      <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4">
                         <h3 className="flex items-center gap-3 text-xl font-bold text-white">
                           <label className="flex items-center gap-3 cursor-pointer">
                             <input 
                               type="checkbox" 
-                              className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-blue-600 focus:ring-2 focus:ring-white" 
+                              className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-teal-600 focus:ring-2 focus:ring-white" 
                               checked={selectedUnits.area1 || false} 
                               onChange={() => handleUnitSelect('area1')} 
                             />
@@ -1031,7 +1031,7 @@ const Lab = () => {
                             <label className="flex items-center gap-2 text-sm ml-auto">
                               <input 
                                 type="checkbox" 
-                                className="w-4 h-4 rounded border-white bg-white/20 checked:bg-white checked:text-green-600" 
+                                className="w-4 h-4 rounded border-white bg-white/20 checked:bg-white checked:text-teal-600" 
                                 checked={selectAll.area1 || false} 
                                 onChange={() => handleSelectAllTests('area1')} 
                               />
@@ -1041,16 +1041,16 @@ const Lab = () => {
                         </h3>
                       </div>
                       {selectedUnits.area1 && (
-                        <div className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 space-y-6">
+                        <div className="p-6 bg-gradient-to-br from-teal-50 to-cyan-50 space-y-6">
                           
                           {/* Blood Tests Subsection */}
-                          <div className="bg-white rounded-lg border-2 border-red-200 overflow-hidden">
-                            <div className="bg-gradient-to-r from-red-500 to-pink-600 px-4 py-3">
+                          <div className="bg-white rounded-lg border-2 border-teal-200 overflow-hidden">
+                            <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-4 py-3">
                               <h4 className="flex items-center gap-2 text-lg font-bold text-white">
                                 <label className="flex items-center gap-2 cursor-pointer">
                                   <input 
                                     type="checkbox" 
-                                    className="w-4 h-4 rounded border-white bg-white/20 checked:bg-white checked:text-red-600 focus:ring-2 focus:ring-white" 
+                                    className="w-4 h-4 rounded border-white bg-white/20 checked:bg-white checked:text-teal-600 focus:ring-2 focus:ring-white" 
                                     checked={selectedUnits.bloodTest || false} 
                                     onChange={() => handleUnitSelect('bloodTest')} 
                                   />
@@ -1061,7 +1061,7 @@ const Lab = () => {
                                   <label className="flex items-center gap-2 text-sm ml-auto">
                                     <input 
                                       type="checkbox" 
-                                      className="w-3 h-3 rounded border-white bg-white/20 checked:bg-white checked:text-red-600" 
+                                      className="w-3 h-3 rounded border-white bg-white/20 checked:bg-white checked:text-teal-600" 
                                       checked={selectAll.bloodTest || false} 
                                       onChange={() => handleSelectAllTests('bloodTest')} 
                                     />
@@ -1071,7 +1071,7 @@ const Lab = () => {
                               </h4>
                             </div>
                             {selectedUnits.bloodTest && (
-                              <div className="p-4 bg-gradient-to-br from-red-50 to-pink-50">
+                              <div className="p-4 bg-gradient-to-br from-teal-50 to-cyan-50">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                   {[
                                     { key: 'hivTest', label: 'HIV Test (I, II)', icon: 'fas fa-shield-alt' },
@@ -1079,23 +1079,23 @@ const Lab = () => {
                                     { key: 'hcv', label: 'HCV', icon: 'fas fa-virus-slash' },
                                     { key: 'esr', label: 'ESR(1stHR)', icon: 'fas fa-clock' }
                                   ].map(({ key, label, icon }) => (
-                                    <div key={key} className="bg-white rounded-lg p-3 border border-red-200 shadow-sm">
+                                    <div key={key} className="bg-white rounded-lg p-3 border border-teal-200 shadow-sm">
                                       <div className="flex items-center gap-3">
                                         <label className="flex items-center gap-2 cursor-pointer min-w-0 flex-1">
                                           <input 
                                             type="checkbox" 
-                                            className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500" 
+                                            className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" 
                                             checked={selectedTests.bloodTest?.[key] || false} 
                                             onChange={() => handleTestSelect('bloodTest', key)} 
                                           />
-                                          <i className={`${icon} text-red-600 text-sm`}></i>
+                                          <i className={`${icon} text-teal-600 text-sm`}></i>
                                           <span className="font-medium text-gray-700 text-sm">{label}:</span>
                                         </label>
                                         {selectedTests.bloodTest?.[key] && (
                                           <div className="flex-1 max-w-xs">
                                             <Field 
                                               name={`bloodTest.${key}`} 
-                                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200" 
+                                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition duration-200" 
                                               type="text" 
                                               placeholder={`Enter ${label.toLowerCase()}`}
                                             />
@@ -1125,18 +1125,18 @@ const Lab = () => {
                                   <label className="flex items-center gap-3 cursor-pointer min-w-0 flex-1">
                                     <input 
                                       type="checkbox" 
-                                      className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500" 
+                                      className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" 
                                       checked={selectedTests.area1?.[key] || false} 
                                       onChange={() => handleTestSelect('area1', key)} 
                                     />
-                                    <i className={`${icon} text-green-600`}></i>
+                                    <i className={`${icon} text-teal-600`}></i>
                                     <span className="font-medium text-gray-700">{label}:</span>
                                   </label>
                                   {selectedTests.area1?.[key] && (
                                     <div className="flex-1 max-w-xs">
                                       <Field 
                                         name={`area1.${key}`} 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition duration-200" 
                                         type="text" 
                                         placeholder={`Enter ${label.toLowerCase()}`}
                                       />
@@ -1164,7 +1164,7 @@ const Lab = () => {
                                     <Field 
                                       as="select" 
                                       name="area1.bloodGroup" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200 bg-white"
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition duration-200 bg-white"
                                     >
                                       <option value="">Select Blood Group</option>
                                       <option value="A+">A+</option>
@@ -1188,13 +1188,13 @@ const Lab = () => {
                     {/* Enhanced Advanced Tests Section */}
                     <div className="space-y-8">
                       {/* Renal Function Test */}
-                      <div className="bg-white rounded-xl shadow-lg border border-purple-200 overflow-hidden">
-                        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-4">
+                      <div className="bg-white rounded-xl shadow-lg border border-teal-200 overflow-hidden">
+                        <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4">
                           <h3 className="flex items-center gap-3 text-xl font-bold text-white">
                             <label className="flex items-center gap-3 cursor-pointer">
                               <input
                                 type="checkbox"
-                                className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-purple-600 focus:ring-2 focus:ring-white"
+                                className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-teal-600 focus:ring-2 focus:ring-white"
                                 checked={selectedUnits.renalFunction || false}
                                 onChange={() => handleSelectAllTestsInUnit('renalFunction')}
                               />
@@ -1206,7 +1206,7 @@ const Lab = () => {
                         {selectedUnits.renalFunction && (
                           <div className="overflow-x-auto">
                             <table className="min-w-full">
-                              <thead className="bg-gradient-to-r from-purple-50 to-indigo-50">
+                              <thead className="bg-gradient-to-r from-teal-50 to-cyan-50">
                                 <tr>
                                   <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">
                                     Test
@@ -1241,8 +1241,8 @@ const Lab = () => {
                       {/* Enhanced Advanced Tests Grid */}
                       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                         {/* Full Haemogram Section */}
-                        <div className="bg-white rounded-xl shadow-lg border border-red-200 overflow-hidden">
-                          <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4">
+                        <div className="bg-white rounded-xl shadow-lg border border-teal-200 overflow-hidden">
+                          <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4">
                             <h3 className="flex items-center gap-3 text-xl font-bold text-white">
                               <label className="flex items-center gap-3 cursor-pointer">
                                 <input 
@@ -1259,7 +1259,7 @@ const Lab = () => {
                           {selectedUnits.fullHaemogram && (
                             <div className="overflow-x-auto">
                               <table className="min-w-full">
-                                <thead className="bg-gradient-to-r from-red-50 to-rose-50">
+                                <thead className="bg-gradient-to-r from-teal-50 to-cyan-50">
                                   <tr>
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Test</th>
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Value</th>
@@ -1289,13 +1289,13 @@ const Lab = () => {
                         {/* Liver Function and Assessment */}
                         <div className="space-y-8">
                           {/* Liver Function Test Section */}
-                          <div className="bg-white rounded-xl shadow-lg border border-orange-200 overflow-hidden">
-                            <div className="bg-gradient-to-r from-orange-500 to-amber-600 px-6 py-4">
+                          <div className="bg-white rounded-xl shadow-lg border border-teal-200 overflow-hidden">
+                            <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4">
                               <h3 className="flex items-center gap-3 text-xl font-bold text-white">
                                 <label className="flex items-center gap-3 cursor-pointer">
                                   <input 
                                     type="checkbox" 
-                                    className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-orange-600 focus:ring-2 focus:ring-white" 
+                                    className="w-5 h-5 rounded border-white bg-white/20 checked:bg-white checked:text-red-600 focus:ring-2 focus:ring-white" 
                                     checked={selectedUnits.liverFunction || false} 
                                     onChange={() => handleSelectAllTestsInUnit('liverFunction')} 
                                   />
@@ -1307,7 +1307,7 @@ const Lab = () => {
                             {selectedUnits.liverFunction && (
                               <div className="overflow-x-auto">
                                 <table className="min-w-full">
-                                  <thead className="bg-gradient-to-r from-orange-50 to-amber-50">
+                                  <thead className="bg-gradient-to-r from-teal-50 to-cyan-50">
                                     <tr>
                                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Test</th>
                                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">Value</th>
@@ -1403,14 +1403,14 @@ const Lab = () => {
                           </div>
 
                           {/* Notepad Section */}
-                          <div className="bg-white rounded-xl shadow-lg border border-amber-200 overflow-hidden">
-                            <div className="bg-gradient-to-r from-amber-500 to-yellow-600 px-6 py-4">
+                          <div className="bg-white rounded-xl shadow-lg border border-teal-200 overflow-hidden">
+                            <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4">
                               <h3 className="text-xl font-bold text-white flex items-center gap-2">
                                 <i className="fas fa-sticky-note"></i>
                                 Lab Notes & Observations
                               </h3>
                             </div>
-                            <div className="p-6 bg-gradient-to-br from-amber-50 to-yellow-50 space-y-4">
+                            <div className="p-6 bg-gradient-to-br from-teal-50 to-cyan-50 space-y-4">
                               <div className="flex items-center gap-2 text-gray-600 mb-2">
                                 <i className="fas fa-info-circle"></i>
                                 <span className="text-sm">Use this notepad to record additional observations, clinical notes, or important remarks about the patient.</span>
@@ -1419,7 +1419,7 @@ const Lab = () => {
                                 value={notepadContent}
                                 onChange={(e) => setNotepadContent(e.target.value)}
                                 placeholder="Type your notes here... (e.g., patient history, observations, follow-up requirements, special instructions)"
-                                className="w-full h-48 px-4 py-3 border-2 border-amber-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition duration-200 resize-vertical font-mono text-sm"
+                                className="w-full h-48 px-4 py-3 border-2 border-teal-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition duration-200 resize-vertical font-mono text-sm"
                                 style={{ minHeight: '120px', maxHeight: '400px' }}
                               />
                               <div className="flex justify-between items-center text-sm text-gray-500">
@@ -1449,7 +1449,7 @@ const Lab = () => {
                   <div className="flex justify-center pt-8">
                     <button 
                       type="submit" 
-                      className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300"
+                      className="group relative px-8 py-4 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-teal-300"
                     >
                       <span className="flex items-center gap-3">
                         <i className="fas fa-save text-xl"></i>
