@@ -6,6 +6,31 @@ import img from '../../assets/logo1-removebg-preview.png';
 import TopBar from '../../components/TopBar';
 import { API_BASE_URL } from '../../config/api.config';
 
+// Helper function to calculate relative time
+const getRelativeTime = (dateString) => {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  return date.toLocaleDateString();
+};
+
+// Helper function to check if patient is new (added in last hour)
+const isNewPatient = (dateString) => {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffMs = now - date;
+  const diffHours = diffMs / 3600000;
+  return diffHours < 1;
+};
+
 const Phlebotomy = () => {
   const [selectedPatient, setSelectedPatient] = useState('');
   const [labNumber, setLabNumber] = useState('');
@@ -29,6 +54,16 @@ const Phlebotomy = () => {
   const [loadingPending, setLoadingPending] = useState(true);
   const [activePendingTab, setActivePendingTab] = useState('ALL');
   const [pendingSidebarCollapsed, setPendingSidebarCollapsed] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState(null);
+  
+  // Search and filter states for pending patients
+  const [pendingSearchQuery, setPendingSearchQuery] = useState('');
+  const [pendingStartDate, setPendingStartDate] = useState(null);
+  const [pendingEndDate, setPendingEndDate] = useState(null);
+  
+  // Modal state for duplicate lab number alert
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateModalData, setDuplicateModalData] = useState(null);
 
   const fetchLabNumbers = async () => {
     try {
@@ -66,12 +101,20 @@ const Phlebotomy = () => {
   const fetchPendingPatients = async () => {
     try {
       console.log('Fetching patients without lab numbers...');
+      setLoadingPending(true);
       const response = await axios.get(`${API_BASE_URL}/api/patient/without-lab-numbers`);
+      console.log('Response from /without-lab-numbers:', response.data);
       const patientsData = Array.isArray(response.data) ? response.data : [];
       setPendingPatients(patientsData);
-      console.log(`Found ${patientsData.length} patients without lab numbers`);
+      setLastRefreshTime(new Date());
+      console.log(`✅ Found ${patientsData.length} patients without lab numbers`);
+      if (patientsData.length > 0) {
+        toast.info(`${patientsData.length} patient(s) pending lab number assignment`, { autoClose: 2000 });
+      }
     } catch (error) {
-      console.error('Error fetching pending patients:', error);
+      console.error('❌ Error fetching pending patients:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      toast.error('Failed to fetch pending patients');
       setPendingPatients([]);
     } finally {
       setLoadingPending(false);
@@ -84,20 +127,62 @@ const Phlebotomy = () => {
       return;
     }
     const term = searchTerm.trim().toLowerCase();
+    
+    // Helper function to check if patient has lab number
+    const checkLabNumberExists = (patientName) => {
+      const normalizedName = patientName.trim().toLowerCase();
+      return submittedLabNumbers.some(
+        lab => lab.patient.trim().toLowerCase() === normalizedName
+      );
+    };
+    
     // Prefer exact passport match
     const exactPassport = patients.find(
       (p) => (p.passportNumber || '').toLowerCase() === term
     );
     if (exactPassport) {
       setSelectedPatient(exactPassport.name);
-      toast.success(`Selected: ${exactPassport.name}`);
+      
+      // Check if already has lab number
+      if (checkLabNumberExists(exactPassport.name)) {
+        const existingLab = submittedLabNumbers.find(
+          lab => lab.patient.trim().toLowerCase() === exactPassport.name.trim().toLowerCase()
+        );
+        setDuplicateModalData({
+          patientName: exactPassport.name,
+          passportNumber: exactPassport.passportNumber,
+          medicalType: exactPassport.medicalType,
+          existingLabNumber: existingLab?.number || 'Unknown',
+          status: existingLab?.status || 'pending'
+        });
+        setShowDuplicateModal(true);
+      } else {
+        toast.success(`Selected: ${exactPassport.name}`);
+      }
       return;
     }
+    
     // Fallback to name contains
     const nameMatches = patients.filter((p) => (p.name || '').toLowerCase().includes(term));
     if (nameMatches.length === 1) {
       setSelectedPatient(nameMatches[0].name);
-      toast.success(`Selected: ${nameMatches[0].name}`);
+      
+      // Check if already has lab number
+      if (checkLabNumberExists(nameMatches[0].name)) {
+        const existingLab = submittedLabNumbers.find(
+          lab => lab.patient.trim().toLowerCase() === nameMatches[0].name.trim().toLowerCase()
+        );
+        setDuplicateModalData({
+          patientName: nameMatches[0].name,
+          passportNumber: nameMatches[0].passportNumber,
+          medicalType: nameMatches[0].medicalType,
+          existingLabNumber: existingLab?.number || 'Unknown',
+          status: existingLab?.status || 'pending'
+        });
+        setShowDuplicateModal(true);
+      } else {
+        toast.success(`Selected: ${nameMatches[0].name}`);
+      }
     } else if (nameMatches.length === 0) {
       toast.error('No patient found. Refine your search.');
     } else {
@@ -106,18 +191,28 @@ const Phlebotomy = () => {
   };
 
   useEffect(() => {
+    // Initial fetch
     fetchLabNumbers();
     fetchAllPatients();
     fetchPendingPatients();
 
+    // Auto-refresh pending patients every 30 seconds
+    const refreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing pending patients list...');
+      fetchPendingPatients();
+    }, 30000);
+
     // Listen for lab report submissions to refresh the list
     const handleLabReportSubmission = () => {
+      console.log('📢 Lab report submitted event detected');
       fetchLabNumbers();
+      fetchPendingPatients();
     };
 
     window.addEventListener('labReportSubmitted', handleLabReportSubmission);
 
     return () => {
+      clearInterval(refreshInterval);
       window.removeEventListener('labReportSubmitted', handleLabReportSubmission);
     };
   }, []);
@@ -130,6 +225,24 @@ const Phlebotomy = () => {
   const generateLabNumber = async () => {
     if (!selectedPatientData) {
       toast.warning('Please select a patient first.');
+      return;
+    }
+
+    // Check if patient already has a lab number
+    const normalizedName = selectedPatientData.name.trim().toLowerCase();
+    const existingLabNumber = submittedLabNumbers.find(
+      lab => lab.patient.trim().toLowerCase() === normalizedName
+    );
+    
+    if (existingLabNumber) {
+      setDuplicateModalData({
+        patientName: selectedPatientData.name,
+        passportNumber: selectedPatientData.passportNumber,
+        medicalType: selectedPatientData.medicalType,
+        existingLabNumber: existingLabNumber.number,
+        status: existingLabNumber.status || 'pending'
+      });
+      setShowDuplicateModal(true);
       return;
     }
 
@@ -171,22 +284,34 @@ const Phlebotomy = () => {
 
     setIsLoading(true);
     try {
+      // Trim patient name to ensure consistency with database
+      const trimmedPatientName = selectedPatientData.name.trim();
+      console.log('📤 Submitting lab number:', labNumber, 'for patient:', trimmedPatientName);
       const response = await axios.post(`${API_BASE_URL}/api/number`, {
-        number: labNumber,
-        patient: selectedPatientData.name,
+        number: labNumber.trim(),
+        patient: trimmedPatientName,
         medicalType: selectedPatientData.medicalType,
       });
 
+      console.log('✅ Lab number submitted successfully:', response.data);
       setSubmissionStatus(`Lab number submitted successfully: ${response.data.labNumber}`);
-      toast.success(`Lab number submitted successfully`);
+      toast.success(`Lab number ${labNumber} submitted successfully for ${selectedPatientData.name}`);
       setLabCounter((prev) => prev + 1);
       setLabNumber('');
+      setSelectedPatient('');
+      setSearchTerm('');
       
-      fetchLabNumbers(); // Refresh list
-      fetchPendingPatients(); // Refresh pending patients list
+      // Refresh all lists immediately
+      console.log('🔄 Refreshing all lists after submission...');
+      await fetchLabNumbers(); 
+      await fetchPendingPatients();
+      await fetchAllPatients();
+      
+      toast.info('Lists refreshed - patient moved from pending', { autoClose: 2000 });
     } catch (error) {
+      console.error('❌ Submission error:', error);
+      console.error('Error details:', error.response?.data || error.message);
       toast.error('Failed to submit lab number. Please try again.');
-      console.error('Submission error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -220,6 +345,101 @@ const Phlebotomy = () => {
       <text x="0" y="60" className="text-xs font-mono">{value}</text>
     </svg>
   );
+
+  // Enhanced Modal Component for Duplicate Lab Number Alert
+  const DuplicateLabNumberModal = ({ isOpen, onClose, data }) => {
+    if (!isOpen || !data) return null;
+    
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+        <div className="bg-gray-900 rounded-2xl shadow-2xl border-2 border-red-500/50 max-w-md w-full transform animate-slideIn">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-red-600 to-orange-600 p-6 rounded-t-2xl">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-3 rounded-full">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Lab Number Exists</h3>
+                <p className="text-red-100 text-sm">This patient already has an assigned lab number</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Body */}
+          <div className="p-6 space-y-4">
+            {/* Patient Info */}
+            <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+              <p className="text-gray-400 text-xs uppercase tracking-wide mb-2">Patient Information</p>
+              <p className="text-white font-semibold text-lg">{data.patientName}</p>
+              <p className="text-gray-300 text-sm mt-1">{data.passportNumber}</p>
+              <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
+                data.medicalType === 'SM-VDRL' 
+                  ? 'bg-red-600/30 text-red-300 border border-red-500/50'
+                  : 'bg-blue-600/30 text-blue-300 border border-blue-500/50'
+              }`}>
+                {data.medicalType}
+              </span>
+            </div>
+            
+            {/* Existing Lab Number */}
+            <div className="bg-gradient-to-br from-orange-900/30 to-red-900/30 rounded-lg p-4 border-2 border-orange-500/50">
+              <p className="text-orange-400 text-xs uppercase tracking-wide mb-2 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Existing Lab Number
+              </p>
+              <p className="text-white font-mono text-xl font-bold">{data.existingLabNumber}</p>
+              <p className="text-gray-400 text-xs mt-2">Status: <span className="text-yellow-400 font-semibold">{data.status || 'Pending'}</span></p>
+            </div>
+            
+            {/* Warning Message */}
+            <div className="bg-red-950/30 border border-red-500/30 rounded-lg p-4">
+              <div className="flex gap-3">
+                <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="text-red-300 font-semibold text-sm">Cannot Generate New Lab Number</p>
+                  <p className="text-red-400/80 text-xs mt-1">
+                    A lab number has already been assigned to this patient. Please use the existing lab number for sample collection.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className="p-6 bg-gray-800/30 rounded-b-2xl flex gap-3">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(data.existingLabNumber);
+                toast.success('Lab number copied to clipboard!');
+              }}
+              className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy Number
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Understood
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const PatientDetailsCard = ({ patient, labNumber }) => (
     <div className="p-8 bg-gray-900 rounded-xl shadow-2xl border-2 border-teal-500/30">
@@ -261,14 +481,23 @@ const Phlebotomy = () => {
     <>
       <TopBar />
       
-      {/* Pending Patients Sidebar */}
-      {pendingPatients.length > 0 && (
-        <div className={`fixed left-0 top-0 h-full bg-gray-900 border-r border-orange-500/30 transition-all duration-300 z-40 shadow-2xl ${
-          pendingSidebarCollapsed ? 'w-16' : 'w-96'
-        }`}>
-          {/* Sidebar Header */}
-          <div className="p-4 border-b border-orange-500/30 bg-orange-900/20">
-            <div className="flex items-center justify-between">
+      {/* Duplicate Lab Number Modal */}
+      <DuplicateLabNumberModal 
+        isOpen={showDuplicateModal}
+        onClose={() => setShowDuplicateModal(false)}
+        data={duplicateModalData}
+      />
+      
+      {/* Main Container with Flex Layout */}
+      <div className="flex min-h-screen bg-black text-gray-200">
+        {/* Pending Patients Sidebar */}
+        {pendingPatients.length > 0 && (
+          <div className={`bg-gray-900 border-r border-orange-500/30 transition-all duration-300 shadow-2xl flex-shrink-0 ${
+            pendingSidebarCollapsed ? 'w-16' : 'w-96'
+          }`}>
+            {/* Sidebar Header */}
+            <div className="p-4 border-b border-orange-500/30 bg-gray-900 sticky top-0 z-10">
+              <div className="flex items-center justify-between">
               {!pendingSidebarCollapsed && (
                 <div className="flex items-center gap-2">
                   <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -276,7 +505,51 @@ const Phlebotomy = () => {
                   </svg>
                   <div>
                     <h3 className="text-sm font-bold text-orange-300">Pending Lab Numbers</h3>
-                    <p className="text-xs text-orange-400/70">{pendingPatients.length} patient{pendingPatients.length !== 1 ? 's' : ''} waiting</p>
+                    <p className="text-xs text-orange-400/70">
+                      {(() => {
+                        // Calculate filtered count
+                        let filtered = pendingPatients
+                          .filter(patient => activePendingTab === 'ALL' || patient.medicalType === activePendingTab);
+                        
+                        if (pendingSearchQuery) {
+                          const query = pendingSearchQuery.toLowerCase();
+                          filtered = filtered.filter(patient => 
+                            patient.name?.toLowerCase().includes(query) ||
+                            patient.passportNumber?.toLowerCase().includes(query)
+                          );
+                        }
+                        
+                        if (pendingStartDate) {
+                          const startDate = new Date(pendingStartDate);
+                          startDate.setHours(0, 0, 0, 0);
+                          filtered = filtered.filter(patient => 
+                            new Date(patient.createdAt) >= startDate
+                          );
+                        }
+                        
+                        if (pendingEndDate) {
+                          const endDate = new Date(pendingEndDate);
+                          endDate.setHours(23, 59, 59, 999);
+                          filtered = filtered.filter(patient => 
+                            new Date(patient.createdAt) <= endDate
+                          );
+                        }
+                        
+                        const hasFilters = pendingSearchQuery || pendingStartDate || pendingEndDate || activePendingTab !== 'ALL';
+                        const totalCount = pendingPatients.length;
+                        const filteredCount = filtered.length;
+                        
+                        if (hasFilters && filteredCount !== totalCount) {
+                          return `${filteredCount} of ${totalCount} patient${totalCount !== 1 ? 's' : ''}`;
+                        }
+                        return `${totalCount} patient${totalCount !== 1 ? 's' : ''} waiting`;
+                      })()}
+                    </p>
+                    {lastRefreshTime && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Last updated: {lastRefreshTime.toLocaleTimeString()}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -300,6 +573,117 @@ const Phlebotomy = () => {
 
           {!pendingSidebarCollapsed && (
             <>
+              {/* Search and Date Filter */}
+              <div className="p-3 border-b border-orange-500/20 bg-gray-900/50 space-y-3">
+                {/* Search Input */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search by name or passport..."
+                    value={pendingSearchQuery}
+                    onChange={(e) => setPendingSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 pl-9 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 transition-colors"
+                  />
+                  <svg className="w-4 h-4 absolute right-3 top-3 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  {pendingSearchQuery && (
+                    <button
+                      onClick={() => setPendingSearchQuery('')}
+                      className="absolute right-2 top-2 text-gray-400 hover:text-white transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                
+                {/* Date Range Filter */}
+                <div className="space-y-2">
+                  {/* Quick Filter Buttons */}
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => {
+                        const today = new Date();
+                        setPendingStartDate(today.toISOString().split('T')[0]);
+                        setPendingEndDate(today.toISOString().split('T')[0]);
+                        toast.info('Showing today\'s patients');
+                      }}
+                      className="flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={() => {
+                        const today = new Date();
+                        const weekAgo = new Date(today);
+                        weekAgo.setDate(today.getDate() - 7);
+                        setPendingStartDate(weekAgo.toISOString().split('T')[0]);
+                        setPendingEndDate(today.toISOString().split('T')[0]);
+                        toast.info('Showing this week\'s patients');
+                      }}
+                      className="flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                    >
+                      Week
+                    </button>
+                    <button
+                      onClick={() => {
+                        const today = new Date();
+                        const monthAgo = new Date(today);
+                        monthAgo.setDate(today.getDate() - 30);
+                        setPendingStartDate(monthAgo.toISOString().split('T')[0]);
+                        setPendingEndDate(today.toISOString().split('T')[0]);
+                        toast.info('Showing this month\'s patients');
+                      }}
+                      className="flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                    >
+                      Month
+                    </button>
+                  </div>
+                  
+                  {/* Date Inputs */}
+                  <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-orange-300 mb-1">From</label>
+                    <input
+                      type="date"
+                      value={pendingStartDate || ''}
+                      onChange={(e) => setPendingStartDate(e.target.value)}
+                      className="w-full px-2 py-1.5 bg-gray-800 border border-gray-600 rounded text-xs text-white focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-orange-300 mb-1">To</label>
+                    <input
+                      type="date"
+                      value={pendingEndDate || ''}
+                      onChange={(e) => setPendingEndDate(e.target.value)}
+                      className="w-full px-2 py-1.5 bg-gray-800 border border-gray-600 rounded text-xs text-white focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+                </div>
+                
+                {/* Clear Filters Button */}
+                {(pendingSearchQuery || pendingStartDate || pendingEndDate) && (
+                  <button
+                    onClick={() => {
+                      setPendingSearchQuery('');
+                      setPendingStartDate(null);
+                      setPendingEndDate(null);
+                      toast.info('Filters cleared');
+                    }}
+                    className="w-full px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors flex items-center justify-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+              
               {/* Medical Type Tabs */}
               <div className="p-3 border-b border-orange-500/20 bg-gray-900/50">
                 <div className="flex flex-wrap gap-2">
@@ -336,19 +720,22 @@ const Phlebotomy = () => {
               {/* Refresh Button */}
               <div className="px-3 py-2 border-b border-gray-700/50">
                 <button
-                  onClick={() => fetchPendingPatients()}
-                  className="w-full px-3 py-2 bg-orange-600/30 hover:bg-orange-600/50 text-orange-200 text-xs rounded transition-colors flex items-center justify-center gap-2"
+                  onClick={() => {
+                    console.log('🔄 Manual refresh triggered by user');
+                    fetchPendingPatients();
+                  }}
+                  className="w-full px-3 py-2.5 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 text-white text-sm font-semibold rounded-lg transition-all shadow-lg hover:shadow-orange-500/50 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={loadingPending}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-5 h-5 ${loadingPending ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  {loadingPending ? 'Refreshing...' : 'Refresh List'}
+                  {loadingPending ? 'Refreshing...' : 'Refresh Pending List'}
                 </button>
               </div>
 
               {/* Vertical Scrollable Patient List */}
-              <div className="overflow-y-auto" style={{ height: 'calc(100vh - 240px)' }}>
+              <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
                 {loadingPending ? (
                   <div className="text-center text-gray-400 py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-400 mx-auto"></div>
@@ -356,20 +743,80 @@ const Phlebotomy = () => {
                   </div>
                 ) : (
                   <div className="p-3 space-y-3">
-                    {pendingPatients
-                      .filter(patient => activePendingTab === 'ALL' || patient.medicalType === activePendingTab)
-                      .map((patient) => (
+                    {(() => {
+                      // Apply all filters
+                      let filtered = pendingPatients
+                        .filter(patient => activePendingTab === 'ALL' || patient.medicalType === activePendingTab);
+                      
+                      // Search filter
+                      if (pendingSearchQuery) {
+                        const query = pendingSearchQuery.toLowerCase();
+                        filtered = filtered.filter(patient => 
+                          patient.name?.toLowerCase().includes(query) ||
+                          patient.passportNumber?.toLowerCase().includes(query)
+                        );
+                      }
+                      
+                      // Date range filter
+                      if (pendingStartDate) {
+                        const startDate = new Date(pendingStartDate);
+                        startDate.setHours(0, 0, 0, 0);
+                        filtered = filtered.filter(patient => 
+                          new Date(patient.createdAt) >= startDate
+                        );
+                      }
+                      
+                      if (pendingEndDate) {
+                        const endDate = new Date(pendingEndDate);
+                        endDate.setHours(23, 59, 59, 999);
+                        filtered = filtered.filter(patient => 
+                          new Date(patient.createdAt) <= endDate
+                        );
+                      }
+                      
+                      // Sort by newest first
+                      const sorted = filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                      
+                      return sorted.map((patient) => {
+                        const isNew = isNewPatient(patient.createdAt);
+                        const relativeTime = getRelativeTime(patient.createdAt);
+                        const exactDateTime = new Date(patient.createdAt).toLocaleString();
+                        
+                        return (
                       <div
                         key={patient._id}
                         className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] ${ 
                           selectedPatient === patient.name
                             ? 'bg-orange-900/40 border-orange-500 ring-2 ring-orange-500/50 shadow-orange-500/20'
+                            : isNew
+                            ? 'bg-gradient-to-r from-green-900/30 to-gray-800/50 border-green-500/50 hover:border-green-400/70 ring-1 ring-green-500/30'
                             : 'bg-gray-800/50 border-orange-600/30 hover:border-orange-500/60'
                         }`}
                         onClick={() => {
                           setSelectedPatient(patient.name);
                           setSearchTerm(patient.passportNumber);
-                          toast.success(`Selected: ${patient.name}`);
+                          
+                          // Check if patient already has lab number
+                          const normalizedName = patient.name.trim().toLowerCase();
+                          const hasLabNumber = submittedLabNumbers.some(
+                            lab => lab.patient.trim().toLowerCase() === normalizedName
+                          );
+                          
+                          if (hasLabNumber) {
+                            const existingLab = submittedLabNumbers.find(
+                              lab => lab.patient.trim().toLowerCase() === normalizedName
+                            );
+                            setDuplicateModalData({
+                              patientName: patient.name,
+                              passportNumber: patient.passportNumber,
+                              medicalType: patient.medicalType,
+                              existingLabNumber: existingLab?.number || 'Unknown',
+                              status: existingLab?.status || 'pending'
+                            });
+                            setShowDuplicateModal(true);
+                          } else {
+                            toast.success(`Selected: ${patient.name}`);
+                          }
                         }}
                       >
                         <div className="flex items-start space-x-3">
@@ -387,7 +834,14 @@ const Phlebotomy = () => {
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-white text-sm truncate">{patient.name}</p>
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <p className="font-semibold text-white text-sm truncate flex-1">{patient.name}</p>
+                              {isNew && (
+                                <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full animate-pulse flex-shrink-0">
+                                  NEW
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-gray-400 truncate font-mono">{patient.passportNumber}</p>
                             <div className="flex items-center gap-1 mt-2">
                               <span className={`px-2 py-1 rounded text-xs font-medium ${ 
@@ -398,9 +852,14 @@ const Phlebotomy = () => {
                                 {patient.medicalType}
                               </span>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              📅 {new Date(patient.createdAt).toLocaleDateString()}
-                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <div className="text-xs text-gray-400" title={exactDateTime}>
+                                🕐 <span className={isNew ? 'text-green-400 font-semibold' : ''}>{relativeTime}</span>
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                📅 {new Date(patient.createdAt).toLocaleDateString()}
+                              </div>
+                            </div>
                             {selectedPatient === patient.name && (
                               <div className="mt-2 flex items-center gap-1">
                                 <svg className="w-3 h-3 text-orange-300" fill="currentColor" viewBox="0 0 20 20">
@@ -412,12 +871,67 @@ const Phlebotomy = () => {
                           </div>
                         </div>
                       </div>
-                    ))}
-                    {pendingPatients.filter(patient => activePendingTab === 'ALL' || patient.medicalType === activePendingTab).length === 0 && (
-                      <div className="text-center text-gray-400 py-8">
-                        <p className="text-sm">No patients in this category</p>
-                      </div>
-                    )}
+                        );
+                      });
+                    })()}
+                    {(() => {
+                      // Calculate filtered count for empty state
+                      let filtered = pendingPatients
+                        .filter(patient => activePendingTab === 'ALL' || patient.medicalType === activePendingTab);
+                      
+                      if (pendingSearchQuery) {
+                        const query = pendingSearchQuery.toLowerCase();
+                        filtered = filtered.filter(patient => 
+                          patient.name?.toLowerCase().includes(query) ||
+                          patient.passportNumber?.toLowerCase().includes(query)
+                        );
+                      }
+                      
+                      if (pendingStartDate) {
+                        const startDate = new Date(pendingStartDate);
+                        startDate.setHours(0, 0, 0, 0);
+                        filtered = filtered.filter(patient => 
+                          new Date(patient.createdAt) >= startDate
+                        );
+                      }
+                      
+                      if (pendingEndDate) {
+                        const endDate = new Date(pendingEndDate);
+                        endDate.setHours(23, 59, 59, 999);
+                        filtered = filtered.filter(patient => 
+                          new Date(patient.createdAt) <= endDate
+                        );
+                      }
+                      
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="text-center text-gray-400 py-8">
+                            <svg className="w-12 h-12 mx-auto mb-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p className="text-sm">
+                              {pendingSearchQuery || pendingStartDate || pendingEndDate 
+                                ? 'No patients match your filters'
+                                : 'No patients in this category'
+                              }
+                            </p>
+                            {(pendingSearchQuery || pendingStartDate || pendingEndDate) && (
+                              <button
+                                onClick={() => {
+                                  setPendingSearchQuery('');
+                                  setPendingStartDate(null);
+                                  setPendingEndDate(null);
+                                }}
+                                className="mt-2 text-xs text-orange-400 hover:text-orange-300 underline"
+                              >
+                                Clear filters
+                              </button>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 )}
               </div>
@@ -440,15 +954,31 @@ const Phlebotomy = () => {
         </div>
       )}
 
-      <div className={`min-h-screen bg-black text-gray-200 transition-all duration-300 ${
-        pendingPatients.length > 0 && !pendingSidebarCollapsed ? 'ml-96' : pendingPatients.length > 0 ? 'ml-16' : ''
-      }`}>
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-x-hidden">
         <div className="p-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-10">
               <img src={img} alt="Logo" className="w-24 mx-auto mb-4" />
               <h1 className="text-5xl font-bold text-teal-400">Phlebotomy</h1>
               <p className="text-gray-400">Generate and manage lab numbers</p>
+              
+              {/* Diagnostic Info */}
+              <div className="mt-2 flex gap-4 justify-center text-sm">
+                <div className="px-4 py-2 bg-blue-900/30 rounded-lg border border-blue-500/30">
+                  <span className="text-blue-300 font-semibold">Total Patients:</span>{' '}
+                  <span className="text-white font-bold">{patients.length}</span>
+                </div>
+                <div className="px-4 py-2 bg-orange-900/30 rounded-lg border border-orange-500/30">
+                  <span className="text-orange-300 font-semibold">Pending Lab Numbers:</span>{' '}
+                  <span className="text-white font-bold">{pendingPatients.length}</span>
+                </div>
+                <div className="px-4 py-2 bg-green-900/30 rounded-lg border border-green-500/30">
+                  <span className="text-green-300 font-semibold">Lab Numbers Assigned:</span>{' '}
+                  <span className="text-white font-bold">{submittedLabNumbers.length}</span>
+                </div>
+              </div>
+              
               <div className="mt-4 p-4 bg-gray-800 rounded-lg">
                 <p className="text-sm text-gray-300">
                   <span className="text-teal-300 font-semibold">Lab Number Series:</span><br/>
@@ -637,6 +1167,7 @@ const Phlebotomy = () => {
             )}
           </div>
         </div>
+      </div>
       </div>
     </>
   );

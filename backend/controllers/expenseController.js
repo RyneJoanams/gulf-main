@@ -23,6 +23,24 @@ exports.createExpense = async (req, res) => {
   }
 };
 
+exports.updateExpense = async (req, res) => {
+  const { description, amount } = req.body;
+  if (!description || amount == null) {
+    return res.status(400).json({ message: 'Description and amount are required.' });
+  }
+  try {
+    const updated = await Expense.findByIdAndUpdate(
+      req.params.id,
+      { description, amount },
+      { new: true, runValidators: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Expense not found.' });
+    res.status(200).json(updated);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 exports.deleteExpense = async (req, res) => {
   try {
     const deleted = await Expense.findByIdAndDelete(req.params.id);

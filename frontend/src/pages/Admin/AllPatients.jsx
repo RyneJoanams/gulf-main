@@ -3,30 +3,52 @@ import axios from 'axios';
 import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Typography,
   TextField, IconButton, CircularProgress, TableSortLabel, TablePagination, Dialog, DialogTitle,
-  DialogContent, DialogActions, Chip, FormControl, InputLabel, Select, MenuItem
+  DialogContent, DialogActions, Chip, FormControl, InputLabel, Select, MenuItem, Box, Card, CardContent,
+  Grid, Divider
 } from '@mui/material';
 import { toast, ToastContainer } from 'react-toastify';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import SearchIcon from '@mui/icons-material/Search';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PrintIcon from '@mui/icons-material/Print';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import { FaFileExcel, FaPlus } from 'react-icons/fa';
+import { FaFileExcel, FaPlus, FaTrash } from 'react-icons/fa';
 import { API_BASE_URL } from '../../config/api.config';
 import 'react-toastify/dist/ReactToastify.css';
 import { motion } from 'framer-motion';
 import debounce from 'lodash.debounce';
 import * as XLSX from 'xlsx';
-import { confirmAlert } from 'react-confirm-alert';
-import 'react-confirm-alert/src/react-confirm-alert.css';
 
+// Add custom animations
+const customStyles = `
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(50px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .animate-slideUp {
+    animation: slideUp 0.4s ease-out;
+  }
+`;
 
 const AllPatients = () => {
   const [patients, setPatients] = useState([]);
   const [filteredPatients, setFilteredPatients] = useState([]);
-  const [medicalTypeCounts, setMedicalTypeCounts] = useState([]);
-  const [ageDistribution, setAgeDistribution] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -36,10 +58,15 @@ const AllPatients = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [showCharts, setShowCharts] = useState(true);
   const [filterByMedicalType, setFilterByMedicalType] = useState('All');
   const [filterBySex, setFilterBySex] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  
+  // Delete confirmation modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState({ id: '', name: '' });
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -47,8 +74,6 @@ const AllPatients = () => {
         const response = await axios.get(`${API_BASE_URL}/api/patient`);
         setPatients(response.data);
         setFilteredPatients(response.data);
-        calculateMedicalTypeCounts(response.data);
-        calculateAgeDistribution(response.data);
       } catch (error) {
         console.error('Error fetching patients:', error);
         toast.error('Failed to fetch patients.');
@@ -59,28 +84,11 @@ const AllPatients = () => {
     fetchPatients();
   }, []);
 
-  const calculateMedicalTypeCounts = (data) => {
-    const counts = data.reduce((acc, patient) => {
-      acc[patient.medicalType] = (acc[patient.medicalType] || 0) + 1;
-      return acc;
-    }, {});
-    setMedicalTypeCounts(Object.keys(counts).map(type => ({ type, count: counts[type] })));
-  };
-
-  const calculateAgeDistribution = (data) => {
-    const distribution = data.reduce((acc, patient) => {
-      const ageGroup = Math.floor(patient.age / 10) * 10; // Group ages by decade
-      acc[ageGroup] = (acc[ageGroup] || 0) + 1;
-      return acc;
-    }, {});
-    setAgeDistribution(Object.keys(distribution).map(age => ({ ageGroup: `${age} - ${parseInt(age) + 9}`, count: distribution[age] })));
-  };
-
   const handleSearch = debounce((term) => {
-    applyFilters(term, filterByMedicalType, filterBySex);
+    applyFilters(term, filterByMedicalType, filterBySex, startDate, endDate);
   }, 300);
 
-  const applyFilters = (searchTerm, medicalTypeFilter, sexFilter) => {
+  const applyFilters = (searchTerm, medicalTypeFilter, sexFilter, dateStart, dateEnd) => {
     let filtered = patients.filter(p => {
       const matchesSearch = (p.name && p.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
                            (p.passportNumber && p.passportNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -88,14 +96,32 @@ const AllPatients = () => {
       const matchesMedicalType = medicalTypeFilter === 'All' || p.medicalType === medicalTypeFilter;
       const matchesSex = sexFilter === 'All' || p.sex === sexFilter;
       
-      return matchesSearch && matchesMedicalType && matchesSex;
+      // Date range filtering
+      let matchesDateRange = true;
+      if (dateStart || dateEnd) {
+        const patientDate = new Date(p.createdAt || p.dateOfBirth);
+        if (dateStart && dateEnd) {
+          const start = new Date(dateStart);
+          const end = new Date(dateEnd);
+          end.setHours(23, 59, 59, 999); // Include the entire end date
+          matchesDateRange = patientDate >= start && patientDate <= end;
+        } else if (dateStart) {
+          matchesDateRange = patientDate >= new Date(dateStart);
+        } else if (dateEnd) {
+          const end = new Date(dateEnd);
+          end.setHours(23, 59, 59, 999);
+          matchesDateRange = patientDate <= end;
+        }
+      }
+      
+      return matchesSearch && matchesMedicalType && matchesSex && matchesDateRange;
     });
     setFilteredPatients(filtered);
   };
 
   useEffect(() => {
-    applyFilters(searchTerm, filterByMedicalType, filterBySex);
-  }, [searchTerm, patients, filterByMedicalType, filterBySex]);
+    applyFilters(searchTerm, filterByMedicalType, filterBySex, startDate, endDate);
+  }, [searchTerm, patients, filterByMedicalType, filterBySex, startDate, endDate]);
 
   const handleOpenModal = (patient, editMode = false) => {
     setSelectedPatient(patient);
@@ -122,32 +148,34 @@ const AllPatients = () => {
     }
   };
 
-  const handleDeletePatient = async (patientId) => {
+  const confirmDelete = (patient) => {
+    setDeleteTarget({ id: patient._id, name: patient.name });
+    setShowDeleteModal(true);
+  };
+  
+  const handleDeletePatient = async () => {
     try {
-      await axios.delete(`${API_BASE_URL}/api/patient/${patientId}`);
+      await axios.delete(`${API_BASE_URL}/api/patient/${deleteTarget.id}`);
       toast.success('Patient deleted successfully!');
-      setPatients(prev => prev.filter(p => p._id !== patientId));
+      setPatients(prev => prev.filter(p => p._id !== deleteTarget.id));
+      setShowDeleteModal(false);
+      setDeleteTarget({ id: '', name: '' });
     } catch (error) {
       toast.error('Failed to delete patient.');
     }
   };
+  
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setDeleteTarget({ id: '', name: '' });
+  };
 
-  const confirmDelete = (patient) => {
-    confirmAlert({
-      title: 'Confirm Deletion',
-      message: `Are you sure you want to delete patient ${patient.name}? This action cannot be undone.`,
-      buttons: [
-        {
-          label: 'Yes, Delete',
-          onClick: () => handleDeletePatient(patient._id),
-          className: 'bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600'
-        },
-        {
-          label: 'Cancel',
-          className: 'bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 ml-2'
-        }
-      ]
-    });
+  const clearFilters = () => {
+    setFilterByMedicalType('All');
+    setFilterBySex('All');
+    setStartDate('');
+    setEndDate('');
+    setSearchTerm('');
   };
 
   const handleSort = (key) => {
@@ -251,135 +279,214 @@ const AllPatients = () => {
   const paginatedData = filteredPatients.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <ToastContainer />
+    <div className="p-4 md:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
+      <ToastContainer position="top-right" autoClose={3000} />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <Typography variant="h4" align="center" gutterBottom className="text-blue-600 font-bold mb-8">
-          All Patients Management
-        </Typography>
+        <div className="mb-8">
+          <Typography variant="h4" align="center" className="text-blue-700 font-bold mb-2">
+            🏥 All Patients Management
+          </Typography>
+          <Typography variant="body2" align="center" className="text-gray-600">
+            Manage and view all patient records with advanced filtering options
+          </Typography>
+        </div>
 
         {/* Enhanced Controls Section */}
-        <div className="mb-6 bg-white p-6 rounded-lg shadow-lg">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <TextField
-              variant="outlined"
-              placeholder="Search by name, passport, or contact..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                endAdornment: <IconButton><SearchIcon /></IconButton>,
-              }}
-              fullWidth
-              size="small"
-            />
-            
-            <div className="flex space-x-2">
-              <Button
-                variant="outlined"
-                startIcon={<FilterListIcon />}
-                onClick={() => setShowFilters(!showFilters)}
-                size="small"
-              >
-                Filters
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => setShowCharts(!showCharts)}
-                size="small"
-              >
-                {showCharts ? 'Hide Charts' : 'Show Charts'}
-              </Button>
-            </div>
+        <Card className="mb-6 shadow-xl">
+          <CardContent className="p-6">
+            <Grid container spacing={3}>
+              {/* Search Bar */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  variant="outlined"
+                  placeholder="🔍 Search by name, passport, or contact..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  InputProps={{
+                    endAdornment: <IconButton><SearchIcon /></IconButton>,
+                  }}
+                  fullWidth
+                  size="medium"
+                  className="bg-white"
+                />
+              </Grid>
+              
+              {/* Action Buttons */}
+              <Grid item xs={12} md={6}>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={showFilters ? "contained" : "outlined"}
+                    startIcon={<FilterListIcon />}
+                    onClick={() => setShowFilters(!showFilters)}
+                    size="medium"
+                    className='bg-green-600 hover:bg-green-700'
+                  >
+                    Filters
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={<FaFileExcel />}
+                    onClick={exportToExcel}
+                    size="medium"
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Export
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="info"
+                    startIcon={<PrintIcon />}
+                    onClick={handlePrintPatients}
+                    size="medium"
+                  >
+                    Print
+                  </Button>
+                </div>
+              </Grid>
+            </Grid>
 
-            <div className="flex space-x-2">
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<FaFileExcel />}
-                onClick={exportToExcel}
-                size="small"
+            {/* Advanced Filters Section */}
+            {showFilters && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
               >
-                Export Excel
-              </Button>
-              <Button
-                variant="contained"
-                color="secondary"
-                startIcon={<PrintIcon />}
-                onClick={handlePrintPatients}
-                size="small"
-              >
-                Print
-              </Button>
-            </div>
-          </div>
+                <Divider className="my-4" />
+                <Typography variant="subtitle1" className="mb-3 text-gray-700 font-semibold">
+                  📊 Advanced Filters
+                </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <FormControl fullWidth variant="outlined">
+                      <InputLabel>Medical Type</InputLabel>
+                      <Select
+                        value={filterByMedicalType}
+                        onChange={(e) => setFilterByMedicalType(e.target.value)}
+                        label="Medical Type"
+                      >
+                        <MenuItem value="All">All Medical Types</MenuItem>
+                        {Array.from(new Set(patients.map(p => p.medicalType))).map(type => (
+                          <MenuItem key={type} value={type}>{type}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
 
-          {/* Filters Section */}
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 p-4 bg-gray-50 rounded"
-            >
-              <FormControl size="small" fullWidth>
-                <InputLabel>Medical Type</InputLabel>
-                <Select
-                  value={filterByMedicalType}
-                  onChange={(e) => setFilterByMedicalType(e.target.value)}
-                  label="Medical Type"
-                >
-                  <MenuItem value="All">All Medical Types</MenuItem>
-                  {Array.from(new Set(patients.map(p => p.medicalType))).map(type => (
-                    <MenuItem key={type} value={type}>{type}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <FormControl fullWidth variant="outlined">
+                      <InputLabel>Sex</InputLabel>
+                      <Select
+                        value={filterBySex}
+                        onChange={(e) => setFilterBySex(e.target.value)}
+                        label="Sex"
+                      >
+                        <MenuItem value="All">All</MenuItem>
+                        <MenuItem value="Male">Male</MenuItem>
+                        <MenuItem value="Female">Female</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
 
-              <FormControl size="small" fullWidth>
-                <InputLabel>Sex</InputLabel>
-                <Select
-                  value={filterBySex}
-                  onChange={(e) => setFilterBySex(e.target.value)}
-                  label="Sex"
-                >
-                  <MenuItem value="All">All</MenuItem>
-                  <MenuItem value="Male">Male</MenuItem>
-                  <MenuItem value="Female">Female</MenuItem>
-                </Select>
-              </FormControl>
-            </motion.div>
-          )}
+                  <Grid item xs={12} sm={6} md={2}>
+                    <TextField
+                      label="Start Date"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      fullWidth
+                      variant="outlined"
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
 
-          {/* Summary Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-            <div className="bg-blue-100 p-4 rounded text-center">
-              <Typography variant="h6" className="text-blue-600">{filteredPatients.length}</Typography>
-              <Typography variant="body2">Total Patients</Typography>
-            </div>
-            <div className="bg-green-100 p-4 rounded text-center">
-              <Typography variant="h6" className="text-green-600">
-                {filteredPatients.filter(p => p.sex === 'Male').length}
-              </Typography>
-              <Typography variant="body2">Male Patients</Typography>
-            </div>
-            <div className="bg-pink-100 p-4 rounded text-center">
-              <Typography variant="h6" className="text-pink-600">
-                {filteredPatients.filter(p => p.sex === 'Female').length}
-              </Typography>
-              <Typography variant="body2">Female Patients</Typography>
-            </div>
-            <div className="bg-yellow-100 p-4 rounded text-center">
-              <Typography variant="h6" className="text-yellow-600">
-                {Array.from(new Set(filteredPatients.map(p => p.medicalType))).length}
-              </Typography>
-              <Typography variant="body2">Medical Types</Typography>
-            </div>
-          </div>
-        </div>
+                  <Grid item xs={12} sm={6} md={2}>
+                    <TextField
+                      label="End Date"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      fullWidth
+                      variant="outlined"
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={12} md={2}>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      fullWidth
+                      onClick={clearFilters}
+                      className="h-full"
+                    >
+                      Clear Filters
+                    </Button>
+                  </Grid>
+                </Grid>
+              </motion.div>
+            )}
+
+            {/* Summary Statistics */}
+            <Divider className="my-4" />
+            <Grid container spacing={3} className="mt-2">
+              <Grid item xs={6} sm={3}>
+                <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="text-center">
+                    <Typography variant="h4" className="font-bold mb-1">
+                      {filteredPatients.length}
+                    </Typography>
+                    <Typography variant="body2" className="opacity-90">
+                      Total Patients
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="text-center">
+                    <Typography variant="h4" className="font-bold mb-1">
+                      {filteredPatients.filter(p => p.sex === 'Male').length}
+                    </Typography>
+                    <Typography variant="body2" className="opacity-90">
+                      Male Patients
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <Card className="bg-gradient-to-br from-pink-500 to-pink-600 text-white shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="text-center">
+                    <Typography variant="h4" className="font-bold mb-1">
+                      {filteredPatients.filter(p => p.sex === 'Female').length}
+                    </Typography>
+                    <Typography variant="body2" className="opacity-90">
+                      Female Patients
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="text-center">
+                    <Typography variant="h4" className="font-bold mb-1">
+                      {Array.from(new Set(filteredPatients.map(p => p.medicalType))).length}
+                    </Typography>
+                    <Typography variant="body2" className="opacity-90">
+                      Medical Types
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
 
         {loading ? (
           <div className="flex justify-center items-center h-64">
@@ -387,71 +494,33 @@ const AllPatients = () => {
           </div>
         ) : (
           <>
-            {/* Charts Section */}
-            {showCharts && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6"
-              >
-                <div className="bg-white p-6 rounded-lg shadow-lg">
-                  <Typography variant="h6" align="center" className="mb-4 text-gray-700">
-                    Medical Type Distribution
-                  </Typography>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie data={medicalTypeCounts} dataKey="count" nameKey="type" cx="50%" cy="50%" outerRadius={100} fill="#8884d8">
-                        {medicalTypeCounts.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"][index % 6]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow-lg">
-                  <Typography variant="h6" align="center" className="mb-4 text-gray-700">
-                    Age Distribution
-                  </Typography>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={ageDistribution}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="ageGroup" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#82ca9d" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </motion.div>
-            )}
-
             {/* Enhanced Table */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7 }}
             >
-              <TableContainer component={Paper} className="shadow-lg">
+              <TableContainer component={Paper} className="shadow-xl rounded-lg overflow-hidden">
                 <Table>
                   <TableHead className="bg-gray-50">
                     <TableRow>
                       {["name", "age", "sex", "passportNumber", "medicalType", "issuingCountry", "occupation", "height", "weight"].map((col) => (
-                        <TableCell key={col}>
+                        <TableCell key={col} className="text-white">
                           <TableSortLabel
                             active={sortConfig.key === col}
                             direction={sortConfig.direction}
                             onClick={() => handleSort(col)}
-                            className="font-semibold"
+                            className="font-semibold text-white hover:text-gray-200"
+                            sx={{
+                              '& .MuiTableSortLabel-icon': { color: 'white !important' },
+                              '&.Mui-active': { color: 'white' }
+                            }}
                           >
                             {col.charAt(0).toUpperCase() + col.slice(1).replace(/([A-Z])/g, ' $1')}
                           </TableSortLabel>
                         </TableCell>
                       ))}
-                      <TableCell className="font-semibold">Actions</TableCell>
+                      <TableCell className="font-semibold text-white">Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -520,163 +589,346 @@ const AllPatients = () => {
               </TableContainer>
 
               <TablePagination
-                rowsPerPageOptions={[5, 10, 25, 50]}
+                rowsPerPageOptions={[5, 10, 25, 50, 100]}
                 component="div"
                 count={filteredPatients.length}
                 rowsPerPage={rowsPerPage}
                 page={page}
                 onPageChange={handlePageChange}
                 onRowsPerPageChange={handleRowsPerPageChange}
-                className="bg-white"
+                className="bg-gradient-to-r from-gray-50 to-blue-50 border-t-2 border-blue-200"
               />
             </motion.div>
           </>
         )}
         {/* Enhanced Patient Details Modal */}
-        <Dialog open={openModal} onClose={handleCloseModal} maxWidth="md" fullWidth>
-          <DialogTitle className="bg-blue-50">
-            <div className="flex justify-between items-center">
-              <Typography variant="h6" className="text-blue-600">
-                {isEditMode ? 'Edit Patient Details' : 'Patient Details'}
-              </Typography>
-              <div className="flex space-x-2">
-                {!isEditMode && (
-                  <Button
-                    onClick={() => setIsEditMode(true)}
-                    startIcon={<EditIcon />}
-                    variant="outlined"
-                    size="small"
+        {openModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn">
+            <style>{customStyles}</style>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto transform transition-all animate-slideUp">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-t-2xl sticky top-0 z-10">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                      <span className="text-2xl">👤</span>
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold">
+                        {isEditMode ? 'Edit Patient Details' : 'Patient Details'}
+                      </h2>
+                      <p className="text-blue-100 text-sm">
+                        {selectedPatient?.passportNumber || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {!isEditMode && (
+                      <button
+                        onClick={() => setIsEditMode(true)}
+                        className="px-4 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-all duration-200 flex items-center gap-2"
+                      >
+                        <EditIcon fontSize="small" />
+                        Edit
+                      </button>
+                    )}
+                    <button
+                      onClick={handleCloseModal}
+                      className="w-10 h-10 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full flex items-center justify-center transition-all duration-200"
+                    >
+                      <span className="text-xl">✕</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                {selectedPatient && (
+                  <div className="space-y-6">
+                    {/* Personal Information Section */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+                      <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
+                        <span>👤</span> Personal Information
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Full Name</label>
+                          <input
+                            type="text"
+                            value={editablePatient?.name || ''}
+                            onChange={(e) => setEditablePatient(prev => ({ ...prev, name: e.target.value }))}
+                            disabled={!isEditMode}
+                            className={`w-full px-4 py-2.5 rounded-lg border ${
+                              isEditMode 
+                                ? 'border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200' 
+                                : 'border-gray-200 bg-gray-50'
+                            } outline-none transition-all`}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Age</label>
+                          <input
+                            type="number"
+                            value={editablePatient?.age || ''}
+                            onChange={(e) => setEditablePatient(prev => ({ ...prev, age: e.target.value }))}
+                            disabled={!isEditMode}
+                            className={`w-full px-4 py-2.5 rounded-lg border ${
+                              isEditMode 
+                                ? 'border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200' 
+                                : 'border-gray-200 bg-gray-50'
+                            } outline-none transition-all`}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Sex</label>
+                          <select
+                            value={editablePatient?.sex || ''}
+                            onChange={(e) => setEditablePatient(prev => ({ ...prev, sex: e.target.value }))}
+                            disabled={!isEditMode}
+                            className={`w-full px-4 py-2.5 rounded-lg border ${
+                              isEditMode 
+                                ? 'border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200' 
+                                : 'border-gray-200 bg-gray-50'
+                            } outline-none transition-all`}
+                          >
+                            <option value="">Select...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Date of Birth</label>
+                          <input
+                            type="date"
+                            value={editablePatient?.dateOfBirth ? editablePatient.dateOfBirth.split('T')[0] : ''}
+                            onChange={(e) => setEditablePatient(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                            disabled={!isEditMode}
+                            className={`w-full px-4 py-2.5 rounded-lg border ${
+                              isEditMode 
+                                ? 'border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200' 
+                                : 'border-gray-200 bg-gray-50'
+                            } outline-none transition-all`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Identification Section */}
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
+                      <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
+                        <span>🆔</span> Identification
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Passport Number</label>
+                          <input
+                            type="text"
+                            value={editablePatient?.passportNumber || ''}
+                            onChange={(e) => setEditablePatient(prev => ({ ...prev, passportNumber: e.target.value }))}
+                            disabled={!isEditMode}
+                            className={`w-full px-4 py-2.5 rounded-lg border ${
+                              isEditMode 
+                                ? 'border-green-300 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
+                                : 'border-gray-200 bg-gray-50'
+                            } outline-none transition-all`}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Issuing Country</label>
+                          <input
+                            type="text"
+                            value={editablePatient?.issuingCountry || ''}
+                            onChange={(e) => setEditablePatient(prev => ({ ...prev, issuingCountry: e.target.value }))}
+                            disabled={!isEditMode}
+                            className={`w-full px-4 py-2.5 rounded-lg border ${
+                              isEditMode 
+                                ? 'border-green-300 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
+                                : 'border-gray-200 bg-gray-50'
+                            } outline-none transition-all`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Medical Information Section */}
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-200">
+                      <h3 className="text-lg font-semibold text-purple-800 mb-4 flex items-center gap-2">
+                        <span>🏥</span> Medical Information
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Medical Type</label>
+                          <input
+                            type="text"
+                            value={editablePatient?.medicalType || ''}
+                            onChange={(e) => setEditablePatient(prev => ({ ...prev, medicalType: e.target.value }))}
+                            disabled={!isEditMode}
+                            className={`w-full px-4 py-2.5 rounded-lg border ${
+                              isEditMode 
+                                ? 'border-purple-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200' 
+                                : 'border-gray-200 bg-gray-50'
+                            } outline-none transition-all`}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Height (cm)</label>
+                          <input
+                            type="text"
+                            value={editablePatient?.height || ''}
+                            onChange={(e) => setEditablePatient(prev => ({ ...prev, height: e.target.value }))}
+                            disabled={!isEditMode}
+                            className={`w-full px-4 py-2.5 rounded-lg border ${
+                              isEditMode 
+                                ? 'border-purple-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200' 
+                                : 'border-gray-200 bg-gray-50'
+                            } outline-none transition-all`}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Weight (kg)</label>
+                          <input
+                            type="text"
+                            value={editablePatient?.weight || ''}
+                            onChange={(e) => setEditablePatient(prev => ({ ...prev, weight: e.target.value }))}
+                            disabled={!isEditMode}
+                            className={`w-full px-4 py-2.5 rounded-lg border ${
+                              isEditMode 
+                                ? 'border-purple-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200' 
+                                : 'border-gray-200 bg-gray-50'
+                            } outline-none transition-all`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contact & Other Information Section */}
+                    <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-xl border border-orange-200">
+                      <h3 className="text-lg font-semibold text-orange-800 mb-4 flex items-center gap-2">
+                        <span>📞</span> Contact & Other Information
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Contact Number</label>
+                          <input
+                            type="text"
+                            value={editablePatient?.contactNumber || ''}
+                            onChange={(e) => setEditablePatient(prev => ({ ...prev, contactNumber: e.target.value }))}
+                            disabled={!isEditMode}
+                            className={`w-full px-4 py-2.5 rounded-lg border ${
+                              isEditMode 
+                                ? 'border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200' 
+                                : 'border-gray-200 bg-gray-50'
+                            } outline-none transition-all`}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Occupation</label>
+                          <input
+                            type="text"
+                            value={editablePatient?.occupation || ''}
+                            onChange={(e) => setEditablePatient(prev => ({ ...prev, occupation: e.target.value }))}
+                            disabled={!isEditMode}
+                            className={`w-full px-4 py-2.5 rounded-lg border ${
+                              isEditMode 
+                                ? 'border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200' 
+                                : 'border-gray-200 bg-gray-50'
+                            } outline-none transition-all`}
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <label className="text-sm font-medium text-gray-700">Address</label>
+                          <textarea
+                            value={editablePatient?.address || ''}
+                            onChange={(e) => setEditablePatient(prev => ({ ...prev, address: e.target.value }))}
+                            disabled={!isEditMode}
+                            rows={3}
+                            className={`w-full px-4 py-2.5 rounded-lg border ${
+                              isEditMode 
+                                ? 'border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200' 
+                                : 'border-gray-200 bg-gray-50'
+                            } outline-none transition-all resize-none`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="bg-gray-50 p-6 rounded-b-2xl border-t border-gray-200 flex justify-end gap-3 sticky bottom-0">
+                <button
+                  onClick={handleCloseModal}
+                  className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all duration-200"
+                >
+                  {isEditMode ? 'Cancel' : 'Close'}
+                </button>
+                {isEditMode && (
+                  <button
+                    onClick={handleSaveChanges}
+                    className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg flex items-center gap-2"
                   >
-                    Edit
-                  </Button>
+                    <span>💾</span>
+                    Save Changes
+                  </button>
                 )}
               </div>
             </div>
-          </DialogTitle>
-          <DialogContent className="p-6">
-            {selectedPatient && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <TextField
-                    label="Name"
-                    value={editablePatient?.name || ''}
-                    onChange={(e) => setEditablePatient(prev => ({ ...prev, name: e.target.value }))}
-                    disabled={!isEditMode}
-                    fullWidth
-                    variant="outlined"
-                  />
-                  <TextField
-                    label="Age"
-                    type="number"
-                    value={editablePatient?.age || ''}
-                    onChange={(e) => setEditablePatient(prev => ({ ...prev, age: e.target.value }))}
-                    disabled={!isEditMode}
-                    fullWidth
-                    variant="outlined"
-                  />
-                  <FormControl fullWidth disabled={!isEditMode}>
-                    <InputLabel>Sex</InputLabel>
-                    <Select
-                      value={editablePatient?.sex || ''}
-                      onChange={(e) => setEditablePatient(prev => ({ ...prev, sex: e.target.value }))}
-                      label="Sex"
-                    >
-                      <MenuItem value="Male">Male</MenuItem>
-                      <MenuItem value="Female">Female</MenuItem>
-                    </Select>
-                  </FormControl>
-                  <TextField
-                    label="Passport Number"
-                    value={editablePatient?.passportNumber || ''}
-                    onChange={(e) => setEditablePatient(prev => ({ ...prev, passportNumber: e.target.value }))}
-                    disabled={!isEditMode}
-                    fullWidth
-                    variant="outlined"
-                  />
-                  <TextField
-                    label="Medical Type"
-                    value={editablePatient?.medicalType || ''}
-                    onChange={(e) => setEditablePatient(prev => ({ ...prev, medicalType: e.target.value }))}
-                    disabled={!isEditMode}
-                    fullWidth
-                    variant="outlined"
-                  />
-                  <TextField
-                    label="Issuing Country"
-                    value={editablePatient?.issuingCountry || ''}
-                    onChange={(e) => setEditablePatient(prev => ({ ...prev, issuingCountry: e.target.value }))}
-                    disabled={!isEditMode}
-                    fullWidth
-                    variant="outlined"
-                  />
-                  <TextField
-                    label="Occupation"
-                    value={editablePatient?.occupation || ''}
-                    onChange={(e) => setEditablePatient(prev => ({ ...prev, occupation: e.target.value }))}
-                    disabled={!isEditMode}
-                    fullWidth
-                    variant="outlined"
-                  />
-                  <TextField
-                    label="Contact Number"
-                    value={editablePatient?.contactNumber || ''}
-                    onChange={(e) => setEditablePatient(prev => ({ ...prev, contactNumber: e.target.value }))}
-                    disabled={!isEditMode}
-                    fullWidth
-                    variant="outlined"
-                  />
-                  <TextField
-                    label="Height (cm)"
-                    value={editablePatient?.height || ''}
-                    onChange={(e) => setEditablePatient(prev => ({ ...prev, height: e.target.value }))}
-                    disabled={!isEditMode}
-                    fullWidth
-                    variant="outlined"
-                  />
-                  <TextField
-                    label="Weight (kg)"
-                    value={editablePatient?.weight || ''}
-                    onChange={(e) => setEditablePatient(prev => ({ ...prev, weight: e.target.value }))}
-                    disabled={!isEditMode}
-                    fullWidth
-                    variant="outlined"
-                  />
-                  <TextField
-                    label="Date of Birth"
-                    type="date"
-                    value={editablePatient?.dateOfBirth ? editablePatient.dateOfBirth.split('T')[0] : ''}
-                    onChange={(e) => setEditablePatient(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                    disabled={!isEditMode}
-                    fullWidth
-                    variant="outlined"
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </div>
-                <TextField
-                  label="Address"
-                  value={editablePatient?.address || ''}
-                  onChange={(e) => setEditablePatient(prev => ({ ...prev, address: e.target.value }))}
-                  disabled={!isEditMode}
-                  fullWidth
-                  multiline
-                  rows={3}
-                  variant="outlined"
-                />
-              </div>
-            )}
-          </DialogContent>
-          <DialogActions className="p-4">
-            <Button onClick={handleCloseModal} color="secondary">
-              {isEditMode ? 'Cancel' : 'Close'}
-            </Button>
-            {isEditMode && (
-              <Button onClick={handleSaveChanges} color="primary" variant="contained">
-                Save Changes
-              </Button>
-            )}
-          </DialogActions>
-        </Dialog>
+          </div>
+        )}
       </motion.div>
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn">
+          <style>{customStyles}</style>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 transform transition-all animate-slideUp">
+            <div className="flex flex-col items-center">
+              {/* Icon */}
+              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4 animate-bounce">
+                <FaTrash className="text-red-600 text-2xl" />
+              </div>
+              
+              {/* Title */}
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                Confirm Delete
+              </h3>
+              
+              {/* Message */}
+              <p className="text-gray-600 text-center mb-2">
+                Are you sure you want to delete this patient record?
+              </p>
+              <p className="text-gray-800 font-semibold text-center mb-6 px-4 py-2 bg-gray-100 rounded-lg">
+                {deleteTarget.name}
+              </p>
+              
+              {/* Warning */}
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 w-full">
+                <p className="text-sm text-red-700">
+                  <strong>Warning:</strong> This action cannot be undone. The patient record will be permanently removed from the database.
+                </p>
+              </div>
+              
+              {/* Buttons */}
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={handleCancelDelete}
+                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeletePatient}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 shadow-lg"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

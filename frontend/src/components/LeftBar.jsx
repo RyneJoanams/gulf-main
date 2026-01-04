@@ -314,8 +314,8 @@ const LeftBar = () => {
       try {
         const QRCode = require('qrcode');
         const qrCodeDataUrl = await QRCode.toDataURL(url, {
-          width: 130,
-          margin: 2,
+          width: 80,
+          margin: 1,
           errorCorrectionLevel: 'H',
           color: {
             dark: '#000000',
@@ -330,6 +330,31 @@ const LeftBar = () => {
     };
     
     const qrCodeBase64 = await generateQRCodeBase64(qrUrl);
+
+    // Get current user for digital signature
+    const getCurrentUser = () => {
+      try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const userData = JSON.parse(userStr);
+          return userData.name || userData.email || 'System User';
+        }
+        return 'System User';
+      } catch (error) {
+        console.error('Error getting user:', error);
+        return 'System User';
+      }
+    };
+
+    const currentUser = getCurrentUser();
+    const currentDateTime = new Date().toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
 
     // Helper function to check if section has data
     const hasData = (section) => {
@@ -362,7 +387,7 @@ const LeftBar = () => {
       <style>
         @media print {
           @page { 
-            margin: 0.5cm;
+            margin: 0.4cm;
             size: A4;
           }
           * {
@@ -371,7 +396,7 @@ const LeftBar = () => {
           body {
             font-family: 'Arial', sans-serif;
             font-size: 11px;
-            line-height: 1.3;
+            line-height: 1.2;
             color: #333;
             margin: 0;
             padding: 0;
@@ -384,33 +409,34 @@ const LeftBar = () => {
           }
           .header {
             text-align: center;
-            padding: 8px 0;
+            padding: 4px 0;
             border-bottom: 2px solid #2dd4bf;
-            margin-bottom: 12px;
+            margin-bottom: 6px;
           }
           .patient-info-section {
             display: grid;
-            grid-template-columns: 1fr 80px;
-            gap: 12px;
+            grid-template-columns: 1fr 70px;
+            gap: 8px;
             align-items: start;
-            margin-top: 8px;
+            margin-top: 4px;
+            margin-bottom: 6px;
           }
           .report-title {
             font-size: 18px;
             font-weight: bold;
             color: #0f766e;
-            margin: 4px 0;
+            margin: 2px 0;
           }
           .patient-image-container {
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 80px;
+            height: 70px;
           }
           .patient-image {
-            width: 70px;
-            height: 70px;
-            border-radius: 8px;
+            width: 60px;
+            height: 60px;
+            border-radius: 6px;
             border: 2px solid #0f766e;
             object-fit: cover;
           }
@@ -418,17 +444,17 @@ const LeftBar = () => {
             width: 100%;
             border-collapse: collapse;
             background-color: #f8fafc;
-            table-layout: fixed;
+            table-layout: auto;
           }
           .patient-info-table td {
             border: 1px solid #cbd5e1;
-            padding: 6px 8px;
-            font-size: 8px;
+            padding: 3px 5px;
+            font-size: 9px;
             text-align: left;
             font-weight: 500;
             word-wrap: break-word;
             overflow-wrap: break-word;
-            line-height: 1.2;
+            line-height: 1.1;
           }
           .patient-info-table td strong {
             color: #0f766e;
@@ -436,15 +462,15 @@ const LeftBar = () => {
           }
           .qr-code-container {
             background: #FFFFFF;
-            padding: 8px;
-            border-radius: 5px;
+            padding: 4px;
+            border-radius: 4px;
             display: inline-block;
           }
           .qr-code-container canvas {
             display: block;
             background: #FFFFFF !important;
           }
-          }
+          
           .main-content {
             flex: 1;
             display: block;
@@ -452,118 +478,131 @@ const LeftBar = () => {
           }
           .section {
             break-inside: avoid;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
             width: 100%;
           }
           .section-title {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
             color: #0f766e;
-            margin-bottom: 6px;
-            padding: 4px 8px;
+            margin-bottom: 3px;
+            padding: 2px 5px;
             background-color: #e6fffa;
-            border-left: 3px solid #0f766e;
+            border-left: 2px solid #0f766e;
             border-radius: 2px;
           }
           .section-content {
             background-color: #fefefe;
-            padding: 4px;
+            padding: 3px;
             border: 1px solid #e2e8f0;
-            border-radius: 4px;
+            border-radius: 3px;
           }
           .compact-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10px;
-            margin-bottom: 8px;
-            table-layout: fixed;
+            font-size: 11px;
+            margin-bottom: 4px;
+            table-layout: auto;
           }
           .compact-table th, .compact-table td {
             border: 1px solid #cbd5e1;
-            padding: 4px 6px;
+            padding: 2px 4px;
             text-align: left;
             vertical-align: top;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            line-height: 1.1;
           }
           .compact-table th {
             background-color: #f1f5f9;
             font-weight: bold;
-            font-size: 10px;
+            font-size: 9.5px;
             color: #0f766e;
           }
           .compact-table .label {
             font-weight: bold;
-            width: 35%;
-            font-size: 10px;
+            width: 40%;
+            font-size: 9.5px;
             background-color: #f8fafc;
             color: #374151;
           }
           .compact-table .value {
-            width: 65%;
-            font-size: 10px;
+            width: 60%;
+            font-size: 9.5px;
             color: #1f2937;
-            line-height: 1.2;
+            line-height: 1.1;
           }
           .haemogram-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 9px;
-            margin-bottom: 8px;
-            table-layout: fixed;
+            font-size: 10px;
+            margin-bottom: 4px;
+            table-layout: auto;
           }
           .haemogram-table th, .haemogram-table td {
             border: 1px solid #cbd5e1;
-            padding: 3px 4px;
+            padding: 2px 3px;
             text-align: center;
             word-wrap: break-word;
             overflow-wrap: break-word;
-            line-height: 1.1;
+            line-height: 1.05;
           }
           .haemogram-table th {
             background-color: #0f766e;
             color: white;
             font-weight: bold;
-            font-size: 9px;
+            font-size: 12px;
           }
           .haemogram-table td {
-            font-size: 8px;
+            font-size: 11px;
             color: #374151;
           }
           .haemogram-table tr:nth-child(even) {
             background-color: #f8fafc;
           }
           .footer {
-            margin-top: 12px;
-            padding-top: 8px;
+            margin-top: 6px;
+            padding-top: 4px;
             border-top: 2px solid #2dd4bf;
-            font-size: 10px;
+            font-size: 9px;
             color: #64748b;
             page-break-inside: avoid;
           }
           .two-column-layout {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 12px;
-            margin-bottom: 12px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 6px;
             align-items: start;
           }
           .full-width-section {
             grid-column: 1 / -1;
           }
+          .wide-section {
+            grid-column: span 2;
+          }
+          .triple-section {
+            grid-column: span 3;
+          }
           .tests-container {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 10px;
-            margin-bottom: 16px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 6px;
+          }
+          .tests-container-fluid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 6px;
+            margin-bottom: 6px;
           }
           .bottom-section {
-            margin-top: 20px;
-            padding-top: 12px;
+            margin-top: 8px;
+            padding-top: 6px;
             border-top: 1px solid #e2e8f0;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
           }
         }
       </style>
@@ -783,7 +822,7 @@ const LeftBar = () => {
                 <td style="text-align: center; font-weight: bold;">${test.value}</td>
                 <td style="text-align: center;">${test.units}</td>
                 <td style="text-align: center; ${test.status !== 'N/A' && test.status !== 'Normal' ? 'color: #dc2626; font-weight: bold;' : ''}">${test.status}</td>
-                <td style="text-align: center; font-size: 5px;">${range}</td>
+                <td style="text-align: center; font-size: 9.5px;">${range}</td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -864,7 +903,7 @@ const LeftBar = () => {
                 <td style="font-weight: 500; text-align: left;">${test.test}</td>
                 <td style="text-align: center; font-weight: bold;">${test.value}</td>
                 <td style="text-align: center; ${test.status !== 'N/A' && test.status !== 'Normal' ? 'color: #dc2626; font-weight: bold;' : ''}">${test.status}</td>
-                <td style="text-align: center; font-size: 6px;">${test.range}</td>
+                <td style="text-align: center; font-size: 9.5px;">${test.range}</td>
               </tr>`).join('')}
           </tbody>
         </table>
@@ -907,7 +946,7 @@ const LeftBar = () => {
                 <td style="font-weight: 500; text-align: left;">${test.test}</td>
                 <td style="text-align: center; font-weight: bold;">${test.value}</td>
                 <td style="text-align: center; ${test.status !== 'N/A' && test.status !== 'Normal' ? 'color: #dc2626; font-weight: bold;' : ''}">${test.status}</td>
-                <td style="text-align: center; font-size: 6px;">${test.range}</td>
+                <td style="text-align: center; font-size: 9.5px;">${test.range}</td>
               </tr>`).join('')}
           </tbody>
         </table>
@@ -1041,44 +1080,65 @@ const LeftBar = () => {
             </div>
 
             <div class="main-content">
-              <!-- Tests Section with Fluid Layout -->
+              <!-- First Row: Medical History (with Lab Tests below), Clinical Info, General Exam, Systemic Exam -->
               <div class="tests-container">
+                <div>
+                  ${hasData(enhancedReport.historyOfPastIllness) || hasData(enhancedReport.allergy) ? `
+                    <div class="section" style="margin-bottom: 6px;">
+                      <h3 class="section-title">Medical History</h3>
+                      <div class="section-content">
+                        ${renderMedicalHistory(enhancedReport)}
+                      </div>
+                    </div>
+                  ` : ''}
+                  ${renderSectionIfHasData('Laboratory Tests', enhancedReport.selectedReport?.area1, renderArea1Tests)}
+                </div>
+                
+                ${renderSectionIfHasData('Clinical Information', basicInfo, renderClinicalInfo)}
                 ${renderSectionIfHasData('General Examination', enhancedReport.generalExamination, renderGeneralExam)}
                 ${renderSectionIfHasData('Systemic Examination', enhancedReport.systemicExamination, renderSystemicExam)}
+              </div>
+              
+              <!-- Second Row: Renal Function (2 cols), Urine Test (1 col), Blood Test (1 col) -->
+              <div class="tests-container">
+                ${hasData(enhancedReport.selectedReport?.renalFunction) ? `
+                  <div class="section wide-section">
+                    <h3 class="section-title">Renal Function Test</h3>
+                    <div class="section-content">
+                      ${renderRenalFunction(enhancedReport.selectedReport?.renalFunction)}
+                    </div>
+                  </div>
+                ` : ''}
                 ${renderSectionIfHasData('Urine Test', enhancedReport.selectedReport?.urineTest, renderUrineTest)}
                 ${renderSectionIfHasData('Blood Tests', enhancedReport.selectedReport?.bloodTest, renderBloodTests)}
-                ${renderSectionIfHasData('Laboratory Tests', enhancedReport.selectedReport?.area1, renderArea1Tests)}
+              </div>
+              
+              <!-- Third Row: Full Haemogram (3 cols) + Radiology or other test (1 col) -->
+              <div class="tests-container">
+                ${hasData(enhancedReport.selectedReport?.fullHaemogram) ? `
+                  <div class="section triple-section">
+                    <h3 class="section-title">Full Haemogram</h3>
+                    <div class="section-content">
+                      ${renderHaemogram(enhancedReport.selectedReport?.fullHaemogram)}
+                    </div>
+                  </div>
+                ` : ''}
                 ${renderSectionIfHasData('Radiology Tests', enhancedReport.radiologyData, renderRadiologyTests)}
               </div>
               
-              <!-- Full-width sections for larger test tables -->
-              <div class="full-width-section">
-                ${renderSectionIfHasData('Full Haemogram', enhancedReport.selectedReport?.fullHaemogram, renderHaemogram)}
-              </div>
-              
-              <div class="full-width-section">
-                ${renderSectionIfHasData('Renal Function Test', enhancedReport.selectedReport?.renalFunction, renderRenalFunction)}
-              </div>
-              
-              <div class="full-width-section">
-                ${renderSectionIfHasData('Liver Function Test', enhancedReport.selectedReport?.liverFunction, renderLiverFunction)}
-              </div>
-              
-              <!-- Clinical Notes and Lab Remarks at the Bottom -->
-              <div class="bottom-section">
-                ${hasData(enhancedReport.historyOfPastIllness) || hasData(enhancedReport.allergy) ? `
-                  <div class="section">
-                    <h3 class="section-title">Medical History</h3>
+              <!-- Fourth Row: Lab Remarks and Liver Function (flexible columns) -->
+              <div class="tests-container">
+                ${hasData(enhancedReport.selectedReport?.liverFunction) ? `
+                  <div class="section wide-section">
+                    <h3 class="section-title">Liver Function Test</h3>
                     <div class="section-content">
-                      ${renderMedicalHistory(enhancedReport)}
+                      ${renderLiverFunction(enhancedReport.selectedReport?.liverFunction)}
                     </div>
                   </div>
                 ` : ''}
                 
-                ${renderSectionIfHasData('Clinical Information', basicInfo, renderClinicalInfo)}
-                
                 ${hasData(enhancedReport.selectedReport?.labRemarks) ? `
-                  <div class="section">
+                  <div class="section ${hasData(enhancedReport.selectedReport?.liverFunction) ? '' : 'full-width-section'}">
                     <h3 class="section-title">Lab Remarks & Conclusions</h3>
                     <div class="section-content">
                       ${renderLabRemarks(enhancedReport.selectedReport?.labRemarks)}
@@ -1092,9 +1152,16 @@ const LeftBar = () => {
               <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
                 <div style="flex: 0 0 auto;">
                   ${qrCodeBase64 ? `
-                    <div style="display: inline-block; text-align: center; padding: 8px; background: #FFFFFF; border-radius: 4px; border: 1px solid #e5e7eb;">
-                      <img src="${qrCodeBase64}" alt="QR Code" style="width: 130px; height: 130px; display: block;" />
-                      <div style="font-size: 8px; margin-top: 3px; color: #2dd4bf; font-weight: bold;">Scan for Digital Copy</div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div style="display: inline-block; text-align: center; padding: 6px; background: #FFFFFF; border-radius: 4px; border: 1px solid #e5e7eb;">
+                        <img src="${qrCodeBase64}" alt="QR Code" style="width: 80px; height: 80px; display: block;" />
+                        <div style="font-size: 7px; margin-top: 2px; color: #2dd4bf; font-weight: bold;">Scan for Digital Copy</div>
+                      </div>
+                      <div style="font-size: 8px; color: #6b7280; max-width: 180px; text-align: left; line-height: 1.4;">
+                        <div style="font-weight: 600; color: #374151; margin-bottom: 3px; font-size: 9px;">Digital Signature</div>
+                        <div style="margin-bottom: 2px;"><strong>Signed by:</strong> ${currentUser}</div>
+                        <div><strong>Date & Time:</strong> ${currentDateTime}</div>
+                      </div>
                     </div>
                   ` : ''}
                 </div>
@@ -1157,8 +1224,7 @@ const LeftBar = () => {
           <div className="relative group">
             <div className="absolute inset-0 bg-gradient-to-r from-teal-500/20 to-cyan-500/20 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-teal-300 group-focus-within:text-teal-200 transition-colors" size={20} />
-              <input
+                <input
                 type="text"
                 placeholder="Search by name, lab number, or passport..."
                 value={searchQuery}

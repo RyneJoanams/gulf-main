@@ -15,6 +15,7 @@ import { Document as DocxDocument, Packer, Paragraph, Table, TableRow, TableCell
 import pdfMake from "pdfmake/build/pdfmake";
 import { API_BASE_URL } from '../../config/api.config';
 import pdfFonts from "pdfmake/build/vfs_fonts";
+import { FaEdit, FaTrash, FaSave, FaTimes } from 'react-icons/fa';
 pdfMake.vfs = pdfFonts.vfs;
 
 const Accounts = () => {
@@ -36,6 +37,10 @@ const Accounts = () => {
   const [expenses, setExpenses] = useState([]);
   const [activeSection, setActiveSection] = useState('summary');
   const [searchPatientName, setSearchPatientName] = useState('');
+  
+  // Edit states for expenses
+  const [editingExpenseId, setEditingExpenseId] = useState(null);
+  const [editExpenseData, setEditExpenseData] = useState({});
   
   // New states for direct patient data fetching
   const [patients, setPatients] = useState([]);
@@ -279,12 +284,43 @@ const Accounts = () => {
   };
 
   const handleDeleteExpense = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this expense?')) {
+      return;
+    }
     try {
       await axios.delete(`${API_BASE_URL}/api/expenses/${id}`);
       setExpenses(expenses.filter(exp => exp._id !== id));
       toast.success('Expense deleted.');
     } catch (error) {
       toast.error('Error deleting expense.');
+    }
+  };
+
+  const handleEditExpense = (expense) => {
+    setEditingExpenseId(expense._id);
+    setEditExpenseData({ ...expense });
+  };
+
+  const handleCancelEditExpense = () => {
+    setEditingExpenseId(null);
+    setEditExpenseData({});
+  };
+
+  const handleSaveExpense = async (id) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/api/expenses/${id}`, {
+        description: editExpenseData.description,
+        amount: parseFloat(editExpenseData.amount)
+      });
+      setExpenses(expenses.map(exp => 
+        exp._id === id ? response.data : exp
+      ));
+      setEditingExpenseId(null);
+      setEditExpenseData({});
+      toast.success('Expense updated successfully.');
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      toast.error('Error updating expense.');
     }
   };
 
@@ -1438,18 +1474,81 @@ const Accounts = () => {
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
                             {filteredExpenses.map((expense) => (
                               <tr key={expense._id} className="hover:bg-gray-50 transition-colors duration-150">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.description}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                  KES {parseFloat(expense.amount || 0).toFixed(2)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                  {expense.date ? new Date(expense.date).toLocaleDateString() : ''}
-                                </td>
+                                {editingExpenseId === expense._id ? (
+                                  <>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <input
+                                        type="text"
+                                        value={editExpenseData.description || ''}
+                                        onChange={(e) => setEditExpenseData({...editExpenseData, description: e.target.value})}
+                                        className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      />
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <input
+                                        type="number"
+                                        value={editExpenseData.amount || ''}
+                                        onChange={(e) => setEditExpenseData({...editExpenseData, amount: e.target.value})}
+                                        className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      />
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                      {expense.date ? new Date(expense.date).toLocaleDateString() : ''}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => handleSaveExpense(expense._id)}
+                                          className="text-green-600 hover:text-green-900 transition-colors duration-200"
+                                          title="Save"
+                                        >
+                                          <FaSave />
+                                        </button>
+                                        <button
+                                          onClick={handleCancelEditExpense}
+                                          className="text-gray-600 hover:text-gray-900 transition-colors duration-200"
+                                          title="Cancel"
+                                        >
+                                          <FaTimes />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.description}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                      KES {parseFloat(expense.amount || 0).toFixed(2)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                      {expense.date ? new Date(expense.date).toLocaleDateString() : ''}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => handleEditExpense(expense)}
+                                          className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
+                                          title="Edit"
+                                        >
+                                          <FaEdit />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteExpense(expense._id)}
+                                          className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                                          title="Delete"
+                                        >
+                                          <FaTrash />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </>
+                                )}
                               </tr>
                             ))}
                           </tbody>

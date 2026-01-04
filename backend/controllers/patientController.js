@@ -39,8 +39,8 @@ exports.createPatient = async (req, res) => {
   }
 
   const patient = new Patient({
-    name,
-    passportNumber,
+    name: name ? name.trim() : name, // Trim whitespace from name
+    passportNumber: passportNumber ? passportNumber.trim() : passportNumber,
     issuingCountry,
     occupation,
     sex,
@@ -54,8 +54,10 @@ exports.createPatient = async (req, res) => {
 
   try {
     const savedPatient = await patient.save();
+    console.log(`✅ New patient created: "${savedPatient.name}" (${savedPatient.medicalType})`);
     res.status(201).json(savedPatient);
   } catch (error) {
+    console.error('❌ Error creating patient:', error);
     res.status(400).json({ message: error.message });
   }
 };
@@ -109,16 +111,51 @@ exports.getPatientsWithoutLabNumbers = async (req, res) => {
   try {
     const LabNumber = require('../models/labNumber');
     
-    // Get all patients who have lab numbers assigned
-    const assignedLabNumbers = await LabNumber.find().distinct('patient');
+    console.log('🔍 Fetching patients without lab numbers...');
     
-    // Get all patients who don't have lab numbers assigned
-    const patientsWithoutLabNumbers = await Patient.find({ 
-      name: { $nin: assignedLabNumbers }
-    }).sort({ createdAt: -1 });
+    // Get total counts for debugging
+    const totalPatients = await Patient.countDocuments();
+    const totalLabNumbers = await LabNumber.countDocuments();
+    console.log(`📊 Total patients in DB: ${totalPatients}`);
+    console.log(`📊 Total lab numbers in DB: ${totalLabNumbers}`);
+    
+    // Get all patients sorted by creation date
+    const allPatients = await Patient.find().sort({ createdAt: -1 });
+    
+    // Get all lab numbers with patient names
+    const assignedLabNumbers = await LabNumber.find().select('patient');
+    
+    // Create a Set of normalized patient names that have lab numbers
+    const assignedNamesSet = new Set(
+      assignedLabNumbers.map(lab => lab.patient.trim().toLowerCase())
+    );
+    
+    console.log(`📋 Patients with lab numbers: ${assignedNamesSet.size}`);
+    console.log(`📋 Sample names with labs:`, Array.from(assignedNamesSet).slice(0, 3));
+    
+    // Filter patients who don't have lab numbers (case-insensitive, trimmed comparison)
+    const patientsWithoutLabNumbers = allPatients.filter(patient => {
+      const normalizedPatientName = patient.name.trim().toLowerCase();
+      const hasLabNumber = assignedNamesSet.has(normalizedPatientName);
+      
+      if (!hasLabNumber) {
+        console.log(`   ✓ Pending: "${patient.name}" (${patient.medicalType})`);
+      }
+      
+      return !hasLabNumber;
+    });
+    
+    console.log(`✅ Found ${patientsWithoutLabNumbers.length} patients without lab numbers`);
+    
+    if (patientsWithoutLabNumbers.length > 0) {
+      console.log(`📝 First pending patient: ${patientsWithoutLabNumbers[0].name} (${patientsWithoutLabNumbers[0].medicalType})`);
+    } else {
+      console.log(`ℹ️  All patients have lab numbers assigned`);
+    }
     
     res.status(200).json(patientsWithoutLabNumbers);
   } catch (error) {
+    console.error('❌ Error in getPatientsWithoutLabNumbers:', error);
     res.status(500).json({ message: error.message });
   }
 };

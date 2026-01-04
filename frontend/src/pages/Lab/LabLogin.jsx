@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { enhancedLogin } from '../../utils/departmentAuth';
+import logo from '../../assets/logo1-removebg-preview.png';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -45,6 +46,9 @@ const Login = () => {
         transition={{ duration: 0.5 }}
         className="relative z-10 w-full max-w-md bg-white shadow-lg rounded-lg p-8"
       >
+        <div className="flex justify-center mb-6">
+          <img src={logo} alt="Gulf Healthcare Logo" className="h-20 w-auto" />
+        </div>
         <h2 className="text-2xl font-semibold text-center text-gray-700 mb-6">Login</h2>
         <form onSubmit={handleSubmit} className="space-y-6">
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
@@ -54,7 +58,7 @@ const Login = () => {
               placeholder="Email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-300"
+              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 transition duration-300"
               required
             />
           </motion.div>
@@ -71,7 +75,7 @@ const Login = () => {
               placeholder="Password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-300"
+              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 transition duration-300"
               required
             />
             <button
@@ -90,15 +94,12 @@ const Login = () => {
                 id="rememberMe"
                 checked={rememberMe}
                 onChange={() => setRememberMe(!rememberMe)}
-                className="h-4 w-4 text-purple-500 focus:ring-2 focus:ring-purple-500"
+                className="h-4 w-4 text-teal-500 focus:ring-2 focus:ring-teal-500"
               />
               <label htmlFor="rememberMe" className="text-sm text-gray-600">
                 Remember Me
               </label>
             </div>
-            <a href="/forgot-password" className="text-sm text-blue-500 hover:underline">
-              Forgot Password?
-            </a>
           </div>
 
           {error && (
@@ -116,7 +117,7 @@ const Login = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             type="submit"
-            className={`w-full bg-purple-500 text-white py-2 rounded-md transition duration-300 ${
+            className={`w-full bg-teal-500 text-white py-2 rounded-md transition duration-300 ${
               isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
             }`}
             disabled={isSubmitting}
@@ -125,12 +126,7 @@ const Login = () => {
           </motion.button>
         </form>
 
-        <div className="text-center mt-4">
-          <p className="text-sm text-gray-600">Don't have an account?</p>
-          <a href="/signup" className="text-sm text-blue-500 hover:underline">
-            Sign Up
-          </a>
-        </div>
+        
       </motion.div>
     </div>
   );

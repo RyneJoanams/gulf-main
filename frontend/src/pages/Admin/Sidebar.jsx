@@ -80,7 +80,7 @@ const Sidebar = () => {
   return (
     <div className="flex min-h-screen bg-gray-100">
       <AdminSidebar activeComponent={activeComponent} setActiveComponent={setActiveComponent} />
-      <main className="flex-1 p-10 ml-64 transition-all duration-500 ease-in-out bg-white shadow-lg rounded-lg">
+      <main className="flex-1 p-10 ml-64 mt-28 transition-all duration-500 ease-in-out bg-white shadow-lg rounded-lg">
         {componentsMap[activeComponent] || <AllPatients />}
       </main>
     </div>

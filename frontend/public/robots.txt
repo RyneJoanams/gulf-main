@@ -1,3 +1,29 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Allow: /
+Allow: /lab-result/
+
+# Disallow all protected/authenticated routes
+Disallow: /admin
+Disallow: /admin-auth
+Disallow: /clinical
+Disallow: /clinical-login
+Disallow: /lab
+Disallow: /lab-login
+Disallow: /radiology
+Disallow: /radiology-login
+Disallow: /agent
+Disallow: /agent-login
+Disallow: /phlebotomy
+Disallow: /phlebotomy-login
+Disallow: /front-office
+Disallow: /login
+Disallow: /accounts
+Disallow: /accounts-login
+Disallow: /all-patients
+Disallow: /all-users
+Disallow: /user-account
+Disallow: /financial-statements
+
+# Sitemap location
+Sitemap: https://ghck.co.ke/sitemap.xml

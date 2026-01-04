@@ -319,7 +319,7 @@ const FrontOffice = () => {
         .then((res) => res.blob())
         .then((blob) => {
           const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-          setFormValues({ ...formValues, photo: file });
+          setFormValues(prevValues => ({ ...prevValues, photo: file }));
           toast.success("Image captured successfully.");
           setShowWebcam(false);
         })
@@ -331,13 +331,13 @@ const FrontOffice = () => {
   };
 
   const removeCapturedPhoto = () => {
-    setFormValues({ ...formValues, photo: null });
+    setFormValues(prevValues => ({ ...prevValues, photo: null }));
   };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]; // Get the uploaded file
     if (file) {
-      setFormValues({ ...formValues, photo: file }); // Save the file as a File object
+      setFormValues(prevValues => ({ ...prevValues, photo: file })); // Save the file as a File object
     }
   };
 

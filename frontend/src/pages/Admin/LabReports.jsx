@@ -461,7 +461,7 @@ const LabReports = () => {
   
 
   return (
-    <div className="mt-20 mx-auto p-6 bg-gray-50 min-h-screen">
+    <div className="mx-auto p-6 bg-gray-50 min-h-screen">
       <ToastContainer />
       <Card className="max-w-11/12 mx-auto">
         <CardHeader>

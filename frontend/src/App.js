@@ -30,6 +30,7 @@ import Agent from "./pages/Agent/Agent.jsx";
 import AdminAuth from "./pages/Admin/AdminAuth.jsx";
 import ErrorBoundary from "./pages/ErrorPage.jsx";
 import LabResultViewer from "./pages/LabResult/LabResultViewer.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 const App = () => {
   return (
@@ -37,31 +38,33 @@ const App = () => {
         <PatientProvider>
           <Router>
             <Routes>
+              {/* Public Routes */}
               <Route path="/" element={<Home />} />
+              <Route path="/lab-result/:reportId" element={<LabResultViewer />} />
+              
+              {/* Login Routes */}
               <Route path="/login" element={<Login />} />
-              <Route path="/front-office" element={<FrontOffice />} />
-              <Route path="/accounts" element={<Accounts />} />
               <Route path="/accounts-login" element={<AccountsLogin />} />
               <Route path="/clinical-login" element={<ClinicalLogin />} />
               <Route path="/lab-login" element={<LabLogin />} />
               <Route path="/radiology-login" element={<RadiologyLogin />} />
               <Route path="/phlebotomy-login" element={<PhlebotomyLogin />} />
               <Route path="/agent-login" element={<AgentLogin />} />
-              <Route path="/phlebotomy" element={<Phlebotomy />} />
-              <Route path="/lab" element={<Lab />} />
-              <Route path="/clinical" element={<Clinical />} />
-              <Route path="/radiology" element={<Radiology />} />
-              <Route path="/agent" element={<Agent />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/all-patients" element={<AllPatients />} />
-              <Route path="/user-account" element={<UserAccount />} />
               <Route path="/admin-auth" element={<AdminAuth />} />
-              <Route
-                path="/financial-statements"
-                element={<FinancialStatements />}
-              />
-              <Route path="/all-users" element={<AllUsers />} />
-              <Route path="/lab-result/:reportId" element={<LabResultViewer />} />
+              
+              {/* Protected Routes */}
+              <Route path="/front-office" element={<ProtectedRoute loginPath="/login"><FrontOffice /></ProtectedRoute>} />
+              <Route path="/accounts" element={<ProtectedRoute loginPath="/accounts-login"><Accounts /></ProtectedRoute>} />
+              <Route path="/phlebotomy" element={<ProtectedRoute loginPath="/phlebotomy-login"><Phlebotomy /></ProtectedRoute>} />
+              <Route path="/lab" element={<ProtectedRoute loginPath="/lab-login"><Lab /></ProtectedRoute>} />
+              <Route path="/clinical" element={<ProtectedRoute loginPath="/clinical-login"><Clinical /></ProtectedRoute>} />
+              <Route path="/radiology" element={<ProtectedRoute loginPath="/radiology-login"><Radiology /></ProtectedRoute>} />
+              <Route path="/agent" element={<ProtectedRoute loginPath="/agent-login"><Agent /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute loginPath="/admin-auth"><Admin /></ProtectedRoute>} />
+              <Route path="/all-patients" element={<ProtectedRoute loginPath="/admin-auth"><AllPatients /></ProtectedRoute>} />
+              <Route path="/user-account" element={<ProtectedRoute loginPath="/login"><UserAccount /></ProtectedRoute>} />
+              <Route path="/financial-statements" element={<ProtectedRoute loginPath="/admin-auth"><FinancialStatements /></ProtectedRoute>} />
+              <Route path="/all-users" element={<ProtectedRoute loginPath="/admin-auth"><AllUsers /></ProtectedRoute>} />
 
               {/* Add more routes as needed */}
             </Routes>

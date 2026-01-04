@@ -7,10 +7,37 @@ import * as XLSX from 'xlsx';
 import 'react-toastify/dist/ReactToastify.css';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { FaSearch, FaFilter, FaDownload, FaPrint, FaChartLine, FaMoneyBillWave, FaMinusCircle } from 'react-icons/fa';
+import { FaSearch, FaFilter, FaDownload, FaPrint, FaChartLine, FaMoneyBillWave, FaMinusCircle, FaEdit, FaTrash, FaSave, FaTimes } from 'react-icons/fa';
 import { API_BASE_URL } from '../../config/api.config';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+
+// Add custom animations
+const customStyles = `
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(50px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .animate-slideUp {
+    animation: slideUp 0.4s ease-out;
+  }
+`;
 
 const FinancialStatements = () => {
   const [paymentRecords, setPaymentRecords] = useState([]);
@@ -26,6 +53,24 @@ const FinancialStatements = () => {
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Edit states for payment records
+  const [editingPaymentId, setEditingPaymentId] = useState(null);
+  const [editPaymentData, setEditPaymentData] = useState({});
+  
+  // Edit states for expenses
+  const [editingExpenseId, setEditingExpenseId] = useState(null);
+  const [editExpenseData, setEditExpenseData] = useState({});
+  
+  // Pagination states
+  const [currentPaymentPage, setCurrentPaymentPage] = useState(1);
+  const [paymentsPerPage, setPaymentsPerPage] = useState(10);
+  const [currentExpensePage, setCurrentExpensePage] = useState(1);
+  const [expensesPerPage, setExpensesPerPage] = useState(10);
+  
+  // Delete confirmation modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState({ type: '', id: '', name: '' });
 
   useEffect(() => {
     const fetchPaymentRecords = async () => {
@@ -125,13 +170,119 @@ const FinancialStatements = () => {
     }
   };
 
-  const handleDeleteExpense = async (id) => {
+  const handleDeleteExpense = (expense) => {
+    setDeleteTarget({ type: 'expense', id: expense._id, name: expense.description });
+    setShowDeleteModal(true);
+  };
+  
+  const confirmDeleteExpense = async () => {
     try {
-      await axios.delete(`${API_BASE_URL}/api/expenses/${id}`);
-      setExpenses(expenses.filter(exp => exp._id !== id));
+      await axios.delete(`${API_BASE_URL}/api/expenses/${deleteTarget.id}`);
+      setExpenses(expenses.filter(exp => exp._id !== deleteTarget.id));
       toast.success('Expense deleted.');
+      setShowDeleteModal(false);
+      setDeleteTarget({ type: '', id: '', name: '' });
     } catch (error) {
       toast.error('Error deleting expense.');
+    }
+  };
+  
+  const handleConfirmDelete = () => {
+    if (deleteTarget.type === 'payment') {
+      confirmDeletePayment();
+    } else if (deleteTarget.type === 'expense') {
+      confirmDeleteExpense();
+    }
+  };
+  
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setDeleteTarget({ type: '', id: '', name: '' });
+  };
+
+  // Payment record handlers
+  const handleEditPayment = (record) => {
+    setEditingPaymentId(record._id);
+    setEditPaymentData({ ...record });
+  };
+
+  const handleCancelEditPayment = () => {
+    setEditingPaymentId(null);
+    setEditPaymentData({});
+  };
+
+  const handleSavePayment = async (id) => {
+    try {
+      // Ensure all required fields are present and properly formatted
+      const paymentData = {
+        patientName: editPaymentData.patientName,
+        modeOfPayment: editPaymentData.modeOfPayment || '',
+        accountNumber: editPaymentData.accountNumber,
+        amountDue: parseFloat(editPaymentData.amountDue) || 0,
+        amountPaid: parseFloat(editPaymentData.amountPaid) || 0,
+        commission: parseFloat(editPaymentData.commission) || 0,
+        xrayPayment: parseFloat(editPaymentData.xrayPayment) || 0,
+        paymentStatus: editPaymentData.paymentStatus || (parseFloat(editPaymentData.amountPaid) >= parseFloat(editPaymentData.amountDue) ? 'Paid' : 'Pending')
+      };
+
+      const response = await axios.put(`${API_BASE_URL}/api/patient/account/${id}`, paymentData);
+      setPaymentRecords(paymentRecords.map(record => 
+        record._id === id ? response.data : record
+      ));
+      setEditingPaymentId(null);
+      setEditPaymentData({});
+      toast.success('Payment record updated successfully.');
+    } catch (error) {
+      console.error('Error updating payment record:', error);
+      const errorMessage = error.response?.data?.message || 'Error updating payment record.';
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleDeletePayment = (record) => {
+    setDeleteTarget({ type: 'payment', id: record._id, name: record.patientName });
+    setShowDeleteModal(true);
+  };
+  
+  const confirmDeletePayment = async () => {
+    try {
+      await axios.delete(`${API_BASE_URL}/api/patient/account/${deleteTarget.id}`);
+      setPaymentRecords(paymentRecords.filter(record => record._id !== deleteTarget.id));
+      toast.success('Payment record deleted successfully.');
+      setShowDeleteModal(false);
+      setDeleteTarget({ type: '', id: '', name: '' });
+    } catch (error) {
+      console.error('Error deleting payment record:', error);
+      toast.error('Error deleting payment record.');
+    }
+  };
+
+  // Expense handlers
+  const handleEditExpense = (expense) => {
+    setEditingExpenseId(expense._id);
+    setEditExpenseData({ ...expense });
+  };
+
+  const handleCancelEditExpense = () => {
+    setEditingExpenseId(null);
+    setEditExpenseData({});
+  };
+
+  const handleSaveExpense = async (id) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/api/expenses/${id}`, {
+        description: editExpenseData.description,
+        amount: parseFloat(editExpenseData.amount)
+      });
+      setExpenses(expenses.map(exp => 
+        exp._id === id ? response.data : exp
+      ));
+      setEditingExpenseId(null);
+      setEditExpenseData({});
+      toast.success('Expense updated successfully.');
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      toast.error('Error updating expense.');
     }
   };
 
@@ -213,6 +364,27 @@ const FinancialStatements = () => {
   // Totals for summary
   const filteredPayments = filterRecordsByDate(paymentRecords);
   const filteredExpenses = filterRecordsByDate(expenses);
+  
+  // Pagination calculations for payments
+  const indexOfLastPayment = currentPaymentPage * paymentsPerPage;
+  const indexOfFirstPayment = indexOfLastPayment - paymentsPerPage;
+  const currentPayments = filteredPayments.slice(indexOfFirstPayment, indexOfLastPayment);
+  const totalPaymentPages = Math.ceil(filteredPayments.length / paymentsPerPage);
+  
+  // Pagination calculations for expenses
+  const indexOfLastExpense = currentExpensePage * expensesPerPage;
+  const indexOfFirstExpense = indexOfLastExpense - expensesPerPage;
+  const currentExpenses = filteredExpenses.slice(indexOfFirstExpense, indexOfLastExpense);
+  const totalExpensePages = Math.ceil(filteredExpenses.length / expensesPerPage);
+  
+  // Pagination handlers
+  const handlePaymentPageChange = (pageNumber) => {
+    setCurrentPaymentPage(pageNumber);
+  };
+  
+  const handleExpensePageChange = (pageNumber) => {
+    setCurrentExpensePage(pageNumber);
+  };
   const totalAmountPaid = filteredPayments.reduce((sum, r) => sum + parseFloat(r.amountPaid || 0), 0);
   const totalCommission = filteredPayments.reduce((sum, r) => sum + parseFloat(r.commission || 0), 0);
   const totalXrayPayment = filteredPayments.reduce((sum, r) => sum + parseFloat(r.xrayPayment || 0), 0);
@@ -260,6 +432,7 @@ const FinancialStatements = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-8 bg-gray-100 shadow-lg rounded-lg">
+      <style>{customStyles}</style>
       <ToastContainer />
       <div className="text-center mb-6">
         <h1 className="text-3xl font-bold text-blue-600">Financial Statements</h1>
@@ -316,7 +489,7 @@ const FinancialStatements = () => {
       <div className="bg-white p-6 shadow-lg rounded-lg mb-6">
         <div className="flex flex-col md:flex-row gap-4 items-center">
           <div className="flex-1 relative">
-            <FaSearch className="absolute left-3 top-3 text-gray-400" />
+            <FaSearch className="absolute right-3 top-3 text-gray-400" />
             <input
               type="text"
               placeholder="Search by patient name or account number..."
@@ -608,88 +781,225 @@ const FinancialStatements = () => {
 
       {activeSection === 'payments' && (
         <>
-          {/* Chart Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-            <div className="bg-white p-6 shadow-lg rounded-lg">
-              <h2 className="text-xl font-semibold text-center mb-4 text-blue-500">Payment Status</h2>
-              <Doughnut data={calculateChartData(filteredPayments)} />
-            </div>
-
-            <div className="bg-white p-6 shadow-lg rounded-lg">
-              <h2 className="text-xl font-semibold text-center mb-4 text-blue-500">Payment Distribution</h2>
-              <Bar
-                data={{
-                  labels: filteredPayments.map(record => record.patientName),
-                  datasets: [
-                    {
-                      label: 'Amount Due',
-                      data: filteredPayments.map(record => record.amountDue),
-                      backgroundColor: '#FF6347',
-                    },
-                    {
-                      label: 'Amount Paid',
-                      data: filteredPayments.map(record => record.amountPaid),
-                      backgroundColor: '#4CAF50',
-                    },
-                    {
-                      label: 'Commission',
-                      data: filteredPayments.map(record => record.commission || 0),
-                      backgroundColor: '#FFD700',
-                    },
-                    {
-                      label: 'Xray Payment',
-                      data: filteredPayments.map(record => record.xrayPayment || 0),
-                      backgroundColor: '#00BFFF',
-                    }
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  plugins: {
-                    legend: { position: 'top' },
-                    title: { display: true, text: `Financial Breakdown by Patient (${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()})` }
-                  },
-                  scales: {
-                    x: { stacked: false },
-                    y: { beginAtZero: true }
-                  }
-                }}
-              />
-            </div>
-          </div>
-
           {/* Payment Records Table */}
-          <div className="bg-white p-6 shadow-lg rounded-lg mb-8 overflow-x-auto">
-            <h2 className="text-xl font-semibold text-center mb-4 text-blue-500">Payment Details</h2>
+          <div className="bg-white p-6 shadow-lg rounded-lg mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-blue-500">Payment Details</h2>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Show:</label>
+                <select
+                  value={paymentsPerPage}
+                  onChange={(e) => {
+                    setPaymentsPerPage(Number(e.target.value));
+                    setCurrentPaymentPage(1);
+                  }}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <span className="text-sm text-gray-600">entries</span>
+              </div>
+            </div>
             {filteredPayments.length > 0 ? (
-              <table className="min-w-full bg-white border border-gray-200 rounded-lg">
-                <thead>
-                  <tr>
-                    <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Patient Name</th>
-                    <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Amount Due</th>
-                    <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Amount Paid</th>
-                    <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Commission</th>
-                    <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Xray Payment</th>
-                    <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Account Number</th>
-                    <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Payment Status</th>
-                    <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPayments.map((record, index) => (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead>
+                      <tr>
+                        <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Patient Name</th>
+                        <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Amount Due</th>
+                        <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Amount Paid</th>
+                        <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Commission</th>
+                        <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Xray Payment</th>
+                        <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Account Number</th>
+                        <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Payment Status</th>
+                        <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Date</th>
+                        <th className="py-2 px-4 border-b border-gray-200 text-left text-gray-600 font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentPayments.map((record, index) => (
                     <tr key={index} className="hover:bg-gray-50 transition duration-200">
-                      <td className="py-2 px-4 border-b border-gray-200">{record.patientName}</td>
-                      <td className="py-2 px-4 border-b border-gray-200 text-right">KES {record.amountDue}</td>
-                      <td className="py-2 px-4 border-b border-gray-200 text-right">KES {record.amountPaid}</td>
-                      <td className="py-2 px-4 border-b border-gray-200 text-right">KES {record.commission || 0}</td>
-                      <td className="py-2 px-4 border-b border-gray-200 text-right">KES {record.xrayPayment || 0}</td>
-                      <td className="py-2 px-4 border-b border-gray-200">{record.accountNumber}</td>
-                      <td className={`py-2 px-4 border-b border-gray-200 ${record.paymentStatus === 'Paid' ? 'text-green-500' : 'text-red-500'}`}>{record.paymentStatus}</td>
-                      <td className="py-2 px-4 border-b border-gray-200">{record.paymentDate}</td>
+                      {editingPaymentId === record._id ? (
+                        <>
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            <input
+                              type="text"
+                              value={editPaymentData.patientName || ''}
+                              onChange={(e) => setEditPaymentData({...editPaymentData, patientName: e.target.value})}
+                              className="w-full px-2 py-1 border rounded"
+                            />
+                          </td>
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            <input
+                              type="number"
+                              value={editPaymentData.amountDue || ''}
+                              onChange={(e) => setEditPaymentData({...editPaymentData, amountDue: e.target.value})}
+                              className="w-full px-2 py-1 border rounded"
+                            />
+                          </td>
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            <input
+                              type="number"
+                              value={editPaymentData.amountPaid || ''}
+                              onChange={(e) => setEditPaymentData({...editPaymentData, amountPaid: e.target.value})}
+                              className="w-full px-2 py-1 border rounded"
+                            />
+                          </td>
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            <input
+                              type="number"
+                              value={editPaymentData.commission || ''}
+                              onChange={(e) => setEditPaymentData({...editPaymentData, commission: e.target.value})}
+                              className="w-full px-2 py-1 border rounded"
+                            />
+                          </td>
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            <input
+                              type="number"
+                              value={editPaymentData.xrayPayment || ''}
+                              onChange={(e) => setEditPaymentData({...editPaymentData, xrayPayment: e.target.value})}
+                              className="w-full px-2 py-1 border rounded"
+                            />
+                          </td>
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            <input
+                              type="text"
+                              value={editPaymentData.accountNumber || ''}
+                              onChange={(e) => setEditPaymentData({...editPaymentData, accountNumber: e.target.value})}
+                              className="w-full px-2 py-1 border rounded"
+                            />
+                          </td>
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            <select
+                              value={editPaymentData.paymentStatus || ''}
+                              onChange={(e) => setEditPaymentData({...editPaymentData, paymentStatus: e.target.value})}
+                              className="w-full px-2 py-1 border rounded"
+                            >
+                              <option value="Paid">Paid</option>
+                              <option value="Pending">Pending</option>
+                            </select>
+                          </td>
+                          <td className="py-2 px-4 border-b border-gray-200">{record.paymentDate}</td>
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleSavePayment(record._id)}
+                                className="text-green-600 hover:text-green-800"
+                                title="Save"
+                              >
+                                <FaSave />
+                              </button>
+                              <button
+                                onClick={handleCancelEditPayment}
+                                className="text-gray-600 hover:text-gray-800"
+                                title="Cancel"
+                              >
+                                <FaTimes />
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="py-2 px-4 border-b border-gray-200">{record.patientName}</td>
+                          <td className="py-2 px-4 border-b border-gray-200 text-right">KES {record.amountDue}</td>
+                          <td className="py-2 px-4 border-b border-gray-200 text-right">KES {record.amountPaid}</td>
+                          <td className="py-2 px-4 border-b border-gray-200 text-right">KES {record.commission || 0}</td>
+                          <td className="py-2 px-4 border-b border-gray-200 text-right">KES {record.xrayPayment || 0}</td>
+                          <td className="py-2 px-4 border-b border-gray-200">{record.accountNumber}</td>
+                          <td className={`py-2 px-4 border-b border-gray-200 ${record.paymentStatus === 'Paid' ? 'text-green-500' : 'text-red-500'}`}>{record.paymentStatus}</td>
+                          <td className="py-2 px-4 border-b border-gray-200">{record.paymentDate}</td>
+                          <td className="py-2 px-4 border-b border-gray-200">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleEditPayment(record)}
+                                className="text-blue-600 hover:text-blue-800"
+                                title="Edit"
+                              >
+                                <FaEdit />
+                              </button>
+                              <button
+                                onClick={() => handleDeletePayment(record)}
+                                className="text-red-600 hover:text-red-800"
+                                title="Delete"
+                              >
+                                <FaTrash />
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
-                </tbody>
-              </table>
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Pagination Controls */}
+                <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                  <div className="text-sm text-gray-600">
+                    Showing {indexOfFirstPayment + 1} to {Math.min(indexOfLastPayment, filteredPayments.length)} of {filteredPayments.length} entries
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePaymentPageChange(currentPaymentPage - 1)}
+                      disabled={currentPaymentPage === 1}
+                      className={`px-3 py-1 rounded ${
+                        currentPaymentPage === 1
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
+                    >
+                      Previous
+                    </button>
+                    {[...Array(totalPaymentPages)].map((_, i) => {
+                      const pageNumber = i + 1;
+                      // Show first page, last page, current page, and pages around current
+                      if (
+                        pageNumber === 1 ||
+                        pageNumber === totalPaymentPages ||
+                        (pageNumber >= currentPaymentPage - 1 && pageNumber <= currentPaymentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={pageNumber}
+                            onClick={() => handlePaymentPageChange(pageNumber)}
+                            className={`px-3 py-1 rounded ${
+                              currentPaymentPage === pageNumber
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                          >
+                            {pageNumber}
+                          </button>
+                        );
+                      } else if (
+                        pageNumber === currentPaymentPage - 2 ||
+                        pageNumber === currentPaymentPage + 2
+                      ) {
+                        return <span key={pageNumber} className="px-2">...</span>;
+                      }
+                      return null;
+                    })}
+                    <button
+                      onClick={() => handlePaymentPageChange(currentPaymentPage + 1)}
+                      disabled={currentPaymentPage === totalPaymentPages}
+                      className={`px-3 py-1 rounded ${
+                        currentPaymentPage === totalPaymentPages
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="text-center py-8 text-gray-500">
                 <FaMoneyBillWave className="text-4xl mx-auto mb-4 text-gray-300" />
@@ -759,45 +1069,233 @@ const FinancialStatements = () => {
           </div>
 
           {/* Expenses Table */}
-          {/* Expenses Table */}
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-700">Expense Records</h3>
+            {filteredExpenses.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Show:</label>
+                <select
+                  value={expensesPerPage}
+                  onChange={(e) => {
+                    setExpensesPerPage(Number(e.target.value));
+                    setCurrentExpensePage(1);
+                  }}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <span className="text-sm text-gray-600">entries</span>
+              </div>
+            )}
+          </div>
           {filteredExpenses.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredExpenses.map((expense) => (
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {currentExpenses.map((expense) => (
                     <tr key={expense._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.description}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">KES {expense.amount}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {expense.date ? new Date(expense.date).toLocaleDateString() : ''}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handleDeleteExpense(expense._id)}
-                          className="text-red-600 hover:text-red-900 transition-colors duration-200"
-                        >
-                          Delete
-                        </button>
-                      </td>
+                      {editingExpenseId === expense._id ? (
+                        <>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="text"
+                              value={editExpenseData.description || ''}
+                              onChange={(e) => setEditExpenseData({...editExpenseData, description: e.target.value})}
+                              className="w-full px-2 py-1 border rounded"
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="number"
+                              value={editExpenseData.amount || ''}
+                              onChange={(e) => setEditExpenseData({...editExpenseData, amount: e.target.value})}
+                              className="w-full px-2 py-1 border rounded"
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {expense.date ? new Date(expense.date).toLocaleDateString() : ''}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleSaveExpense(expense._id)}
+                                className="text-green-600 hover:text-green-900 transition-colors duration-200"
+                                title="Save"
+                              >
+                                <FaSave />
+                              </button>
+                              <button
+                                onClick={handleCancelEditExpense}
+                                className="text-gray-600 hover:text-gray-900 transition-colors duration-200"
+                                title="Cancel"
+                              >
+                                <FaTimes />
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{expense.description}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">KES {expense.amount}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {expense.date ? new Date(expense.date).toLocaleDateString() : ''}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleEditExpense(expense)}
+                                className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
+                                title="Edit"
+                              >
+                                <FaEdit />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteExpense(expense)}
+                                className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                                title="Delete"
+                              >
+                                <FaTrash />
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination Controls */}
+            <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="text-sm text-gray-600">
+                Showing {indexOfFirstExpense + 1} to {Math.min(indexOfLastExpense, filteredExpenses.length)} of {filteredExpenses.length} entries
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleExpensePageChange(currentExpensePage - 1)}
+                  disabled={currentExpensePage === 1}
+                  className={`px-3 py-1 rounded ${
+                    currentExpensePage === 1
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  }`}
+                >
+                  Previous
+                </button>
+                {[...Array(totalExpensePages)].map((_, i) => {
+                  const pageNumber = i + 1;
+                  // Show first page, last page, current page, and pages around current
+                  if (
+                    pageNumber === 1 ||
+                    pageNumber === totalExpensePages ||
+                    (pageNumber >= currentExpensePage - 1 && pageNumber <= currentExpensePage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={pageNumber}
+                        onClick={() => handleExpensePageChange(pageNumber)}
+                        className={`px-3 py-1 rounded ${
+                          currentExpensePage === pageNumber
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    );
+                  } else if (
+                    pageNumber === currentExpensePage - 2 ||
+                    pageNumber === currentExpensePage + 2
+                  ) {
+                    return <span key={pageNumber} className="px-2">...</span>;
+                  }
+                  return null;
+                })}
+                <button
+                  onClick={() => handleExpensePageChange(currentExpensePage + 1)}
+                  disabled={currentExpensePage === totalExpensePages}
+                  className={`px-3 py-1 rounded ${
+                    currentExpensePage === totalExpensePages
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
           ) : (
             <div className="text-center py-8 text-gray-500">
               <FaMinusCircle className="text-4xl mx-auto mb-4 text-gray-300" />
               <p>No expenses found for the selected period</p>
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 transform transition-all animate-slideUp">
+            <div className="flex flex-col items-center">
+              {/* Icon */}
+              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4 animate-bounce">
+                <FaTrash className="text-red-600 text-2xl" />
+              </div>
+              
+              {/* Title */}
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                Confirm Delete
+              </h3>
+              
+              {/* Message */}
+              <p className="text-gray-600 text-center mb-2">
+                Are you sure you want to delete this {deleteTarget.type === 'payment' ? 'payment record' : 'expense'}?
+              </p>
+              <p className="text-gray-800 font-semibold text-center mb-6 px-4 py-2 bg-gray-100 rounded-lg">
+                {deleteTarget.name}
+              </p>
+              
+              {/* Warning */}
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 w-full">
+                <p className="text-sm text-red-700">
+                  <strong>Warning:</strong> This action cannot be undone. The {deleteTarget.type} will be permanently removed from the database.
+                </p>
+              </div>
+              
+              {/* Buttons */}
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={handleCancelDelete}
+                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 shadow-lg"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -56,22 +56,31 @@ exports.createLabNumber = async (req, res) => {
   const { number, patient, medicalType } = req.body;
 
   try {
+    // Trim patient name to ensure consistency
+    const trimmedPatientName = patient ? patient.trim() : patient;
+    
+    console.log(`📝 Creating lab number for patient: "${trimmedPatientName}"`);
+    
     const newLabNumber = new LabNumber({ 
-      number, 
-      patient,
+      number: number ? number.trim() : number, 
+      patient: trimmedPatientName,
       medicalType: medicalType || 'N/A'
     });
     const savedLabNumber = await newLabNumber.save();
+    
+    console.log(`✅ Lab number saved: ${savedLabNumber.number} for "${savedLabNumber.patient}"`);
+    
     res.status(201).json({
       success: true,
       labNumber: savedLabNumber,
       message: "Lab number created successfully",
     });
   } catch (error) {
-    console.error("Error creating lab number:", error);
+    console.error("❌ Error creating lab number:", error);
     res.status(500).json({
       success: false,
       message: "Failed to create lab number",
+      error: error.message
     });
   }
 };
