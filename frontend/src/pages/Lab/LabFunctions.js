@@ -12,15 +12,48 @@ export const TESTS_BY_UNIT = {
 };
 
 export const initialValues = {
-  albumin: '', sugar: '', microscopic: '', reaction: '', 
-bloodTest: { hivTest: '', hbsAg: '', hcv: '', esr: '', vdrlTest: '', pregnancyTest: '', bloodGroup: ''    
-},
-generalExamination: {hernia: '', varicoseVein: '', rightEye: '', leftEye: '',       
-},
-systemicExamination: { heart: '', bloodPressure: '', pulseRate: '',      
-},
-
-
+  // Urine Test - properly structured as object
+  urineTest: { 
+    albumin: '', 
+    sugar: '', 
+    microscopic: '', 
+    reaction: '' 
+  },
+  
+  // Blood Test - already properly structured
+  bloodTest: { 
+    hivTest: '', 
+    hbsAg: '', 
+    hcv: '', 
+    esr: '', 
+    vdrlTest: '', 
+    pregnancyTest: '', 
+    bloodGroup: '' 
+  },
+  
+  // Area1 Laboratory Tests - properly structured as object
+  area1: {
+    stoolConsistency: '',
+    stoolMicroscopy: '',
+    tpha: '',
+    venerealDisease: '',
+    typhoid: '',
+    hydrocele: '',
+    bloodGroup: ''
+  },
+  
+  generalExamination: {
+    hernia: '', 
+    varicoseVein: '', 
+    rightEye: '', 
+    leftEye: ''
+  },
+  
+  systemicExamination: { 
+    heart: '', 
+    bloodPressure: '', 
+    pulseRate: ''
+  },
 
   fullHaemogram: {
     wbc:  { value: '', units: '', status: '', range: '' },
@@ -39,9 +72,8 @@ systemicExamination: { heart: '', bloodPressure: '', pulseRate: '',
     mpv:  { value: '', units: '', status: '', range: '' },
     pct:  { value: '', units: '', status: '', range: '' },
     pdw:  { value: '', units: '', status: '', range: '' }
-
-    
   },
+  
   liverFunction: {
     totalBilirubin: { value: '', status: '', range: '' },
     directBilirubin: { value: '', status: '', range: '' },
@@ -51,24 +83,17 @@ systemicExamination: { heart: '', bloodPressure: '', pulseRate: '',
     gammaGt:  { value: '', status: '', range: '' },
     alkalinePhosphate:  { value: '', status: '', range: '' },
     totalProteins:{ value: '', status: '', range: '' },
-    albumin1:  { value: '', status: '', range: '' },
+    albumin1:  { value: '', status: '', range: '' }
   }, 
+  
   renalFunction: {
     urea: { value: '', status: '', range: '' },
     creatinine: { value: '', status: '', range: '' },
-    fastingBloodSugar: { value: '', status: '', range: '' },
+    fastingBloodSugar: { value: '', status: '', range: '' }
   },
 
   heafMantouxTest: '',
-  chestXray: '',
-
-  // Added Laboratory Test Fields
-  stoolConsistency: '',
-  stoolMicroscopy: '',
-  tpha: '',
-  venerealDisease: '',
-  typhoid: '',
-  hydrocele: '',
+  chestXray: ''
 };
   
   

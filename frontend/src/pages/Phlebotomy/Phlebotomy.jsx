@@ -45,6 +45,8 @@ const Phlebotomy = () => {
 
   // Simple search term for selecting a patient
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   
   // Collapsible medical type folders
   const [expandedTypes, setExpandedTypes] = useState({});
@@ -121,11 +123,60 @@ const Phlebotomy = () => {
     }
   };
 
+  const handleSearchChange = (value) => {
+    setSearchTerm(value);
+    
+    if (!value.trim()) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    
+    const term = value.trim().toLowerCase();
+    
+    // Filter patients by name or passport number
+    const matches = patients.filter((p) => 
+      (p.name || '').toLowerCase().includes(term) ||
+      (p.passportNumber || '').toLowerCase().includes(term)
+    );
+    
+    // Limit to top 10 suggestions
+    setSearchSuggestions(matches.slice(0, 10));
+    setShowSuggestions(matches.length > 0);
+  };
+  
+  const selectPatientFromSuggestion = (patient) => {
+    setSearchTerm(patient.name);
+    setShowSuggestions(false);
+    setSearchSuggestions([]);
+    
+    // Check if patient already has lab number
+    const normalizedName = patient.name.trim().toLowerCase();
+    const existingLab = submittedLabNumbers.find(
+      lab => lab.patient.trim().toLowerCase() === normalizedName
+    );
+    
+    if (existingLab) {
+      setDuplicateModalData({
+        patientName: patient.name,
+        passportNumber: patient.passportNumber,
+        medicalType: patient.medicalType,
+        existingLabNumber: existingLab.number || 'Unknown',
+        status: existingLab.status || 'pending'
+      });
+      setShowDuplicateModal(true);
+    } else {
+      setSelectedPatient(patient.name);
+      toast.success(`Selected: ${patient.name}`);
+    }
+  };
+
   const handleFindPatient = () => {
     if (!searchTerm.trim()) {
       toast.info('Enter a name or passport number.');
       return;
     }
+    setShowSuggestions(false);
     const term = searchTerm.trim().toLowerCase();
     
     // Helper function to check if patient has lab number
@@ -196,12 +247,6 @@ const Phlebotomy = () => {
     fetchAllPatients();
     fetchPendingPatients();
 
-    // Auto-refresh pending patients every 30 seconds
-    const refreshInterval = setInterval(() => {
-      console.log('🔄 Auto-refreshing pending patients list...');
-      fetchPendingPatients();
-    }, 30000);
-
     // Listen for lab report submissions to refresh the list
     const handleLabReportSubmission = () => {
       console.log('📢 Lab report submitted event detected');
@@ -212,10 +257,23 @@ const Phlebotomy = () => {
     window.addEventListener('labReportSubmitted', handleLabReportSubmission);
 
     return () => {
-      clearInterval(refreshInterval);
       window.removeEventListener('labReportSubmitted', handleLabReportSubmission);
     };
   }, []);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showSuggestions && !event.target.closest('.search-container')) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSuggestions]);
 
 
   const selectedPatientData = selectedPatient
@@ -990,23 +1048,91 @@ const Phlebotomy = () => {
             {/* Simple Patient Search */}
             <div className="mb-10 p-6 bg-gray-900 rounded-xl border border-gray-700">
               <h2 className="text-xl font-bold text-teal-400 mb-3">Find Patient</h2>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  placeholder="Enter passport number or name"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleFindPatient(); }}
-                  className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:border-teal-500"
-                />
-                <button
-                  onClick={handleFindPatient}
-                  className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg"
-                >
-                  Select
-                </button>
+              <div className="relative search-container">
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    placeholder="Enter passport number or name"
+                    value={searchTerm}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    onKeyDown={(e) => { 
+                      if (e.key === 'Enter') {
+                        handleFindPatient();
+                      } else if (e.key === 'Escape') {
+                        setShowSuggestions(false);
+                      }
+                    }}
+                    onFocus={() => {
+                      if (searchTerm.trim() && searchSuggestions.length > 0) {
+                        setShowSuggestions(true);
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:border-teal-500"
+                  />
+                  <button
+                    onClick={handleFindPatient}
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg"
+                  >
+                    Select
+                  </button>
+                </div>
+                
+                {/* Autocomplete Suggestions Dropdown */}
+                {showSuggestions && searchSuggestions.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-teal-500/50 rounded-lg shadow-2xl max-h-96 overflow-y-auto">
+                    {searchSuggestions.map((patient, index) => {
+                      const hasLabNumber = submittedLabNumbers.some(
+                        lab => lab.patient.trim().toLowerCase() === patient.name.trim().toLowerCase()
+                      );
+                      
+                      return (
+                        <div
+                          key={patient._id || index}
+                          onClick={() => selectPatientFromSuggestion(patient)}
+                          className="p-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0 transition-colors"
+                        >
+                          <div className="flex items-center space-x-3">
+                            {patient.photo ? (
+                              <img
+                                src={`data:image/jpeg;base64,${patient.photo}`}
+                                alt="Patient"
+                                className="w-10 h-10 rounded-full object-cover border-2 border-teal-400/50 flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-teal-700/30 border-2 border-teal-500/50 flex items-center justify-center flex-shrink-0">
+                                <svg className="w-5 h-5 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-semibold text-white text-sm truncate">{patient.name}</p>
+                                {hasLabNumber && (
+                                  <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-300 text-xs font-medium rounded border border-yellow-500/50">
+                                    Has Lab#
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs text-gray-400 font-mono">{patient.passportNumber}</p>
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${ 
+                                  patient.medicalType === 'SM-VDRL' 
+                                    ? 'bg-red-900/60 text-red-200' 
+                                    : 'bg-blue-900/60 text-blue-200'
+                                }`}>
+                                  {patient.medicalType}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              <p className="text-xs text-gray-400 mt-2">Tip: Prefer exact passport number for precise match.</p>
+              <p className="text-xs text-gray-400 mt-2">Tip: Start typing to see suggestions, or prefer exact passport number for precise match.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

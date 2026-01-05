@@ -53,18 +53,18 @@ const App = () => {
               <Route path="/admin-auth" element={<AdminAuth />} />
               
               {/* Protected Routes */}
-              <Route path="/front-office" element={<ProtectedRoute loginPath="/login"><FrontOffice /></ProtectedRoute>} />
-              <Route path="/accounts" element={<ProtectedRoute loginPath="/accounts-login"><Accounts /></ProtectedRoute>} />
-              <Route path="/phlebotomy" element={<ProtectedRoute loginPath="/phlebotomy-login"><Phlebotomy /></ProtectedRoute>} />
-              <Route path="/lab" element={<ProtectedRoute loginPath="/lab-login"><Lab /></ProtectedRoute>} />
-              <Route path="/clinical" element={<ProtectedRoute loginPath="/clinical-login"><Clinical /></ProtectedRoute>} />
-              <Route path="/radiology" element={<ProtectedRoute loginPath="/radiology-login"><Radiology /></ProtectedRoute>} />
-              <Route path="/agent" element={<ProtectedRoute loginPath="/agent-login"><Agent /></ProtectedRoute>} />
-              <Route path="/admin" element={<ProtectedRoute loginPath="/admin-auth"><Admin /></ProtectedRoute>} />
-              <Route path="/all-patients" element={<ProtectedRoute loginPath="/admin-auth"><AllPatients /></ProtectedRoute>} />
+              <Route path="/front-office" element={<ProtectedRoute loginPath="/login" requiredDepartment="Front Office"><FrontOffice /></ProtectedRoute>} />
+              <Route path="/accounts" element={<ProtectedRoute loginPath="/accounts-login" requiredDepartment="Accounts"><Accounts /></ProtectedRoute>} />
+              <Route path="/phlebotomy" element={<ProtectedRoute loginPath="/phlebotomy-login" requiredDepartment="Phlebotomy"><Phlebotomy /></ProtectedRoute>} />
+              <Route path="/lab" element={<ProtectedRoute loginPath="/lab-login" requiredDepartment="Laboratory"><Lab /></ProtectedRoute>} />
+              <Route path="/clinical" element={<ProtectedRoute loginPath="/clinical-login" requiredDepartment="Clinical"><Clinical /></ProtectedRoute>} />
+              <Route path="/radiology" element={<ProtectedRoute loginPath="/radiology-login" requiredDepartment="Radiology"><Radiology /></ProtectedRoute>} />
+              <Route path="/agent" element={<ProtectedRoute loginPath="/agent-login" requiredDepartment="Agent"><Agent /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute loginPath="/admin-auth" requiredDepartment="Admin"><Admin /></ProtectedRoute>} />
+              <Route path="/all-patients" element={<ProtectedRoute loginPath="/admin-auth" requiredDepartment="Admin"><AllPatients /></ProtectedRoute>} />
               <Route path="/user-account" element={<ProtectedRoute loginPath="/login"><UserAccount /></ProtectedRoute>} />
-              <Route path="/financial-statements" element={<ProtectedRoute loginPath="/admin-auth"><FinancialStatements /></ProtectedRoute>} />
-              <Route path="/all-users" element={<ProtectedRoute loginPath="/admin-auth"><AllUsers /></ProtectedRoute>} />
+              <Route path="/financial-statements" element={<ProtectedRoute loginPath="/admin-auth" requiredDepartment="Admin"><FinancialStatements /></ProtectedRoute>} />
+              <Route path="/all-users" element={<ProtectedRoute loginPath="/admin-auth" requiredDepartment="Admin"><AllUsers /></ProtectedRoute>} />
 
               {/* Add more routes as needed */}
             </Routes>
