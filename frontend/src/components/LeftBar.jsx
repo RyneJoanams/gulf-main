@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import axios from 'axios';
 import {
   Printer,
@@ -16,6 +17,40 @@ import { toast } from 'react-toastify';
 import logo from '../assets/GULF HEALTHCARE KENYA LTD.png';
 import { API_ENDPOINTS, FRONTEND_URL } from '../config/api.config';
 
+// Pre-load and cache logo as base64
+let cachedLogoBase64 = null;
+const preloadLogo = async () => {
+  if (cachedLogoBase64) return cachedLogoBase64;
+  try {
+    const response = await fetch(logo);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        cachedLogoBase64 = reader.result;
+        resolve(cachedLogoBase64);
+      };
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error converting logo to base64:', error);
+    return '';
+  }
+};
+
+// Pre-load QRCode library
+let QRCodeLib = null;
+const preloadQRCode = async () => {
+  if (QRCodeLib) return QRCodeLib;
+  try {
+    QRCodeLib = require('qrcode');
+    return QRCodeLib;
+  } catch (error) {
+    console.error('Error loading QRCode library:', error);
+    return null;
+  }
+};
+
 const LeftBar = () => {
   const [phlebotomyReports, setPhlebotomyReports] = useState([]);
   const [clinicalReports, setClinicalReports] = useState([]);
@@ -30,6 +65,24 @@ const LeftBar = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  
+  // Clinical reports filtering state
+  const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month
+  const [expandedMedicalTypes, setExpandedMedicalTypes] = useState({}); // Track which medical types are expanded
+  
+  // Inline printing state
+  const [isPrinting, setIsPrinting] = useState(false);
+  
+  // Refs for debouncing and caching
+  const searchTimeoutRef = useRef(null);
+  const patientsCacheRef = useRef(null);
+  const patientsCacheTimeRef = useRef(0);
+
+  // Pre-load resources on component mount
+  useEffect(() => {
+    // Pre-load logo and QR library in parallel for faster printing
+    Promise.all([preloadLogo(), preloadQRCode()]).catch(console.error);
+  }, []);
 
   useEffect(() => {
     const fetchPhlebotomyReports = async () => {
@@ -146,43 +199,61 @@ const LeftBar = () => {
     }
   };
 
-  // Function to enhance report with complete patient data if missing
-  const enhanceReportWithPatientData = async (report) => {
+  // Function to enhance report with complete patient data if missing - with caching
+  const enhanceReportWithPatientData = useCallback(async (report) => {
     try {
-      // If patient data is missing or incomplete, fetch it from patient collection
-      if (!report.gender || !report.agent || !report.age || !report.passportNumber || !report.selectedReport?.patientImage) {
+      // If patient data is already complete, return as-is
+      if (report.gender && report.agent && report.age && report.passportNumber && report.selectedReport?.patientImage) {
+        return report;
+      }
+      
+      // Use cached patients data if available and fresh (5 min cache)
+      const now = Date.now();
+      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+      
+      let patients;
+      if (patientsCacheRef.current && (now - patientsCacheTimeRef.current) < CACHE_DURATION) {
+        patients = patientsCacheRef.current;
+      } else {
         const response = await axios.get(API_ENDPOINTS.patients);
-        const patients = response.data;
-        
-        // Find patient by name (case-insensitive)
-        const patient = patients.find(p => 
-          p.name.toLowerCase() === report.selectedReport?.patientName?.toLowerCase()
-        );
-        
-        if (patient) {
-          return {
-            ...report,
-            passportNumber: report.passportNumber || patient.passportNumber,
-            gender: report.gender || patient.sex,
-            age: report.age || patient.age,
-            agent: report.agent || patient.agent,
-            selectedReport: {
-              ...report.selectedReport,
-              patientImage: report.selectedReport?.patientImage || patient.photo
-            }
-          };
-        }
+        patients = response.data;
+        patientsCacheRef.current = patients;
+        patientsCacheTimeRef.current = now;
+      }
+      
+      // Find patient by name (case-insensitive)
+      const patient = patients.find(p => 
+        p.name.toLowerCase() === report.selectedReport?.patientName?.toLowerCase()
+      );
+      
+      if (patient) {
+        return {
+          ...report,
+          passportNumber: report.passportNumber || patient.passportNumber,
+          gender: report.gender || patient.sex,
+          age: report.age || patient.age,
+          agent: report.agent || patient.agent,
+          selectedReport: {
+            ...report.selectedReport,
+            patientImage: report.selectedReport?.patientImage || patient.photo
+          }
+        };
       }
       return report;
     } catch (error) {
       console.error('Error enhancing report with patient data:', error);
       return report;
     }
-  };
+  }, []);
 
-  // Search functionality for previous lab results
-  const handleSearch = async (query) => {
+  // Search functionality for previous lab results - with debouncing
+  const handleSearch = useCallback(async (query) => {
     setSearchQuery(query);
+    
+    // Clear any pending search
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
     
     if (!query.trim()) {
       setSearchResults([]);
@@ -190,41 +261,52 @@ const LeftBar = () => {
       return;
     }
 
-    setIsSearching(true);
+    // Show search UI immediately
     setShowSearchResults(true);
+    
+    // Debounce the actual search by 300ms
+    searchTimeoutRef.current = setTimeout(async () => {
+      if (query.trim().length < 2) {
+        setSearchResults([]);
+        setIsSearching(false);
+        return;
+      }
+      
+      setIsSearching(true);
 
-    try {
-      // Fetch all clinical reports (completed lab results)
-      const response = await axios.get(API_ENDPOINTS.clinical);
-      const allReports = response.data || [];
-
-      // Filter reports based on search query
-      const filtered = allReports.filter(report => {
-        const patientName = report.selectedReport?.patientName?.toLowerCase() || '';
-        const labNumber = report.selectedReport?.labNumber?.toLowerCase() || '';
-        const passportNumber = report.passportNumber?.toLowerCase() || '';
-        const searchTerm = query.toLowerCase();
-
-        return patientName.includes(searchTerm) || 
-               labNumber.includes(searchTerm) || 
-               passportNumber.includes(searchTerm);
-      });
-
-      // Sort by most recent first
-      const sortedResults = filtered.sort((a, b) => 
-        new Date(b.selectedReport?.timeStamp || b.createdAt) - 
-        new Date(a.selectedReport?.timeStamp || a.createdAt)
-      );
-
-      setSearchResults(sortedResults);
-    } catch (error) {
-      console.error('Error searching lab results:', error);
-      toast.error('Failed to search lab results');
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
+      try {
+        // Use the optimized search endpoint instead of fetching all records
+        const response = await axios.get(`${API_ENDPOINTS.clinicalSearch}?query=${encodeURIComponent(query.trim())}&limit=20`);
+        const searchResultsData = response.data || [];
+        setSearchResults(searchResultsData);
+      } catch (error) {
+        console.error('Error searching lab results:', error);
+        // Fallback to old method if search endpoint not available
+        try {
+          const response = await axios.get(`${API_ENDPOINTS.clinical}?limit=100`);
+          const allReports = response.data || [];
+          
+          const filtered = allReports.filter(report => {
+            const patientName = report.selectedReport?.patientName?.toLowerCase() || '';
+            const labNumber = report.selectedReport?.labNumber?.toLowerCase() || '';
+            const passportNumber = report.passportNumber?.toLowerCase() || '';
+            const searchTerm = query.toLowerCase();
+            return patientName.includes(searchTerm) || 
+                   labNumber.includes(searchTerm) || 
+                   passportNumber.includes(searchTerm);
+          });
+          
+          setSearchResults(filtered.slice(0, 20));
+        } catch (fallbackError) {
+          console.error('Fallback search failed:', fallbackError);
+          toast.error('Failed to search lab results');
+          setSearchResults([]);
+        }
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+  }, []);
 
   const clearSearch = () => {
     setSearchQuery('');
@@ -238,98 +320,65 @@ const LeftBar = () => {
       return;
     }
 
-    // Enhance report with complete patient data
-    const enhancedReport = await enhanceReportWithPatientData(report);
+    // Show loading immediately
+    setIsPrinting(true);
+    
+    try {
+      // Run all async operations in parallel for faster loading
+      const [enhancedReport, logoBase64] = await Promise.all([
+        enhanceReportWithPatientData(report),
+        preloadLogo() // Uses cached version if available
+      ]);
 
-    // Convert logo to base64
-    const getLogoBase64 = async () => {
-      try {
-        const response = await fetch(logo);
-        const blob = await response.blob();
-        return new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
-        });
-      } catch (error) {
-        console.error('Error converting logo to base64:', error);
-        return '';
+      // Generate QR code data for lab result access
+      const reportId = enhancedReport.selectedReport?.labNumber || 
+                      `${enhancedReport.selectedReport?.patientName?.replace(/\s+/g, '-')}-${Date.now()}`;
+      
+      // Ensure we have a complete, absolute URL with protocol
+      let baseUrl = FRONTEND_URL;
+      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+        baseUrl = `https://${baseUrl}`;
       }
-    };
-    const logoBase64 = await getLogoBase64();
+      baseUrl = baseUrl.replace(/\/$/, '');
+      
+      const qrUrl = `${baseUrl}/lab-result/${reportId}`;
+      
+      // Store report data locally (non-blocking)
+      const reportData = {
+        id: reportId,
+        patientName: enhancedReport.selectedReport?.patientName,
+        labNumber: enhancedReport.selectedReport?.labNumber,
+        reportDate: new Date(enhancedReport.selectedReport?.timeStamp).toLocaleDateString(),
+        data: enhancedReport
+      };
+      
+      // Non-blocking storage operations
+      try {
+        localStorage.setItem(`lab-result-${reportId}`, JSON.stringify(reportData));
+      } catch (e) { /* Ignore storage errors */ }
+      
+      // Generate QR code using pre-loaded library
+      let qrCodeBase64 = '';
+      try {
+        const QRCode = await preloadQRCode();
+        if (QRCode) {
+          qrCodeBase64 = await QRCode.toDataURL(qrUrl, {
+            width: 80,
+            margin: 1,
+            errorCorrectionLevel: 'H',
+            color: { dark: '#000000', light: '#FFFFFF' }
+          });
+        }
+      } catch (error) {
+        console.error('Error generating QR code:', error);
+      }
 
-    // Generate QR code data for lab result access
-    // Use lab number directly without encoding for cleaner URL
-    const reportId = enhancedReport.selectedReport?.labNumber || 
-                    `${enhancedReport.selectedReport?.patientName?.replace(/\s+/g, '-')}-${Date.now()}`;
-    
-    // Ensure we have a complete, absolute URL with protocol
-    let baseUrl = FRONTEND_URL;
-    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
-      baseUrl = `https://${baseUrl}`;
-    }
-    // Remove trailing slash if present
-    baseUrl = baseUrl.replace(/\/$/, '');
-    
-    const qrUrl = `${baseUrl}/lab-result/${reportId}`;
-    console.log('Generated QR URL:', qrUrl); // Debug log
-    
-    // Store report data for QR code access
-    const reportData = {
-      id: reportId,
-      patientName: enhancedReport.selectedReport?.patientName,
-      labNumber: enhancedReport.selectedReport?.labNumber,
-      reportDate: new Date(enhancedReport.selectedReport?.timeStamp).toLocaleDateString(),
-      data: enhancedReport
-    };
-    
-    // Store in localStorage for immediate access and backward compatibility
-    try {
-      localStorage.setItem(`lab-result-${reportId}`, JSON.stringify(reportData));
-      console.log('Lab result stored locally for QR code access:', reportId);
-    } catch (error) {
-      console.error('Error storing report data locally:', error);
-    }
-    
-    // Save to backend for persistent storage (production-ready)
-    try {
-      const response = await axios.post(`${API_ENDPOINTS.patients.replace('/patient', '')}/lab-result/save`, {
+      // Save to backend in background (don't wait for it)
+      axios.post(`${API_ENDPOINTS.patients.replace('/patient', '')}/lab-result/save`, {
         labNumber: reportId,
         patientName: enhancedReport.selectedReport?.patientName,
         reportData: reportData
-      });
-      
-      if (response.data && response.data.success) {
-        console.log('Lab result saved to backend:', reportId);
-        toast.success(`QR code generated - Lab #${enhancedReport.selectedReport?.labNumber}`);
-      }
-    } catch (backendError) {
-      console.error('Failed to save to backend:', backendError);
-      toast.warning('QR generated (local only) - backend storage failed');
-      // Don't fail the operation, localStorage is still available
-    }
-
-    // Generate QR code as base64 image using qrcode library
-    const generateQRCodeBase64 = async (url) => {
-      try {
-        const QRCode = require('qrcode');
-        const qrCodeDataUrl = await QRCode.toDataURL(url, {
-          width: 80,
-          margin: 1,
-          errorCorrectionLevel: 'H',
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-          }
-        });
-        return qrCodeDataUrl;
-      } catch (error) {
-        console.error('Error generating QR code:', error);
-        return '';
-      }
-    };
-    
-    const qrCodeBase64 = await generateQRCodeBase64(qrUrl);
+      }).catch(() => { /* Ignore backend save errors */ });
 
     // Get current user for digital signature
     const getCurrentUser = () => {
@@ -1178,19 +1227,89 @@ const LeftBar = () => {
       </html>
     `;
 
-    const printWindow = window.open("", "", "width=800,height=600");
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+    // Create a hidden iframe for printing
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = 'none';
+    printFrame.style.visibility = 'hidden';
+    document.body.appendChild(printFrame);
     
-    // Print after content loads
-    printWindow.onload = () => {
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.onafterprint = () => {
-          printWindow.close();
-        };
-      }, 500); // Short delay to ensure rendering
+    // Track if cleanup has been done to prevent double cleanup
+    let cleanupDone = false;
+    
+    const cleanupPrintFrame = () => {
+      if (cleanupDone) return;
+      cleanupDone = true;
+      
+      try {
+        if (printFrame && printFrame.parentNode) {
+          printFrame.parentNode.removeChild(printFrame);
+        }
+      } catch (e) {
+        console.error('Cleanup error:', e);
+      }
+      setIsPrinting(false);
     };
+    
+    const printDocument = printFrame.contentWindow.document;
+    printDocument.open();
+    printDocument.write(printContent);
+    printDocument.close();
+    
+    // Set document title for auto-naming when saving as PDF
+    const patientName = enhancedReport.selectedReport?.patientName || 'Patient';
+    const labNumber = enhancedReport.selectedReport?.labNumber || '';
+    const fileName = `${patientName.replace(/\s+/g, '_')}_${labNumber}_Clinical_Report`;
+    printDocument.title = fileName;
+    
+    // Wait for content to load then print
+    printFrame.contentWindow.onload = () => {
+      setTimeout(() => {
+        try {
+          printFrame.contentWindow.focus();
+          printFrame.contentWindow.print();
+          
+          // Listen for print dialog events (when user closes/cancels the dialog)
+          const mediaQueryList = printFrame.contentWindow.matchMedia('print');
+          
+          const handleAfterPrint = () => {
+            cleanupPrintFrame();
+          };
+          
+          // Modern browsers support afterprint event
+          printFrame.contentWindow.addEventListener('afterprint', handleAfterPrint);
+          
+          // Fallback for browsers that don't support afterprint
+          // Also cleanup after a reasonable timeout in case events don't fire
+          setTimeout(() => {
+            cleanupPrintFrame();
+          }, 1000);
+          
+        } catch (e) {
+          console.error('Print error:', e);
+          toast.error('Print failed. Please try again.');
+          cleanupPrintFrame();
+        }
+      }, 150); // Reduced from 250ms
+    };
+    
+    // Fallback cleanup if onload doesn't fire - reduced from 3000ms
+    setTimeout(() => {
+      if (!cleanupDone) {
+        console.log('Fallback cleanup triggered');
+        cleanupPrintFrame();
+      }
+    }, 5000); // Increased to 5 seconds to allow time for printing
+    
+    } catch (error) {
+      console.error('Print preparation error:', error);
+      toast.error('Failed to prepare print. Please try again.');
+      setIsPrinting(false);
+    }
   };
 
   const viewReport = async (report) => {
@@ -1203,6 +1322,64 @@ const LeftBar = () => {
   const closeModal = () => {
     setShowReportModal(false);
     setSelectedReport(null);
+  };
+
+  // Filter clinical reports by date
+  const filterReportsByDate = useCallback((reports) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const monthAgo = new Date(today);
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+
+    return reports.filter(report => {
+      const reportDate = new Date(report.selectedReport?.timeStamp || report.createdAt);
+      
+      switch (dateFilter) {
+        case 'today':
+          return reportDate >= today;
+        case 'week':
+          return reportDate >= weekAgo;
+        case 'month':
+          return reportDate >= monthAgo;
+        case 'all':
+        default:
+          return true;
+      }
+    });
+  }, [dateFilter]);
+
+  // Group clinical reports by medical type
+  const groupReportsByMedicalType = useMemo(() => {
+    const filteredReports = filterReportsByDate(clinicalReports);
+    const grouped = {};
+    
+    filteredReports.forEach(report => {
+      const medicalType = report.selectedReport?.medicalType || 'Standard';
+      if (!grouped[medicalType]) {
+        grouped[medicalType] = [];
+      }
+      grouped[medicalType].push(report);
+    });
+    
+    // Sort reports within each group by date (newest first)
+    Object.keys(grouped).forEach(type => {
+      grouped[type].sort((a, b) => 
+        new Date(b.selectedReport?.timeStamp || b.createdAt) - 
+        new Date(a.selectedReport?.timeStamp || a.createdAt)
+      );
+    });
+    
+    return grouped;
+  }, [clinicalReports, filterReportsByDate]);
+
+  // Toggle medical type expansion
+  const toggleMedicalType = (medicalType) => {
+    setExpandedMedicalTypes(prev => ({
+      ...prev,
+      [medicalType]: !prev[medicalType]
+    }));
   };
 
   return (
@@ -1384,7 +1561,7 @@ const LeftBar = () => {
 
         {/* Clinical Reports Section */}
         <div className="px-6 mt-6 space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <h4 className="text-teal-200 font-semibold text-lg">Full Clinical Reports</h4>
             <button
               onClick={() => setShowClinicalReports(!showClinicalReports)}
@@ -1395,48 +1572,152 @@ const LeftBar = () => {
           </div>
 
           {showClinicalReports && (
-            <div className="space-y-2 max-h-[40vh] overflow-y-auto scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-transparent">
-              {isClinicalLoading ? (
-                <p className="text-teal-100 text-sm">Loading clinical reports...</p>
-              ) : clinicalReports.length === 0 ? (
-                <p className="text-teal-100 text-sm">No clinical reports available.</p>
-              ) : (
-                clinicalReports.map((report) => (
-                  <div
-                    key={report._id}
-                    className="p-3 rounded-md bg-white/10 hover:bg-teal-700/40 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{report.selectedReport?.patientName || 'Unnamed'}</p>
-                        <p className="text-xs text-teal-200">
-                          Lab No: {report.selectedReport?.labNumber} •{' '}
-                          {new Date(report.selectedReport?.timeStamp).toLocaleDateString()}
-                        </p>
-                        <p className="text-xs text-teal-300">
-                          Type: {report.selectedReport?.medicalType || 'N/A'}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => viewReport(report)}
-                          className="p-1 bg-teal-600 hover:bg-teal-700 rounded transition-colors"
-                          title="View Report"
-                        >
-                          <Eye size={16} />
-                        </button>
-                        <button
-                          onClick={() => printReport(report)}
-                          className="p-1 bg-teal-600 hover:bg-teal-700 rounded transition-colors"
-                          title="Print Report"
-                        >
-                          <Printer size={16} />
-                        </button>
-                      </div>
-                    </div>
+            <div className="space-y-3">
+              {/* Date Filter */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-teal-400/20">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-teal-100 font-medium uppercase tracking-wide">Filter by Date</span>
+                  <span className="text-xs text-teal-300">
+                    {Object.keys(groupReportsByMedicalType).length} type(s) • {filterReportsByDate(clinicalReports).length} report(s)
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { value: 'all', label: 'All Time', icon: '📋' },
+                    { value: 'today', label: 'Today', icon: '📅' },
+                    { value: 'week', label: 'This Week', icon: '📆' },
+                    { value: 'month', label: 'This Month', icon: '🗓️' }
+                  ].map(filter => (
+                    <button
+                      key={filter.value}
+                      onClick={() => setDateFilter(filter.value)}
+                      className={`px-3 py-2 rounded-md text-xs font-medium transition-all duration-200 ${
+                        dateFilter === filter.value
+                          ? 'bg-teal-600 text-white shadow-md'
+                          : 'bg-white/10 text-teal-200 hover:bg-white/20'
+                      }`}
+                    >
+                      <span className="mr-1">{filter.icon}</span>
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Reports Grouped by Medical Type */}
+              <div className="space-y-2 max-h-[45vh] overflow-y-auto scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-transparent">
+                {isClinicalLoading ? (
+                  <div className="text-center py-8 bg-white/5 rounded-lg">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-300 mb-2"></div>
+                    <p className="text-teal-100 text-sm">Loading clinical reports...</p>
                   </div>
-                ))
-              )}
+                ) : Object.keys(groupReportsByMedicalType).length === 0 ? (
+                  <div className="text-center py-8 bg-white/5 rounded-lg border border-teal-400/20">
+                    <FileText className="mx-auto mb-3 text-teal-300/50" size={32} />
+                    <p className="text-teal-100 text-sm font-medium">No clinical reports found</p>
+                    <p className="text-teal-200/60 text-xs mt-1">
+                      {dateFilter !== 'all' ? 'Try changing the date filter' : 'Reports will appear here once completed'}
+                    </p>
+                  </div>
+                ) : (
+                  Object.entries(groupReportsByMedicalType).map(([medicalType, reports]) => (
+                    <div
+                      key={medicalType}
+                      className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg border border-teal-400/20 overflow-hidden hover:border-teal-400/40 transition-all duration-200"
+                    >
+                      {/* Medical Type Header (Folder) */}
+                      <button
+                        onClick={() => toggleMedicalType(medicalType)}
+                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/10 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`transform transition-transform duration-200 ${expandedMedicalTypes[medicalType] ? 'rotate-90' : ''}`}>
+                            <ChevronDown size={18} className="text-teal-300" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">
+                              {medicalType === 'SM-VDRL' ? '💉' : 
+                               medicalType === 'FM' ? '🩺' : 
+                               medicalType === 'MEDICAL' ? '⚕️' : 
+                               medicalType === 'MAURITIUS' ? '🏝️' : 
+                               medicalType === 'NORMAL' ? '📋' : '📄'}
+                            </span>
+                            <span className="text-sm font-semibold text-white">{medicalType}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="bg-teal-600/40 text-teal-100 px-3 py-1 rounded-full text-xs font-bold">
+                            {reports.length} {reports.length === 1 ? 'report' : 'reports'}
+                          </span>
+                        </div>
+                      </button>
+
+                      {/* Expandable Reports List */}
+                      {expandedMedicalTypes[medicalType] && (
+                        <div className="border-t border-teal-400/20 bg-black/10">
+                          {reports.map((report, index) => (
+                            <div
+                              key={report._id}
+                              className={`px-4 py-3 hover:bg-teal-700/30 transition-colors ${
+                                index !== reports.length - 1 ? 'border-b border-teal-400/10' : ''
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <User size={12} className="text-teal-300" />
+                                    <p className="text-sm font-medium text-white">
+                                      {report.selectedReport?.patientName || 'Unnamed'}
+                                    </p>
+                                  </div>
+                                  <div className="ml-5 space-y-0.5">
+                                    <p className="text-xs text-teal-200">
+                                      <span className="text-teal-300/70">Lab No:</span>{' '}
+                                      <span className="font-medium">{report.selectedReport?.labNumber}</span>
+                                    </p>
+                                    {report.passportNumber && (
+                                      <p className="text-xs text-teal-200">
+                                        <span className="text-teal-300/70">Passport:</span>{' '}
+                                        <span className="font-medium">{report.passportNumber}</span>
+                                      </p>
+                                    )}
+                                    <p className="text-xs text-teal-300">
+                                      <Calendar size={10} className="inline mr-1" />
+                                      {new Date(report.selectedReport?.timeStamp).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2 ml-3">
+                                  <button
+                                    onClick={() => viewReport(report)}
+                                    className="p-2 bg-teal-600 hover:bg-teal-700 rounded-md transition-colors shadow-sm hover:shadow-md"
+                                    title="View Report"
+                                  >
+                                    <Eye size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => printReport(report)}
+                                    className="p-2 bg-cyan-600 hover:bg-cyan-700 rounded-md transition-colors shadow-sm hover:shadow-md"
+                                    title="Print Report"
+                                  >
+                                    <Printer size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -2097,6 +2378,18 @@ const LeftBar = () => {
       )}
 
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500/50 via-teal-300/50 to-teal-500/50" />
+      
+      {/* Print Loading Overlay */}
+      {isPrinting && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[99999] flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-600"></div>
+            <p className="text-gray-700 font-medium">Preparing print...</p>
+            <p className="text-gray-500 text-sm">Please wait for print dialog...</p>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

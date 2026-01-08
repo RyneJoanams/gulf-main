@@ -1,14 +1,74 @@
 const clinical = require("../models/clinical");
 const { validationResult } = require("express-validator");
 
-// Fetch all clinical reports
+// Fetch all clinical reports with pagination support
 exports.getAllReports = async (req, res) => {
     try {
-        const reports = await clinical.find().sort({ createdAt: -1 }); // Sort by newest first
-        res.status(200).json(reports);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50; // Default 50, max for performance
+        const skip = (page - 1) * limit;
+        
+        // If no pagination params, return limited recent results for backward compatibility
+        if (!req.query.page && !req.query.limit) {
+            const reports = await clinical.find()
+                .sort({ createdAt: -1 })
+                .limit(100) // Limit to 100 most recent for performance
+                .lean(); // Use lean() for faster read-only queries
+            return res.status(200).json(reports);
+        }
+        
+        const [reports, total] = await Promise.all([
+            clinical.find()
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            clinical.countDocuments()
+        ]);
+        
+        res.status(200).json({
+            reports,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Error fetching clinical reports." });
+    }
+};
+
+// Search clinical reports with optimized query
+exports.searchReports = async (req, res) => {
+    try {
+        const { query } = req.query;
+        const limit = parseInt(req.query.limit) || 20;
+        
+        if (!query || query.trim().length < 2) {
+            return res.status(400).json({ error: "Search query must be at least 2 characters." });
+        }
+        
+        const searchTerm = query.trim();
+        
+        // Use regex for partial matching on indexed fields
+        const reports = await clinical.find({
+            $or: [
+                { 'selectedReport.patientName': { $regex: searchTerm, $options: 'i' } },
+                { 'selectedReport.labNumber': { $regex: searchTerm, $options: 'i' } },
+                { passportNumber: { $regex: searchTerm, $options: 'i' } }
+            ]
+        })
+        .sort({ 'selectedReport.timeStamp': -1, createdAt: -1 })
+        .limit(limit)
+        .lean();
+        
+        res.status(200).json(reports);
+    } catch (error) {
+        console.error('Search error:', error);
+        res.status(500).json({ error: "Error searching clinical reports." });
     }
 };
 

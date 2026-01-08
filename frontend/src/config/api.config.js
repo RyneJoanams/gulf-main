@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
   
   // Clinical endpoints
   clinical: `${API_BASE_URL}/api/clinical`,
+  clinicalSearch: `${API_BASE_URL}/api/clinical/search`,
   
   // Radiology endpoints
   radiology: `${API_BASE_URL}/api/radiology`,

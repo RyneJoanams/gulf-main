@@ -71,4 +71,10 @@ const clinicalSchema = new mongoose.Schema(
   }
 );
 
+// Add indexes for frequently queried fields to improve performance
+clinicalSchema.index({ 'selectedReport.labNumber': 1 });
+clinicalSchema.index({ 'selectedReport.patientName': 'text', passportNumber: 'text' });
+clinicalSchema.index({ createdAt: -1 });
+clinicalSchema.index({ 'selectedReport.timeStamp': -1 });
+
 module.exports = mongoose.model("Clinical", clinicalSchema);

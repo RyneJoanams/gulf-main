@@ -183,6 +183,31 @@ const Agent = () => {
         // Generate QR code
         const qrCodeBase64 = await generateQRCodeBase64(qrUrl);
 
+        // Get current user for digital signature
+        const getCurrentUser = () => {
+            try {
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                    const userData = JSON.parse(userStr);
+                    return userData.name || userData.email || 'System User';
+                }
+                return 'System User';
+            } catch (error) {
+                console.error('Error getting user:', error);
+                return 'System User';
+            }
+        };
+
+        const currentUser = getCurrentUser();
+        const currentDateTime = new Date().toLocaleString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+
         // Helper function to check if section has data
         const hasData = (section) => {
             if (!section) return false;
@@ -893,9 +918,16 @@ const Agent = () => {
                             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
                                 <div style="flex: 0 0 auto;">
                                     ${qrCodeBase64 ? `
-                                        <div style="display: inline-block; text-align: center; padding: 8px; background: #FFFFFF; border-radius: 4px; border: 1px solid #e5e7eb;">
-                                            <img src="${qrCodeBase64}" alt="QR Code" style="width: 130px; height: 130px; display: block;" />
-                                            <div style="font-size: 8px; margin-top: 3px; color: #2dd4bf; font-weight: bold;">Scan for Digital Copy</div>
+                                        <div style="display: flex; align-items: center; gap: 12px;">
+                                            <div style="display: inline-block; text-align: center; padding: 6px; background: #FFFFFF; border-radius: 4px; border: 1px solid #e5e7eb;">
+                                                <img src="${qrCodeBase64}" alt="QR Code" style="width: 80px; height: 80px; display: block;" />
+                                                <div style="font-size: 7px; margin-top: 2px; color: #2dd4bf; font-weight: bold;">Scan for Digital Copy</div>
+                                            </div>
+                                            <div style="font-size: 8px; color: #6b7280; max-width: 180px; text-align: left; line-height: 1.4;">
+                                                <div style="font-weight: 600; color: #374151; margin-bottom: 3px; font-size: 9px;">Digital Signature</div>
+                                                <div style="margin-bottom: 2px;"><strong>Signed by:</strong> ${currentUser}</div>
+                                                <div><strong>Date & Time:</strong> ${currentDateTime}</div>
+                                            </div>
                                         </div>
                                     ` : ''}
                                 </div>

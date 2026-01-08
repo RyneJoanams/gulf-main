@@ -6,6 +6,7 @@ const clinicalRoute = express.Router();
 
 // Routes
 clinicalRoute.get("/", clinicalController.getAllReports);
+clinicalRoute.get("/search", clinicalController.searchReports); // Optimized search endpoint
 
 clinicalRoute.post(
   "/",
