@@ -198,9 +198,11 @@ const Lab = () => {
     setSelectedLabNumber(labNumber);
     
     if (labNumber && selectedPatient && selectedPatient !== 'Select Patient') {
-      const patient = patientData.patients.find(p => p.name === selectedPatient);
-      if (patient) {
-        await fetchLabData(patient.id, labNumber);
+      if (Array.isArray(patientData?.patients)) {
+        const patient = patientData.patients.find(p => p.name === selectedPatient);
+        if (patient) {
+          await fetchLabData(patient.id, labNumber);
+        }
       }
     } else {
       // Reset when no lab number selected
@@ -410,10 +412,14 @@ const Lab = () => {
   };
 
   const filteredPatients = useMemo(() => {
+    // Ensure patients is an array before filtering
+    if (!patientData || !Array.isArray(patientData.patients)) {
+      return [];
+    }
     return patientData.patients.filter((patient) =>
-      patient.name.toLowerCase().includes(searchTerm.toLowerCase())
+      patient.name && patient.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [patientData.patients, searchTerm]);
+  }, [patientData, searchTerm]);
 
   const labRemarks = {
     fitnessEvaluation: {
@@ -426,9 +432,9 @@ const Lab = () => {
     notepadContent: notepadContent
   };
 
-  const selectedPatientData = patientData?.patients.find(
-    (patient) => patient.name === selectedPatient
-  );
+  const selectedPatientData = Array.isArray(patientData?.patients) 
+    ? patientData.patients.find((patient) => patient.name === selectedPatient)
+    : null;
   const patientImage = selectedPatientData?.image;
 
   const handleSubmit = async (values, { resetForm }) => {
@@ -471,6 +477,11 @@ const Lab = () => {
       }
       
       // Find the patientId based on the selected patient
+      if (!Array.isArray(patientData?.patients)) {
+        toast.error("Patient data is not properly loaded. Please refresh the page.");
+        return;
+      }
+      
       const patient = patientData.patients.find((patient) => patient.name === selectedPatient);
       if (!patient) {
         console.error("No matching patient found for the selected name:", selectedPatient);

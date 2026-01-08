@@ -12,12 +12,19 @@ export const PatientProvider = ({ children }) => {
     const fetchPatients = async () => {
       try {
         const response = await axios.get(`${API_BASE_URL}/api/patient`);
+        // Handle both old array format and new object format { patients: [...], pagination: {...} }
+        const patientsData = response.data.patients || (Array.isArray(response.data) ? response.data : []);
         setPatientData((prevState) => ({
           ...prevState,
-          patients: response.data,
+          patients: patientsData,
         }));
       } catch (error) {
         console.error('Error fetching patients:', error);
+        // Set empty array on error to prevent filter errors
+        setPatientData((prevState) => ({
+          ...prevState,
+          patients: [],
+        }));
       }
     };
 
