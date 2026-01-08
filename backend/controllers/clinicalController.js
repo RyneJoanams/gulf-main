@@ -1,29 +1,44 @@
 const clinical = require("../models/clinical");
 const { validationResult } = require("express-validator");
 
-// Fetch all clinical reports with pagination support
+// Fetch all clinical reports with pagination support and date filtering
 exports.getAllReports = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50; // Default 50, max for performance
+        const limit = parseInt(req.query.limit) || 500; // Increased default to 500
         const skip = (page - 1) * limit;
+        const { startDate, endDate } = req.query;
         
-        // If no pagination params, return limited recent results for backward compatibility
+        // Build date filter
+        let dateFilter = {};
+        if (startDate || endDate) {
+            dateFilter['selectedReport.timeStamp'] = {};
+            if (startDate) {
+                dateFilter['selectedReport.timeStamp'].$gte = new Date(startDate);
+            }
+            if (endDate) {
+                // Add 23:59:59 to include the entire end date
+                const endDateTime = new Date(endDate);
+                endDateTime.setHours(23, 59, 59, 999);
+                dateFilter['selectedReport.timeStamp'].$lte = endDateTime;
+            }
+        }
+        
+        // If no pagination params, return filtered results (no limit for backward compatibility)
         if (!req.query.page && !req.query.limit) {
-            const reports = await clinical.find()
+            const reports = await clinical.find(dateFilter)
                 .sort({ createdAt: -1 })
-                .limit(100) // Limit to 100 most recent for performance
                 .lean(); // Use lean() for faster read-only queries
             return res.status(200).json(reports);
         }
         
         const [reports, total] = await Promise.all([
-            clinical.find()
+            clinical.find(dateFilter)
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit)
                 .lean(),
-            clinical.countDocuments()
+            clinical.countDocuments(dateFilter)
         ]);
         
         res.status(200).json({

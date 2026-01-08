@@ -493,6 +493,8 @@ const Lab = () => {
       };
       
       console.log("Payload:", payload);
+      console.log("Lab Remarks being sent:", labRemarks);
+      console.log("Notepad Content:", notepadContent);
       
       // Send the payload to the server
       const response = await axios.post(`${API_BASE_URL}/api/lab`, payload);

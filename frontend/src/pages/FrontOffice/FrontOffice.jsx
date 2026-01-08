@@ -41,7 +41,8 @@ import {
   FaStethoscope,
   FaTimes,
   FaCheck,
-  FaSpinner
+  FaSpinner,
+  FaSyncAlt
 } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 
@@ -253,28 +254,31 @@ const FrontOffice = () => {
 
   const webcamRef = useRef(null);
 
-  useEffect(() => {
-    const fetchAllPatients = async () => {
-      try {
-        console.log('Fetching patients...');
-        const response = await axios.get(`${API_BASE_URL}/api/patient`);
-        console.log('Fetched patients response:', response.data);
-        
-        // Handle different response structures - backend returns array directly
-        const patientsData = Array.isArray(response.data) ? response.data : (response.data.patients || []);
-        console.log('Processed patients data:', patientsData);
-        
-        setPatients(patientsData);
-        toast.success(`Loaded ${patientsData.length} patients`);
-      } catch (error) {
-        console.error('Error fetching patients:', error);
-        toast.error('Failed to fetch patients data.');
-        setPatients([]);
-      } finally {
-        setLoadingPatients(false);
-      }
-    };
+  // Function to fetch patients - can be called for refresh
+  const fetchAllPatients = async () => {
+    setLoadingPatients(true);
+    try {
+      console.log('Fetching patients...');
+      // Fetch patient data with photos
+      const response = await axios.get(`${API_BASE_URL}/api/patient`);
+      console.log('Fetched patients response:', response.data);
+      
+      // Handle different response structures - backend may return { patients: [...] } or array directly
+      const patientsData = response.data.patients || (Array.isArray(response.data) ? response.data : []);
+      console.log('Processed patients data:', patientsData);
+      
+      setPatients(patientsData);
+      toast.success(`Loaded ${patientsData.length} patients`);
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+      toast.error('Failed to fetch patients data.');
+      setPatients([]);
+    } finally {
+      setLoadingPatients(false);
+    }
+  };
 
+  useEffect(() => {
     fetchAllPatients();
   }, []);
 
@@ -1898,6 +1902,32 @@ const FrontOffice = () => {
                 </Dialog>
 
                 <div className="mb-6 flex flex-wrap justify-end gap-3">
+                  <Tooltip title="Refresh patient data to see latest changes" arrow>
+                    <Button
+                      onClick={fetchAllPatients}
+                      variant="contained"
+                      startIcon={loadingPatients ? <FaSpinner className="animate-spin" /> : <FaSyncAlt />}
+                      disabled={loadingPatients}
+                      sx={{
+                        background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                        borderRadius: '12px',
+                        textTransform: 'none',
+                        fontWeight: '600',
+                        padding: '12px 24px',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 8px 25px rgba(139, 92, 246, 0.3)',
+                        },
+                        '&:disabled': {
+                          background: 'linear-gradient(135deg, #d1d5db, #9ca3af)',
+                        },
+                      }}
+                    >
+                      {loadingPatients ? 'Refreshing...' : 'Refresh Data'}
+                    </Button>
+                  </Tooltip>
+                  
                   <Tooltip title="Export data to Excel spreadsheet" arrow>
                     <Button
                       onClick={exportToExcel}

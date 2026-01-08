@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axios from 'axios';
 import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Typography,
@@ -56,7 +56,7 @@ const AllPatients = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
   const [isEditMode, setIsEditMode] = useState(false);
   const [filterByMedicalType, setFilterByMedicalType] = useState('All');
   const [filterBySex, setFilterBySex] = useState('All');
@@ -67,13 +67,41 @@ const AllPatients = () => {
   // Delete confirmation modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState({ id: '', name: '' });
+  
+  // Photo management states
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoToDelete, setPhotoToDelete] = useState(false);
+  
+  // Cache ref to prevent unnecessary refetches
+  const cacheRef = useRef({ data: null, timestamp: null });
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   useEffect(() => {
     const fetchPatients = async () => {
       try {
+        // Check if we have valid cached data
+        const now = Date.now();
+        if (cacheRef.current.data && cacheRef.current.timestamp && 
+            (now - cacheRef.current.timestamp < CACHE_DURATION)) {
+          setPatients(cacheRef.current.data);
+          setFilteredPatients(cacheRef.current.data);
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch patient data with photos
         const response = await axios.get(`${API_BASE_URL}/api/patient`);
-        setPatients(response.data);
-        setFilteredPatients(response.data);
+        const data = response.data.patients || response.data; // Handle both old and new response format
+        
+        // Update cache
+        cacheRef.current = {
+          data: data,
+          timestamp: now
+        };
+        
+        setPatients(data);
+        setFilteredPatients(data);
       } catch (error) {
         console.error('Error fetching patients:', error);
         toast.error('Failed to fetch patients.');
@@ -84,11 +112,14 @@ const AllPatients = () => {
     fetchPatients();
   }, []);
 
-  const handleSearch = debounce((term) => {
-    applyFilters(term, filterByMedicalType, filterBySex, startDate, endDate);
-  }, 300);
+  const handleSearch = useCallback(
+    debounce((term) => {
+      applyFilters(term, filterByMedicalType, filterBySex, startDate, endDate);
+    }, 300),
+    [filterByMedicalType, filterBySex, startDate, endDate]
+  );
 
-  const applyFilters = (searchTerm, medicalTypeFilter, sexFilter, dateStart, dateEnd) => {
+  const applyFilters = useCallback((searchTerm, medicalTypeFilter, sexFilter, dateStart, dateEnd) => {
     let filtered = patients.filter(p => {
       const matchesSearch = (p.name && p.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
                            (p.passportNumber && p.passportNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -117,78 +148,170 @@ const AllPatients = () => {
       return matchesSearch && matchesMedicalType && matchesSex && matchesDateRange;
     });
     setFilteredPatients(filtered);
-  };
+  }, [patients]);
 
   useEffect(() => {
     applyFilters(searchTerm, filterByMedicalType, filterBySex, startDate, endDate);
   }, [searchTerm, patients, filterByMedicalType, filterBySex, startDate, endDate]);
 
-  const handleOpenModal = (patient, editMode = false) => {
+  const handleOpenModal = useCallback(async (patient, editMode = false) => {
     setSelectedPatient(patient);
     setEditablePatient({ ...patient });
     setIsEditMode(editMode);
     setOpenModal(true);
-  };
+    
+    // Reset photo states
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setPhotoToDelete(false);
+    
+    // Fetch patient with photo if not already loaded
+    if (editMode && !patient.photo) {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/patient/${patient._id}`);
+        if (response.data.photo) {
+          setEditablePatient(response.data);
+          setSelectedPatient(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching patient photo:', error);
+      }
+    }
+  }, []);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setOpenModal(false);
     setSelectedPatient(null);
     setEditablePatient(null);
     setIsEditMode(false);
-  };
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setPhotoToDelete(false);
+  }, []);
 
-  const handleSaveChanges = async () => {
+  const handlePhotoChange = useCallback((e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select a valid image file');
+        return;
+      }
+      
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size must be less than 5MB');
+        return;
+      }
+      
+      setPhotoFile(file);
+      setPhotoToDelete(false);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
+  const handleDeletePhoto = useCallback(() => {
+    setPhotoToDelete(true);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    toast.info('Photo will be removed when you save changes');
+  }, []);
+
+  const handleSaveChanges = useCallback(async () => {
     try {
-      await axios.put(`${API_BASE_URL}/api/patient/${editablePatient._id}`, editablePatient);
+      // Remove fields that shouldn't be sent in update
+      const { _id, __v, createdAt, updatedAt, ...patientData } = editablePatient;
+      
+      // Handle photo upload or deletion
+      if (photoFile) {
+        const formData = new FormData();
+        formData.append('photo', photoFile);
+        
+        // Append all patient data fields
+        Object.keys(patientData).forEach(key => {
+          if (patientData[key] !== null && patientData[key] !== undefined) {
+            formData.append(key, patientData[key]);
+          }
+        });
+        
+        await axios.put(`${API_BASE_URL}/api/patient/${editablePatient._id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } else if (photoToDelete) {
+        // Send request to delete photo
+        patientData.photo = '';
+        await axios.put(`${API_BASE_URL}/api/patient/${editablePatient._id}`, patientData);
+      } else {
+        // Regular update without photo changes
+        await axios.put(`${API_BASE_URL}/api/patient/${editablePatient._id}`, patientData);
+      }
+      
       toast.success('Patient details updated successfully!');
-      setPatients(prev => prev.map(p => (p._id === editablePatient._id ? editablePatient : p)));
+      
+      // Refresh patient data
+      const response = await axios.get(`${API_BASE_URL}/api/patient`);
+      const data = response.data.patients || response.data;
+      setPatients(data);
+      setFilteredPatients(data);
+      
+      // Invalidate cache on update
+      cacheRef.current = { data: null, timestamp: null };
       handleCloseModal();
     } catch (error) {
-      toast.error('Failed to save changes.');
+      console.error('Error updating patient:', error.response?.data || error);
+      toast.error(`Failed to save changes: ${error.response?.data?.message || error.message}`);
     }
-  };
+  }, [editablePatient, photoFile, photoToDelete, handleCloseModal]);
 
-  const confirmDelete = (patient) => {
+  const confirmDelete = useCallback((patient) => {
     setDeleteTarget({ id: patient._id, name: patient.name });
     setShowDeleteModal(true);
-  };
+  }, []);
   
-  const handleDeletePatient = async () => {
+  const handleDeletePatient = useCallback(async () => {
     try {
       await axios.delete(`${API_BASE_URL}/api/patient/${deleteTarget.id}`);
       toast.success('Patient deleted successfully!');
       setPatients(prev => prev.filter(p => p._id !== deleteTarget.id));
+      // Invalidate cache on delete
+      cacheRef.current = { data: null, timestamp: null };
       setShowDeleteModal(false);
       setDeleteTarget({ id: '', name: '' });
     } catch (error) {
       toast.error('Failed to delete patient.');
     }
-  };
+  }, [deleteTarget.id]);
   
   const handleCancelDelete = () => {
     setShowDeleteModal(false);
     setDeleteTarget({ id: '', name: '' });
   };
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilterByMedicalType('All');
     setFilterBySex('All');
     setStartDate('');
     setEndDate('');
     setSearchTerm('');
-  };
+  }, []);
 
-  const handleSort = (key) => {
+  const handleSort = useCallback((key) => {
     const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
     setSortConfig({ key, direction });
-    setFilteredPatients(
-      [...filteredPatients].sort((a, b) => {
+    setFilteredPatients(prev =>
+      [...prev].sort((a, b) => {
         if (a[key] < b[key]) return direction === 'asc' ? -1 : 1;
         if (a[key] > b[key]) return direction === 'asc' ? 1 : -1;
         return 0;
       })
     );
-  };
+  }, [sortConfig.key, sortConfig.direction]);
 
   const handlePageChange = (event, newPage) => setPage(newPage);
   const handleRowsPerPageChange = (event) => {
@@ -196,7 +319,7 @@ const AllPatients = () => {
     setPage(0);
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = useCallback(() => {
     const sheetData = filteredPatients.map(record => ({
       PatientName: record.name || 'N/A',
       Age: record.age || 'N/A',
@@ -217,9 +340,9 @@ const AllPatients = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Patients');
     XLSX.writeFile(workbook, `patients_data_${new Date().toISOString().split('T')[0]}.xlsx`);
     toast.success('Data exported to Excel successfully!');
-  };
+  }, [filteredPatients]);
 
-  const handlePrintPatients = () => {
+  const handlePrintPatients = useCallback(() => {
     const printContent = `
       <html>
         <head>
@@ -274,9 +397,12 @@ const AllPatients = () => {
     printWindow.document.write(printContent);
     printWindow.document.close();
     printWindow.print();
-  };
+  }, [filteredPatients]);
 
-  const paginatedData = filteredPatients.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const paginatedData = useMemo(
+    () => filteredPatients.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [filteredPatients, page, rowsPerPage]
+  );
 
   return (
     <div className="p-4 md:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
@@ -646,6 +772,79 @@ const AllPatients = () => {
               <div className="p-6">
                 {selectedPatient && (
                   <div className="space-y-6">
+                    {/* Patient Photo Section */}
+                    <div className="bg-gradient-to-r from-gray-50 to-slate-50 p-4 rounded-xl border border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <span>📷</span> Patient Photo
+                      </h3>
+                      <div className="flex flex-col md:flex-row gap-6 items-start">
+                        {/* Photo Display */}
+                        <div className="flex-shrink-0">
+                          <div className="w-40 h-40 rounded-lg overflow-hidden border-2 border-gray-300 bg-gray-100 flex items-center justify-center">
+                            {photoPreview ? (
+                              <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                            ) : photoToDelete ? (
+                              <div className="text-center text-gray-400">
+                                <span className="text-4xl">🚫</span>
+                                <p className="text-xs mt-2">Photo removed</p>
+                              </div>
+                            ) : editablePatient?.photo ? (
+                              <img 
+                                src={editablePatient.photo.startsWith('data:') 
+                                  ? editablePatient.photo 
+                                  : `data:image/jpeg;base64,${editablePatient.photo}`
+                                } 
+                                alt="Patient" 
+                                className="w-full h-full object-cover" 
+                              />
+                            ) : (
+                              <div className="text-center text-gray-400">
+                                <span className="text-4xl">👤</span>
+                                <p className="text-xs mt-2">No photo</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Photo Controls */}
+                        {isEditMode && (
+                          <div className="flex-1 space-y-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Change Photo
+                              </label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handlePhotoChange}
+                                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                Accepted formats: JPG, PNG, GIF (Max 5MB)
+                              </p>
+                            </div>
+                            
+                            {(editablePatient?.photo || photoPreview) && !photoToDelete && (
+                              <button
+                                onClick={handleDeletePhoto}
+                                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg font-semibold hover:bg-red-100 transition-all duration-200 flex items-center gap-2"
+                              >
+                                <DeleteIcon fontSize="small" />
+                                Remove Photo
+                              </button>
+                            )}
+                            
+                            {photoFile && (
+                              <div className="text-sm text-green-600 flex items-center gap-2">
+                                <span>✓</span>
+                                <span>New photo selected: {photoFile.name}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
                     {/* Personal Information Section */}
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
                       <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">

@@ -17,10 +17,26 @@ import { toast } from 'react-toastify';
 import logo from '../assets/GULF HEALTHCARE KENYA LTD.png';
 import { API_ENDPOINTS, FRONTEND_URL } from '../config/api.config';
 
-// Pre-load and cache logo as base64
+// Pre-load and cache logo as base64 with persistent localStorage
+const LOGO_CACHE_KEY = 'gulf_healthcare_logo_base64_v1';
 let cachedLogoBase64 = null;
+
 const preloadLogo = async () => {
+  // Return memory cache if available
   if (cachedLogoBase64) return cachedLogoBase64;
+  
+  // Try to get from localStorage (persistent across sessions)
+  try {
+    const storedLogo = localStorage.getItem(LOGO_CACHE_KEY);
+    if (storedLogo) {
+      cachedLogoBase64 = storedLogo;
+      return cachedLogoBase64;
+    }
+  } catch (e) {
+    console.warn('Could not read logo from localStorage:', e);
+  }
+  
+  // Fetch and cache the logo
   try {
     const response = await fetch(logo);
     const blob = await response.blob();
@@ -28,6 +44,12 @@ const preloadLogo = async () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         cachedLogoBase64 = reader.result;
+        // Store in localStorage for persistence
+        try {
+          localStorage.setItem(LOGO_CACHE_KEY, cachedLogoBase64);
+        } catch (e) {
+          console.warn('Could not store logo in localStorage:', e);
+        }
         resolve(cachedLogoBase64);
       };
       reader.readAsDataURL(blob);
@@ -66,9 +88,10 @@ const LeftBar = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   
-  // Clinical reports filtering state
-  const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month
-  const [expandedMedicalTypes, setExpandedMedicalTypes] = useState({}); // Track which medical types are expanded
+  // Date range filtering state
+  const [dateRange, setDateRange] = useState('last30days');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   
   // Inline printing state
   const [isPrinting, setIsPrinting] = useState(false);
@@ -77,11 +100,49 @@ const LeftBar = () => {
   const searchTimeoutRef = useRef(null);
   const patientsCacheRef = useRef(null);
   const patientsCacheTimeRef = useRef(0);
+  const cacheWarmingIntervalRef = useRef(null);
 
-  // Pre-load resources on component mount
+  // Pre-load resources on component mount and setup cache warming
   useEffect(() => {
     // Pre-load logo and QR library in parallel for faster printing
     Promise.all([preloadLogo(), preloadQRCode()]).catch(console.error);
+    
+    // Pre-warm patient data cache
+    const warmPatientCache = async () => {
+      try {
+        const now = Date.now();
+        const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+        
+        // Only fetch if cache is stale or doesn't exist
+        if (!patientsCacheRef.current || (now - patientsCacheTimeRef.current) >= CACHE_DURATION) {
+          const response = await axios.get(API_ENDPOINTS.patients);
+          patientsCacheRef.current = response.data;
+          patientsCacheTimeRef.current = now;
+          
+          // Store in localStorage for persistence
+          try {
+            localStorage.setItem('patients_cache', JSON.stringify(response.data));
+            localStorage.setItem('patients_cache_time', now.toString());
+          } catch (e) {
+            console.warn('Could not store patients in localStorage:', e);
+          }
+        }
+      } catch (error) {
+        console.error('Error warming patient cache:', error);
+      }
+    };
+    
+    // Initial cache warming
+    warmPatientCache();
+    
+    // Refresh cache every 15 minutes to keep it fresh
+    cacheWarmingIntervalRef.current = setInterval(warmPatientCache, 15 * 60 * 1000);
+    
+    return () => {
+      if (cacheWarmingIntervalRef.current) {
+        clearInterval(cacheWarmingIntervalRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -139,7 +200,51 @@ const LeftBar = () => {
 
     const fetchClinicalReports = async () => {
       try {
-        const response = await axios.get(API_ENDPOINTS.clinical);
+        // Calculate date range
+        const now = new Date();
+        let startDate = null;
+        let endDate = new Date();
+
+        switch (dateRange) {
+          case 'today':
+            startDate = new Date(now.setHours(0, 0, 0, 0));
+            break;
+          case 'last7days':
+            startDate = new Date(now.setDate(now.getDate() - 7));
+            break;
+          case 'last30days':
+            startDate = new Date(now.setDate(now.getDate() - 30));
+            break;
+          case 'last3months':
+            startDate = new Date(now.setMonth(now.getMonth() - 3));
+            break;
+          case 'last6months':
+            startDate = new Date(now.setMonth(now.getMonth() - 6));
+            break;
+          case 'lastyear':
+            startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+            break;
+          case 'custom':
+            startDate = customStartDate ? new Date(customStartDate) : null;
+            endDate = customEndDate ? new Date(customEndDate) : new Date();
+            break;
+          case 'all':
+          default:
+            startDate = null;
+            endDate = null;
+            break;
+        }
+
+        // Build query parameters
+        const params = {};
+        if (startDate) {
+          params.startDate = startDate.toISOString();
+        }
+        if (endDate) {
+          params.endDate = endDate.toISOString();
+        }
+
+        const response = await axios.get(API_ENDPOINTS.clinical, { params });
         setClinicalReports(response.data || []);
       } catch (error) {
         console.error('Error fetching clinical reports:', error);
@@ -175,7 +280,7 @@ const LeftBar = () => {
       window.removeEventListener('labReportSubmitted', handleLabReportSubmission);
       window.removeEventListener('clinicalReportSubmitted', handleClinicalReportSubmission);
     };
-  }, []);
+  }, [dateRange, customStartDate, customEndDate]);
 
   // Function to handle phlebotomy report selection
   const selectPhlebotomyReport = async (labNumberData) => {
@@ -199,6 +304,13 @@ const LeftBar = () => {
     }
   };
 
+  // Proactive cache warming on hover for faster print performance
+  const warmPrintCache = useCallback(() => {
+    // Non-blocking: warm up logo and QRCode library
+    preloadLogo().catch(() => {});
+    preloadQRCode().catch(() => {});
+  }, []);
+
   // Function to enhance report with complete patient data if missing - with caching
   const enhanceReportWithPatientData = useCallback(async (report) => {
     try {
@@ -207,18 +319,42 @@ const LeftBar = () => {
         return report;
       }
       
-      // Use cached patients data if available and fresh (5 min cache)
+      // Use cached patients data if available and fresh (30 min cache)
       const now = Date.now();
-      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+      const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes (increased from 5)
       
       let patients;
       if (patientsCacheRef.current && (now - patientsCacheTimeRef.current) < CACHE_DURATION) {
         patients = patientsCacheRef.current;
       } else {
-        const response = await axios.get(API_ENDPOINTS.patients);
-        patients = response.data;
+        // Try to use localStorage backup while fetching fresh data
+        try {
+          const cachedPatients = localStorage.getItem('patients_cache');
+          const cachedTime = localStorage.getItem('patients_cache_time');
+          if (cachedPatients && cachedTime && (now - parseInt(cachedTime)) < CACHE_DURATION) {
+            patients = JSON.parse(cachedPatients);
+            patientsCacheRef.current = patients;
+            patientsCacheTimeRef.current = parseInt(cachedTime);
+          }
+        } catch (e) {
+          console.warn('Could not read patients from localStorage:', e);
+        }
+        
+        // Fetch fresh data
+        if (!patients) {
+          const response = await axios.get(API_ENDPOINTS.patients);
+          patients = response.data;
+        }
+        
+        // Update both memory and localStorage cache
         patientsCacheRef.current = patients;
         patientsCacheTimeRef.current = now;
+        try {
+          localStorage.setItem('patients_cache', JSON.stringify(patients));
+          localStorage.setItem('patients_cache_time', now.toString());
+        } catch (e) {
+          console.warn('Could not store patients in localStorage:', e);
+        }
       }
       
       // Find patient by name (case-insensitive)
@@ -1313,73 +1449,24 @@ const LeftBar = () => {
   };
 
   const viewReport = async (report) => {
-    // Enhance report with complete patient data before viewing
-    const enhancedReport = await enhanceReportWithPatientData(report);
-    setSelectedReport(enhancedReport);
-    setShowReportModal(true);
+    // Proactively warm up print resources when viewing a report
+    // (user is likely to print after viewing)
+    Promise.all([
+      preloadLogo(),
+      preloadQRCode(),
+      enhanceReportWithPatientData(report)
+    ]).then(([, , enhancedReport]) => {
+      setSelectedReport(enhancedReport);
+      setShowReportModal(true);
+    }).catch(error => {
+      console.error('Error loading report:', error);
+      toast.error('Failed to load report');
+    });
   };
 
   const closeModal = () => {
     setShowReportModal(false);
     setSelectedReport(null);
-  };
-
-  // Filter clinical reports by date
-  const filterReportsByDate = useCallback((reports) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const monthAgo = new Date(today);
-    monthAgo.setMonth(monthAgo.getMonth() - 1);
-
-    return reports.filter(report => {
-      const reportDate = new Date(report.selectedReport?.timeStamp || report.createdAt);
-      
-      switch (dateFilter) {
-        case 'today':
-          return reportDate >= today;
-        case 'week':
-          return reportDate >= weekAgo;
-        case 'month':
-          return reportDate >= monthAgo;
-        case 'all':
-        default:
-          return true;
-      }
-    });
-  }, [dateFilter]);
-
-  // Group clinical reports by medical type
-  const groupReportsByMedicalType = useMemo(() => {
-    const filteredReports = filterReportsByDate(clinicalReports);
-    const grouped = {};
-    
-    filteredReports.forEach(report => {
-      const medicalType = report.selectedReport?.medicalType || 'Standard';
-      if (!grouped[medicalType]) {
-        grouped[medicalType] = [];
-      }
-      grouped[medicalType].push(report);
-    });
-    
-    // Sort reports within each group by date (newest first)
-    Object.keys(grouped).forEach(type => {
-      grouped[type].sort((a, b) => 
-        new Date(b.selectedReport?.timeStamp || b.createdAt) - 
-        new Date(a.selectedReport?.timeStamp || a.createdAt)
-      );
-    });
-    
-    return grouped;
-  }, [clinicalReports, filterReportsByDate]);
-
-  // Toggle medical type expansion
-  const toggleMedicalType = (medicalType) => {
-    setExpandedMedicalTypes(prev => ({
-      ...prev,
-      [medicalType]: !prev[medicalType]
-    }));
   };
 
   return (
@@ -1504,6 +1591,7 @@ const LeftBar = () => {
                         </button>
                         <button
                           onClick={() => printReport(report)}
+                          onMouseEnter={warmPrintCache}
                           className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 rounded-md text-xs font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                         >
                           <Printer size={14} />
@@ -1561,7 +1649,7 @@ const LeftBar = () => {
 
         {/* Clinical Reports Section */}
         <div className="px-6 mt-6 space-y-2">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between">
             <h4 className="text-teal-200 font-semibold text-lg">Full Clinical Reports</h4>
             <button
               onClick={() => setShowClinicalReports(!showClinicalReports)}
@@ -1572,152 +1660,162 @@ const LeftBar = () => {
           </div>
 
           {showClinicalReports && (
-            <div className="space-y-3">
-              {/* Date Filter */}
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-teal-400/20">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-teal-100 font-medium uppercase tracking-wide">Filter by Date</span>
-                  <span className="text-xs text-teal-300">
-                    {Object.keys(groupReportsByMedicalType).length} type(s) • {filterReportsByDate(clinicalReports).length} report(s)
-                  </span>
+            <>
+              {/* Date Range Filter */}
+              <div className="mb-3 space-y-2 bg-white/5 p-3 rounded-md">
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={() => setDateRange('today')}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                      dateRange === 'today' 
+                        ? 'bg-teal-500 text-white' 
+                        : 'bg-white/10 text-teal-200 hover:bg-white/20'
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => setDateRange('last7days')}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                      dateRange === 'last7days' 
+                        ? 'bg-teal-500 text-white' 
+                        : 'bg-white/10 text-teal-200 hover:bg-white/20'
+                    }`}
+                  >
+                    7 Days
+                  </button>
+                  <button
+                    onClick={() => setDateRange('last30days')}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                      dateRange === 'last30days' 
+                        ? 'bg-teal-500 text-white' 
+                        : 'bg-white/10 text-teal-200 hover:bg-white/20'
+                    }`}
+                  >
+                    30 Days
+                  </button>
+                  <button
+                    onClick={() => setDateRange('last3months')}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                      dateRange === 'last3months' 
+                        ? 'bg-teal-500 text-white' 
+                        : 'bg-white/10 text-teal-200 hover:bg-white/20'
+                    }`}
+                  >
+                    3 Months
+                  </button>
+                  <button
+                    onClick={() => setDateRange('last6months')}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                      dateRange === 'last6months' 
+                        ? 'bg-teal-500 text-white' 
+                        : 'bg-white/10 text-teal-200 hover:bg-white/20'
+                    }`}
+                  >
+                    6 Months
+                  </button>
+                  <button
+                    onClick={() => setDateRange('lastyear')}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                      dateRange === 'lastyear' 
+                        ? 'bg-teal-500 text-white' 
+                        : 'bg-white/10 text-teal-200 hover:bg-white/20'
+                    }`}
+                  >
+                    1 Year
+                  </button>
+                  <button
+                    onClick={() => setDateRange('custom')}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                      dateRange === 'custom' 
+                        ? 'bg-teal-500 text-white' 
+                        : 'bg-white/10 text-teal-200 hover:bg-white/20'
+                    }`}
+                  >
+                    Custom
+                  </button>
+                  <button
+                    onClick={() => setDateRange('all')}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                      dateRange === 'all' 
+                        ? 'bg-teal-500 text-white' 
+                        : 'bg-white/10 text-teal-200 hover:bg-white/20'
+                    }`}
+                  >
+                    All Time
+                  </button>
                 </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { value: 'all', label: 'All Time', icon: '📋' },
-                    { value: 'today', label: 'Today', icon: '📅' },
-                    { value: 'week', label: 'This Week', icon: '📆' },
-                    { value: 'month', label: 'This Month', icon: '🗓️' }
-                  ].map(filter => (
-                    <button
-                      key={filter.value}
-                      onClick={() => setDateFilter(filter.value)}
-                      className={`px-3 py-2 rounded-md text-xs font-medium transition-all duration-200 ${
-                        dateFilter === filter.value
-                          ? 'bg-teal-600 text-white shadow-md'
-                          : 'bg-white/10 text-teal-200 hover:bg-white/20'
-                      }`}
-                    >
-                      <span className="mr-1">{filter.icon}</span>
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Reports Grouped by Medical Type */}
-              <div className="space-y-2 max-h-[45vh] overflow-y-auto scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-transparent">
-                {isClinicalLoading ? (
-                  <div className="text-center py-8 bg-white/5 rounded-lg">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-300 mb-2"></div>
-                    <p className="text-teal-100 text-sm">Loading clinical reports...</p>
+                
+                {/* Custom Date Range Inputs */}
+                {dateRange === 'custom' && (
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="px-2 py-1 text-xs border rounded bg-white/10 text-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    />
+                    <span className="text-xs text-teal-200">to</span>
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="px-2 py-1 text-xs border rounded bg-white/10 text-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    />
                   </div>
-                ) : Object.keys(groupReportsByMedicalType).length === 0 ? (
-                  <div className="text-center py-8 bg-white/5 rounded-lg border border-teal-400/20">
-                    <FileText className="mx-auto mb-3 text-teal-300/50" size={32} />
-                    <p className="text-teal-100 text-sm font-medium">No clinical reports found</p>
-                    <p className="text-teal-200/60 text-xs mt-1">
-                      {dateFilter !== 'all' ? 'Try changing the date filter' : 'Reports will appear here once completed'}
-                    </p>
-                  </div>
-                ) : (
-                  Object.entries(groupReportsByMedicalType).map(([medicalType, reports]) => (
-                    <div
-                      key={medicalType}
-                      className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg border border-teal-400/20 overflow-hidden hover:border-teal-400/40 transition-all duration-200"
-                    >
-                      {/* Medical Type Header (Folder) */}
-                      <button
-                        onClick={() => toggleMedicalType(medicalType)}
-                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/10 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`transform transition-transform duration-200 ${expandedMedicalTypes[medicalType] ? 'rotate-90' : ''}`}>
-                            <ChevronDown size={18} className="text-teal-300" />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">
-                              {medicalType === 'SM-VDRL' ? '💉' : 
-                               medicalType === 'FM' ? '🩺' : 
-                               medicalType === 'MEDICAL' ? '⚕️' : 
-                               medicalType === 'MAURITIUS' ? '🏝️' : 
-                               medicalType === 'NORMAL' ? '📋' : '📄'}
-                            </span>
-                            <span className="text-sm font-semibold text-white">{medicalType}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="bg-teal-600/40 text-teal-100 px-3 py-1 rounded-full text-xs font-bold">
-                            {reports.length} {reports.length === 1 ? 'report' : 'reports'}
-                          </span>
-                        </div>
-                      </button>
-
-                      {/* Expandable Reports List */}
-                      {expandedMedicalTypes[medicalType] && (
-                        <div className="border-t border-teal-400/20 bg-black/10">
-                          {reports.map((report, index) => (
-                            <div
-                              key={report._id}
-                              className={`px-4 py-3 hover:bg-teal-700/30 transition-colors ${
-                                index !== reports.length - 1 ? 'border-b border-teal-400/10' : ''
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <User size={12} className="text-teal-300" />
-                                    <p className="text-sm font-medium text-white">
-                                      {report.selectedReport?.patientName || 'Unnamed'}
-                                    </p>
-                                  </div>
-                                  <div className="ml-5 space-y-0.5">
-                                    <p className="text-xs text-teal-200">
-                                      <span className="text-teal-300/70">Lab No:</span>{' '}
-                                      <span className="font-medium">{report.selectedReport?.labNumber}</span>
-                                    </p>
-                                    {report.passportNumber && (
-                                      <p className="text-xs text-teal-200">
-                                        <span className="text-teal-300/70">Passport:</span>{' '}
-                                        <span className="font-medium">{report.passportNumber}</span>
-                                      </p>
-                                    )}
-                                    <p className="text-xs text-teal-300">
-                                      <Calendar size={10} className="inline mr-1" />
-                                      {new Date(report.selectedReport?.timeStamp).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                      })}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex gap-2 ml-3">
-                                  <button
-                                    onClick={() => viewReport(report)}
-                                    className="p-2 bg-teal-600 hover:bg-teal-700 rounded-md transition-colors shadow-sm hover:shadow-md"
-                                    title="View Report"
-                                  >
-                                    <Eye size={14} />
-                                  </button>
-                                  <button
-                                    onClick={() => printReport(report)}
-                                    className="p-2 bg-cyan-600 hover:bg-cyan-700 rounded-md transition-colors shadow-sm hover:shadow-md"
-                                    title="Print Report"
-                                  >
-                                    <Printer size={14} />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))
                 )}
+                
+                <p className="text-xs text-teal-300">
+                  {clinicalReports.length} report{clinicalReports.length !== 1 ? 's' : ''}
+                </p>
               </div>
+            </>
+          )}
+
+          {showClinicalReports && (
+            <div className="space-y-2 max-h-[40vh] overflow-y-auto scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-transparent">
+              {isClinicalLoading ? (
+                <p className="text-teal-100 text-sm">Loading clinical reports...</p>
+              ) : clinicalReports.length === 0 ? (
+                <p className="text-teal-100 text-sm">No clinical reports available.</p>
+              ) : (
+                clinicalReports.map((report) => (
+                  <div
+                    key={report._id}
+                    className="p-3 rounded-md bg-white/10 hover:bg-teal-700/40 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{report.selectedReport?.patientName || 'Unnamed'}</p>
+                        <p className="text-xs text-teal-200">
+                          Lab No: {report.selectedReport?.labNumber} •{' '}
+                          {new Date(report.selectedReport?.timeStamp).toLocaleDateString()}
+                        </p>
+                        <p className="text-xs text-teal-300">
+                          Type: {report.selectedReport?.medicalType || 'N/A'}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => viewReport(report)}
+                          className="p-1 bg-teal-600 hover:bg-teal-700 rounded transition-colors"
+                          title="View Report"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          onClick={() => printReport(report)}
+                          onMouseEnter={warmPrintCache}
+                          className="p-1 bg-teal-600 hover:bg-teal-700 rounded transition-colors"
+                          title="Print Report"
+                        >
+                          <Printer size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>

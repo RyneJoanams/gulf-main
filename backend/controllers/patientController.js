@@ -1,11 +1,54 @@
 const Patient = require('../models/Patient');
 const fs = require('fs');
 
-// Fetch all patients
+// Fetch all patients with pagination and optimizations
 exports.getAllPatients = async (req, res) => {
   try {
-    const patients = await Patient.find();
-    res.status(200).json(patients);
+    const { 
+      page = 1, 
+      limit = 0,  // 0 means no limit (backward compatible)
+      fields = '',
+      excludePhoto = 'true' // Exclude photo by default to reduce payload
+    } = req.query;
+    
+    const skip = limit > 0 ? (parseInt(page) - 1) * parseInt(limit) : 0;
+    
+    // Build field selection - exclude heavy photo field by default
+    let selectFields = {};
+    if (fields) {
+      // If specific fields are requested
+      fields.split(',').forEach(field => selectFields[field.trim()] = 1);
+    } else if (excludePhoto === 'true') {
+      // Default: exclude photo to reduce payload size
+      selectFields = { photo: 0 };
+    }
+    
+    let query = Patient.find().select(selectFields).lean(); // Use lean() for better performance
+    
+    if (limit > 0) {
+      query = query.skip(skip).limit(parseInt(limit));
+    }
+    
+    // Sort by most recent first for better UX
+    query = query.sort({ createdAt: -1 });
+    
+    const patients = await query.exec();
+    
+    // Get total count for pagination (only if limit is set)
+    let totalCount = 0;
+    if (limit > 0) {
+      totalCount = await Patient.countDocuments();
+    }
+    
+    res.status(200).json({
+      patients,
+      pagination: limit > 0 ? {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalCount / parseInt(limit)),
+        totalCount,
+        hasMore: skip + patients.length < totalCount
+      } : null
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -65,11 +108,39 @@ exports.createPatient = async (req, res) => {
 // Update a patient
 exports.updatePatient = async (req, res) => {
   try {
-    const updatedPatient = await Patient.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!updatedPatient) return res.status(404).json({ message: 'Patient not found' });
+    // Remove fields that shouldn't be updated
+    const { _id, __v, createdAt, updatedAt, ...updateData } = req.body;
+    
+    // Handle photo upload if a new file is provided
+    if (req.file) {
+      const photoBase64 = convertImageToBase64(req.file.path);
+      updateData.photo = photoBase64;
+      
+      // Delete the uploaded file after converting to base64
+      fs.unlinkSync(req.file.path);
+    }
+    
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      req.params.id, 
+      updateData, 
+      { 
+        new: true, 
+        runValidators: true // Ensure validations run on update
+      }
+    );
+    
+    if (!updatedPatient) {
+      return res.status(404).json({ message: 'Patient not found' });
+    }
+    
+    console.log(`✅ Patient updated: "${updatedPatient.name}" (${updatedPatient.passportNumber})`);
     res.status(200).json(updatedPatient);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error updating patient:', error);
+    res.status(400).json({ 
+      message: error.message,
+      details: error.errors ? Object.keys(error.errors).map(key => error.errors[key].message) : []
+    });
   }
 };
 

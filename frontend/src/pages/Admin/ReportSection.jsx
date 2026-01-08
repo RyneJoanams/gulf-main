@@ -494,9 +494,25 @@ const renderSpecialSection = (title, data) => {
             </div>
           )}
           
+          {/* Notepad Content / Clinical Notes */}
+          {data.notepadContent && (
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-200">
+              <h4 className="text-sm font-semibold text-purple-800 mb-2 flex items-center">
+                <span className="w-3 h-3 bg-purple-500 rounded-full mr-2"></span>
+                Clinical Notes & Observations
+              </h4>
+              <div className="bg-white rounded p-3 border border-purple-100">
+                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">
+                  {data.notepadContent}
+                </pre>
+              </div>
+            </div>
+          )}
+          
           {/* No data message */}
           {(!data.fitnessEvaluation || !Object.keys(data.fitnessEvaluation).length) && 
-           (!data.labSuperintendent || !Object.keys(data.labSuperintendent).length) && (
+           (!data.labSuperintendent || !Object.keys(data.labSuperintendent).length) &&
+           !data.notepadContent && (
             <div className="text-center py-6 text-gray-500">
               <div className="text-2xl mb-2">📋</div>
               <p>No laboratory remarks available</p>

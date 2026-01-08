@@ -27,6 +27,7 @@ patientRoutes.get('/pending-payment', patientController.getPatientsPendingPaymen
 patientRoutes.get('/without-lab-numbers', patientController.getPatientsWithoutLabNumbers);
 patientRoutes.get('/:id', patientController.getPatientById);
 patientRoutes.post('/', upload.single('photo'), patientController.createPatient); // File upload for patient photo
+patientRoutes.put('/:id', upload.single('photo'), patientController.updatePatient); // Support photo upload in updates
 patientRoutes.put('/mark-payment-recorded', patientController.markPaymentRecorded);
 patientRoutes.delete('/:id', patientController.deletePatient);
 
