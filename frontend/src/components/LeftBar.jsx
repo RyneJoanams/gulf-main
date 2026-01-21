@@ -82,11 +82,15 @@ const LeftBar = () => {
   const [showClinicalReports, setShowClinicalReports] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   
-  // Search functionality state
+  // Search functionality state for clinical reports
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  
+  // Search functionality state for phlebotomy reports
+  const [phlebotomySearchQuery, setPhlebotomySearchQuery] = useState('');
+  const [filteredPhlebotomyReports, setFilteredPhlebotomyReports] = useState([]);
   
   // Date range filtering state
   const [dateRange, setDateRange] = useState('last30days');
@@ -448,6 +452,33 @@ const LeftBar = () => {
     setSearchQuery('');
     setSearchResults([]);
     setShowSearchResults(false);
+  };
+
+  // Search functionality for phlebotomy reports
+  const handlePhlebotomySearch = useCallback((query) => {
+    setPhlebotomySearchQuery(query);
+    
+    if (!query.trim()) {
+      setFilteredPhlebotomyReports([]);
+      return;
+    }
+
+    const searchTerm = query.toLowerCase();
+    const filtered = phlebotomyReports.filter(report => {
+      const patientName = report.patient?.toLowerCase() || '';
+      const labNumber = report.number?.toLowerCase() || '';
+      const medicalType = report.medicalType?.toLowerCase() || '';
+      return patientName.includes(searchTerm) || 
+             labNumber.includes(searchTerm) || 
+             medicalType.includes(searchTerm);
+    });
+    
+    setFilteredPhlebotomyReports(filtered);
+  }, [phlebotomyReports]);
+
+  const clearPhlebotomySearch = () => {
+    setPhlebotomySearchQuery('');
+    setFilteredPhlebotomyReports([]);
   };
 
   const printReport = async (report) => {
@@ -1474,30 +1505,34 @@ const LeftBar = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-transparent animate-pulse" />
 
       <div className="relative z-10 backdrop-blur-sm bg-white/5 h-full overflow-y-auto">
-       
-        {/* Search Bar for Previous Lab Results */}
+
+        {/* Recent Phlebotomy Reports Section */}
         <div className="px-6 pt-6 pb-4">
-          <div className="mb-3">
-            <h4 className="text-teal-100 font-semibold text-base flex items-center gap-2">
-              <Search size={18} className="text-teal-300" />
-              Search Lab Results
-            </h4>
-            <p className="text-xs text-teal-200/70 mt-1">Find previous patient lab reports</p>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h4 className="text-teal-200 font-semibold text-lg flex items-center gap-2">
+                Recent Phlebotomy Reports
+                <MousePointer size={16} className="text-teal-300" title="Click to select patient" />
+              </h4>
+              <p className="text-xs text-teal-200/70 mt-1">Patients pending lab tests</p>
+            </div>
           </div>
-          
-          <div className="relative group">
+
+          {/* Search Bar for Phlebotomy Reports */}
+          <div className="relative group mb-3">
             <div className="absolute inset-0 bg-gradient-to-r from-teal-500/20 to-cyan-500/20 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <div className="relative">
-                <input
+              
+              <input
                 type="text"
-                placeholder="Search by name, lab number, or passport..."
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
+                placeholder="Search pending patients by name, lab number..."
+                value={phlebotomySearchQuery}
+                onChange={(e) => handlePhlebotomySearch(e.target.value)}
                 className="w-full pl-12 pr-12 py-3 bg-white/10 backdrop-blur-sm border-2 border-teal-400/30 rounded-lg text-white placeholder-teal-200/50 focus:outline-none focus:ring-2 focus:ring-teal-400/50 focus:border-teal-400 focus:bg-white/15 transition-all duration-200 text-sm shadow-lg"
               />
-              {searchQuery && (
+              {phlebotomySearchQuery && (
                 <button
-                  onClick={clearSearch}
+                  onClick={clearPhlebotomySearch}
                   className="absolute right-4 top-1/2 transform -translate-y-1/2 text-teal-300 hover:text-white hover:bg-teal-600/30 rounded-full p-1 transition-all duration-200"
                   title="Clear search"
                 >
@@ -1507,150 +1542,63 @@ const LeftBar = () => {
             </div>
           </div>
 
-          {/* Search Results */}
-          {showSearchResults && (
-            <div className="mt-4 space-y-2 max-h-[55vh] overflow-y-auto bg-gradient-to-b from-white/5 to-white/10 rounded-lg p-4 shadow-2xl border border-teal-400/20 scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-transparent backdrop-blur-sm">
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-teal-400/20">
-                <h5 className="text-teal-100 font-semibold text-sm flex items-center gap-2">
-                  <FileText size={16} className="text-teal-300" />
-                  Search Results
-                </h5>
-                {!isSearching && (
-                  <span className="text-xs bg-teal-600/30 px-2 py-1 rounded-full text-teal-100 font-medium">
-                    {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
-                  </span>
-                )}
+          {/* Scrollable List of Phlebotomy Reports */}
+          <div className="max-h-[40vh] overflow-y-auto space-y-2 bg-gradient-to-b from-white/5 to-white/10 rounded-lg p-3 shadow-lg border border-teal-400/20 scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-transparent">
+            {isPhlebotomyLoading ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-300 mb-2"></div>
+                <p className="text-teal-100 text-sm">Loading lab numbers...</p>
               </div>
-
-              {isSearching ? (
-                <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-300 mb-2"></div>
-                  <p className="text-teal-100 text-sm">Searching records...</p>
-                </div>
-              ) : searchResults.length === 0 ? (
+            ) : phlebotomyReports.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-teal-100 text-sm">No lab numbers available.</p>
+              </div>
+            ) : (
+              (phlebotomySearchQuery ? filteredPhlebotomyReports : phlebotomyReports).length === 0 ? (
                 <div className="text-center py-8">
                   <Search className="mx-auto mb-3 text-teal-300/50" size={32} />
-                  <p className="text-teal-100 text-sm font-medium">No lab results found</p>
+                  <p className="text-teal-100 text-sm font-medium">No matching patients found</p>
                   <p className="text-teal-200/60 text-xs mt-1">Try a different search term</p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {searchResults.map((report, index) => (
-                    <div
-                      key={report._id}
-                      className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg p-4 hover:from-teal-700/40 hover:to-teal-600/30 transition-all duration-200 border border-teal-400/10 hover:border-teal-400/30 shadow-md hover:shadow-lg group animate-fadeIn"
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <User size={14} className="text-teal-300" />
-                            <p className="text-sm font-semibold text-white group-hover:text-teal-100 transition-colors">
-                              {report.selectedReport?.patientName || 'Unknown Patient'}
-                            </p>
-                          </div>
-                          
-                          <div className="space-y-1 ml-6">
-                            <div className="flex items-center gap-2">
-                              <FileText size={12} className="text-teal-300/70" />
-                              <p className="text-xs text-teal-200">
-                                Lab No: <span className="font-medium text-teal-100">{report.selectedReport?.labNumber || 'N/A'}</span>
-                              </p>
-                            </div>
-                            
-                            {report.passportNumber && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-teal-300/70">🛂</span>
-                                <p className="text-xs text-teal-200">
-                                  Passport: <span className="font-medium text-teal-100">{report.passportNumber}</span>
-                                </p>
-                              </div>
-                            )}
-                            
-                            <div className="flex items-center gap-2">
-                              <Calendar size={12} className="text-teal-300/70" />
-                              <p className="text-xs text-teal-300">
-                                {new Date(report.selectedReport?.timeStamp || report.createdAt).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric'
-                                })}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
+                (phlebotomySearchQuery ? filteredPhlebotomyReports : phlebotomyReports).map((labNumberData) => (
+                  <div
+                    key={labNumberData._id}
+                    className="block p-3 rounded-md bg-white/10 hover:bg-teal-700/40 transition-colors cursor-pointer group border border-teal-400/10 hover:border-teal-400/30"
+                    onClick={() => selectPhlebotomyReport(labNumberData)}
+                    title="Click to select this patient for lab tests"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium group-hover:text-teal-100 transition-colors">
+                          {labNumberData.patient || 'Unnamed Patient'}
+                        </p>
+                        <p className="text-xs text-teal-200">
+                          Lab No: {labNumberData.number} •{' '}
+                          {new Date(labNumberData.createdAt || labNumberData.timestamp).toLocaleDateString()}
+                        </p>
+                        <p className="text-xs text-teal-300">
+                          Type: {labNumberData.medicalType || 'N/A'}
+                        </p>
                       </div>
-                      
-                      <div className="flex gap-2 mt-3 pt-3 border-t border-teal-400/10">
-                        <button
-                          onClick={() => viewReport(report)}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 rounded-md text-xs font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                        >
-                          <Eye size={14} />
-                          View Report
-                        </button>
-                        <button
-                          onClick={() => printReport(report)}
-                          onMouseEnter={warmPrintCache}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 rounded-md text-xs font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                        >
-                          <Printer size={14} />
-                          Print
-                        </button>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MousePointer size={14} className="text-teal-300" />
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Recent Phlebotomy Reports Section */}
-        <div className="px-6 mt-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <h4 className="text-teal-200 font-semibold text-lg mb-2">Recent Phlebotomy Reports</h4>
-            <MousePointer size={16} className="text-teal-300" title="Click to select patient" />
+                  </div>
+                ))
+              )
+            )}
           </div>
-
-          {isPhlebotomyLoading ? (
-            <p className="text-teal-100 text-sm">Loading lab numbers...</p>
-          ) : phlebotomyReports.length === 0 ? (
-            <p className="text-teal-100 text-sm">No lab numbers available.</p>
-          ) : (
-            phlebotomyReports.slice(0, 6).map((labNumberData) => (
-              <div
-                key={labNumberData._id}
-                className="block p-3 rounded-md bg-white/10 hover:bg-teal-700/40 transition-colors cursor-pointer group"
-                onClick={() => selectPhlebotomyReport(labNumberData)}
-                title="Click to select this patient for lab tests"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium group-hover:text-teal-100 transition-colors">
-                      {labNumberData.patient || 'Unnamed Patient'}
-                    </p>
-                    <p className="text-xs text-teal-200">
-                      Lab No: {labNumberData.number} •{' '}
-                      {new Date(labNumberData.createdAt || labNumberData.timestamp).toLocaleDateString()}
-                    </p>
-                    <p className="text-xs text-teal-300">
-                      Type: {labNumberData.medicalType || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <MousePointer size={14} className="text-teal-300" />
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
         </div>
 
         {/* Clinical Reports Section */}
         <div className="px-6 mt-6 space-y-2">
           <div className="flex items-center justify-between">
-            <h4 className="text-teal-200 font-semibold text-lg">Full Clinical Reports</h4>
+            <div>
+              <h4 className="text-teal-200 font-semibold text-lg">Full Clinical Reports</h4>
+              <p className="text-xs text-teal-200/70 mt-1">Complete medical reports with lab results</p>
+            </div>
             <button
               onClick={() => setShowClinicalReports(!showClinicalReports)}
               className="text-teal-300 hover:text-white transition-colors"
@@ -1661,6 +1609,130 @@ const LeftBar = () => {
 
           {showClinicalReports && (
             <>
+              {/* Search Bar for Clinical Reports */}
+              <div className="mb-3">
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-gradient-to-r from-teal-500/20 to-cyan-500/20 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="relative">
+                    
+                    <input
+                      type="text"
+                      placeholder="Search by name, lab number, or passport..."
+                      value={searchQuery}
+                      onChange={(e) => handleSearch(e.target.value)}
+                      className="w-full pl-16 pr-12 py-3 bg-white/10 backdrop-blur-sm border-2 border-teal-400/30 rounded-lg text-white placeholder-teal-200/50 focus:outline-none focus:ring-2 focus:ring-teal-400/50 focus:border-teal-400 focus:bg-white/15 transition-all duration-200 text-sm shadow-lg"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={clearSearch}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-teal-300 hover:text-white hover:bg-teal-600/30 rounded-full p-1 transition-all duration-200"
+                        title="Clear search"
+                      >
+                        <X size={18} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Search Results */}
+                {showSearchResults && (
+                  <div className="mt-4 space-y-2 max-h-[45vh] overflow-y-auto bg-gradient-to-b from-white/5 to-white/10 rounded-lg p-4 shadow-2xl border border-teal-400/20 scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-transparent backdrop-blur-sm">
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-teal-400/20">
+                      <h5 className="text-teal-100 font-semibold text-sm flex items-center gap-2">
+                        <FileText size={16} className="text-teal-300" />
+                        Search Results
+                      </h5>
+                      {!isSearching && (
+                        <span className="text-xs bg-teal-600/30 px-2 py-1 rounded-full text-teal-100 font-medium">
+                          {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
+                        </span>
+                      )}
+                    </div>
+
+                    {isSearching ? (
+                      <div className="text-center py-8">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-300 mb-2"></div>
+                        <p className="text-teal-100 text-sm">Searching records...</p>
+                      </div>
+                    ) : searchResults.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Search className="mx-auto mb-3 text-teal-300/50" size={32} />
+                        <p className="text-teal-100 text-sm font-medium">No lab results found</p>
+                        <p className="text-teal-200/60 text-xs mt-1">Try a different search term</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {searchResults.map((report, index) => (
+                          <div
+                            key={report._id}
+                            className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg p-4 hover:from-teal-700/40 hover:to-teal-600/30 transition-all duration-200 border border-teal-400/10 hover:border-teal-400/30 shadow-md hover:shadow-lg group animate-fadeIn"
+                            style={{ animationDelay: `${index * 50}ms` }}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <User size={14} className="text-teal-300" />
+                                  <p className="text-sm font-semibold text-white group-hover:text-teal-100 transition-colors">
+                                    {report.selectedReport?.patientName || 'Unknown Patient'}
+                                  </p>
+                                </div>
+                                
+                                <div className="space-y-1 ml-6">
+                                  <div className="flex items-center gap-2">
+                                    <FileText size={12} className="text-teal-300/70" />
+                                    <p className="text-xs text-teal-200">
+                                      Lab No: <span className="font-medium text-teal-100">{report.selectedReport?.labNumber || 'N/A'}</span>
+                                    </p>
+                                  </div>
+                                  
+                                  {report.passportNumber && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-teal-300/70">🛂</span>
+                                      <p className="text-xs text-teal-200">
+                                        Passport: <span className="font-medium text-teal-100">{report.passportNumber}</span>
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex items-center gap-2">
+                                    <Calendar size={12} className="text-teal-300/70" />
+                                    <p className="text-xs text-teal-300">
+                                      {new Date(report.selectedReport?.timeStamp || report.createdAt).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric'
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex gap-2 mt-3 pt-3 border-t border-teal-400/10">
+                              <button
+                                onClick={() => viewReport(report)}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 rounded-md text-xs font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                              >
+                                <Eye size={14} />
+                                View Report
+                              </button>
+                              <button
+                                onClick={() => printReport(report)}
+                                onMouseEnter={warmPrintCache}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 rounded-md text-xs font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                              >
+                                <Printer size={14} />
+                                Print
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Date Range Filter */}
               <div className="mb-3 space-y-2 bg-white/5 p-3 rounded-md">
                 <div className="flex flex-wrap gap-1">
