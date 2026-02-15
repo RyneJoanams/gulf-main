@@ -88,7 +88,10 @@ exports.createLabNumber = async (req, res) => {
 // Controller to get all lab numbers
 exports.getAllLabNumbers = async (req, res) => {
   try {
-    const labNumbers = await LabNumber.find(); // Fetch all lab numbers from the database
+    // Use lean() for better performance and sort by newest first
+    const labNumbers = await LabNumber.find()
+      .sort({ createdAt: -1 }) // Sort by newest first
+      .lean(); // Use lean() for faster read-only queries
     res.status(200).json({
       success: true,
       labNumbers, // Return all lab numbers

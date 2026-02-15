@@ -65,6 +65,21 @@ const clinicalSchema = new mongoose.Schema(
     radiologyData: mongoose.Schema.Types.Mixed,
     // Flag to track if this clinical report is from phlebotomy F-series routing
     isFromPhlebotomy: { type: Boolean, default: false },
+    // Radiology referral fields
+    radiologyReferral: { 
+      type: String, 
+      enum: ['yes', 'no', ''], 
+      default: '' 
+    },
+    requiresRadiology: { 
+      type: Boolean, 
+      default: false 
+    },
+    radiologyStatus: { 
+      type: String, 
+      enum: ['pending', 'completed', 'not-required'], 
+      default: 'not-required' 
+    },
   },
   {
     timestamps: true,

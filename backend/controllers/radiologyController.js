@@ -2,7 +2,11 @@ const RadiologyTest = require('../models/radiology');
 
 exports.getRadiologyTests = async (req, res) => {
     try {
-        const tests = await RadiologyTest.find();
+        // Exclude heavy patientImage field by default, use lean() for better performance
+        const tests = await RadiologyTest.find()
+            .select('-patientImage') // Exclude patientImage to reduce payload
+            .sort({ timeStamp: -1 }) // Sort by newest first
+            .lean(); // Use lean() for faster read-only queries
         res.status(200).json(tests);
     } catch (error) {
         res.status(500).json({ message: error.message });

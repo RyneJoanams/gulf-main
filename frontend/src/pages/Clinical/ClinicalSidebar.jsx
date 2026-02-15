@@ -1,5 +1,5 @@
 import React from "react";
-import { FaChevronCircleLeft, FaChevronCircleRight } from "react-icons/fa";
+import { FaChevronCircleLeft, FaChevronCircleRight, FaSearch, FaTimes, FaFilter, FaStethoscope, FaVial, FaXRay, FaFlask } from "react-icons/fa";
 
 const ClinicalSidebar = ({
     searchTerm,
@@ -16,141 +16,249 @@ const ClinicalSidebar = ({
     itemsPerPage
 }) => {
     return (
-        <div className="bg-white dark:bg-teal-200 rounded-lg shadow-lg p-4 overflow-y-auto">
-            <input
-                type="text"
-                placeholder="Search by lab number"
-                className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <div className="bg-teal-900 text-white rounded-lg shadow-2xl min-h-screen overflow-y-auto">
+            <div className="p-6 space-y-6">
+                {/* Header */}
+                <div className="border-b border-teal-700 pb-4">
+                    <h2 className="text-2xl font-bold flex items-center gap-3">
+                        <FaStethoscope className="text-teal-300" />
+                        Clinical Queue
+                    </h2>
+                    <p className="text-teal-200 text-sm mt-2">
+                        {filteredReports.length} patient{filteredReports.length !== 1 ? 's' : ''} ready for assessment
+                    </p>
+                </div>
+
+                {/* Search Section */}
+                <div>
+                    <h3 className="text-sm font-semibold text-teal-200 mb-3 uppercase tracking-wide">Search Patient</h3>
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="Search by lab number..."
+                            className="w-full px-4 py-3 pl-10 rounded-lg border-0 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-teal-300 transition-all duration-200"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm("")}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                            >
+                                <FaTimes />
+                            </button>
+                        )}
+                    </div>
+                    {searchTerm && (
+                        <p className="text-teal-200 text-xs mt-2">
+                            Found {filteredReports.length} match{filteredReports.length !== 1 ? 'es' : ''}
+                        </p>
+                    )}
+                </div>
             
-            {/* Source Filter */}
-            <select
-                value={sourceFilter}
-                onChange={(e) => setSourceFilter(e.target.value)}
-                className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-            >
-                <option value="All">All Reports</option>
-                <option value="Phlebotomy">From Phlebotomy (F-Series)</option>
-                <option value="Lab Only">Lab Only</option>
-                <option value="Radiology Complete">Radiology Complete</option>
-            </select>
+                {/* Source Filter */}
+                <div>
+                    <h3 className="text-sm font-semibold text-teal-200 mb-3 uppercase tracking-wide flex items-center gap-2">
+                        <FaFilter /> Filter by Source
+                    </h3>
+                    <select
+                        value={sourceFilter}
+                        onChange={(e) => setSourceFilter(e.target.value)}
+                        className="w-full px-4 py-3 rounded-lg border-0 bg-white text-gray-900 focus:ring-2 focus:ring-teal-300 transition-all duration-200 cursor-pointer font-medium"
+                    >
+                        <option value="All">📋 All Reports</option>
+                        <option value="Phlebotomy">💉 From Phlebotomy (F-Series)</option>
+                        <option value="Lab Only">🧪 Lab Only</option>
+                        <option value="Radiology Complete">🏥 Radiology Complete</option>
+                    </select>
+                </div>
 
             {isLoading ? (
-                <div className="text-center">
-                    <p>Loading Reports, Please Wait...</p>
-                    <p className="text-sm text-gray-500 mt-2">Showing patients ready for clinical assessment</p>
+                <div className="text-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
+                    <p className="text-white font-medium">Loading Reports...</p>
+                    <p className="text-sm text-teal-200 mt-2">Fetching patients ready for clinical assessment</p>
                 </div>
             ) : paginatedReports.length > 0 ? (
-                <>
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800 font-medium">
-                            📋 Patients ready for clinical assessment ({filteredReports.length} total)
-                        </p>
-                        <p className="text-xs text-blue-600 mt-1">
-                            S-series tests are automatically processed and appear directly in clinical reports
-                        </p>
+                <div className="space-y-4">
+                    {/* Info Banner */}
+                    <div className="bg-teal-800 border border-teal-600 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 bg-teal-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-white text-lg">📋</span>
+                            </div>
+                            <div>
+                                <p className="text-sm text-white font-medium">
+                                    Patients Ready ({filteredReports.length})
+                                </p>
+                                <p className="text-xs text-teal-200 mt-1">
+                                    S-series tests are auto-processed. Showing pending clinical assessments.
+                                </p>
+                            </div>
+                        </div>
                     </div>
+
+                    {/* Patient Cards */}
                     {paginatedReports.map((report) => {
                         const labNumber = report.labNumber || '';
                         const isFSeries = labNumber.includes('-F');
                         const seriesType = isFSeries ? 'F' : 'Unknown';
                         const hasRadiology = report.source === 'radiology';
+                        const isSelected = selectedReport?._id === report._id;
                         
                         return (
                             <div
                                 key={report._id}
                                 onClick={() => handleReportSelection(report)}
-                                className={`relative p-4 rounded-lg mb-4 transition-all duration-300 ease-in-out hover:scale-105 border shadow-md hover:shadow-lg
-              ${selectedReport?._id === report._id
-                                        ? "bg-gradient-to-br from-teal-600 to-teal-700 text-white border-teal-400"
-                                        : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-teal-50 dark:hover:bg-teal-900"
-                                    }`}
+                                className={`relative rounded-xl transition-all duration-300 cursor-pointer hover:scale-102 border-2 ${
+                                    isSelected
+                                        ? "bg-white text-gray-900 border-teal-300 shadow-2xl"
+                                        : "bg-teal-800 bg-opacity-50 border-teal-700 hover:bg-teal-700 hover:border-teal-500 shadow-lg hover:shadow-xl"
+                                }`}
                             >
-                                {/* Series and Status Badges */}
-                                <div className="absolute top-2 right-2 flex flex-col space-y-1">
-                                    <span className={`px-2 py-1 text-xs font-bold rounded ${
-                                        isFSeries 
-                                            ? 'bg-green-100 text-green-800 border border-green-200' 
-                                            : 'bg-gray-100 text-gray-800 border border-gray-200'
-                                    }`}>
-                                        {seriesType}-Series
-                                    </span>
-                                    <span className={`px-2 py-1 text-xs font-medium rounded ${
-                                        hasRadiology 
-                                            ? 'bg-green-100 text-green-800' 
-                                            : 'bg-yellow-100 text-yellow-800'
-                                    }`}>
-                                        {report.source === 'phlebotomy' ? 'F-Series from Phlebotomy' : hasRadiology ? 'With Radiology' : 'Lab Only'}
-                                    </span>
-                                </div>
+                                <div className="p-4">
+                                    {/* Status Badges */}
+                                    <div className="flex gap-2 mb-3 flex-wrap">
+                                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${
+                                            isFSeries 
+                                                ? 'bg-green-500 text-white' 
+                                                : 'bg-gray-400 text-white'
+                                        }`}>
+                                            {seriesType}-Series
+                                        </span>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                            hasRadiology 
+                                                ? 'bg-blue-500 text-white' 
+                                                : report.source === 'phlebotomy'
+                                                ? 'bg-purple-500 text-white'
+                                                : 'bg-orange-500 text-white'
+                                        }`}>
+                                            {report.source === 'phlebotomy' ? '💉 Phlebotomy' : hasRadiology ? '🏥 w/ Radiology' : '🧪 Lab Only'}
+                                        </span>
+                                    </div>
 
-                                <div className="flex flex-col items-center space-y-3">
-                                    <div className="relative group">
-                                        <div className="absolute inset-0 bg-teal-400 rounded-full opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
-                                        <div className="w-24 h-24 border-2 border-gray-200 dark:border-gray-600 rounded-full overflow-hidden bg-gray-50 dark:bg-gray-700 shadow-inner">
-                                            {report.patientImage || report.photo ? (
-                                                <img
-                                                    src={report.patientImage ? `data:image/jpeg;base64,${report.patientImage}` : report.photo}
-                                                    alt="Patient"
-                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center">
-                                                    <span className="text-gray-400 dark:text-gray-500 text-2xl font-light">👤</span>
+                                    <div className="flex items-center gap-4">
+                                        {/* Patient Image */}
+                                        <div className="relative group flex-shrink-0">
+                                            <div className={`w-16 h-16 border-2 ${isSelected ? 'border-teal-500' : 'border-teal-600'} rounded-full overflow-hidden shadow-lg`}>
+                                                {report.patientImage || report.photo ? (
+                                                    <img
+                                                        src={`data:image/jpeg;base64,${report.patientImage || report.photo}`}
+                                                        alt="Patient"
+                                                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                                        onError={(e) => {
+                                                            e.target.style.display = 'none';
+                                                            e.target.nextSibling.style.display = 'flex';
+                                                        }}
+                                                    />
+                                                ) : null}
+                                                <div 
+                                                    className={`w-full h-full flex items-center justify-center ${isSelected ? 'bg-teal-100' : 'bg-teal-800'}`}
+                                                    style={{ display: (report.patientImage || report.photo) ? 'none' : 'flex' }}
+                                                >
+                                                    <span className={`text-2xl ${isSelected ? 'text-teal-700' : 'text-teal-300'}`}>👤</span>
+                                                </div>
+                                            </div>
+                                            {isSelected && (
+                                                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-teal-500 rounded-full flex items-center justify-center border-2 border-white">
+                                                    <span className="text-white text-xs">✓</span>
                                                 </div>
                                             )}
                                         </div>
+
+                                        {/* Patient Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className={`text-base font-bold truncate ${isSelected ? 'text-gray-900' : 'text-white'}`}>
+                                                {report.patientName}
+                                            </h3>
+                                            <p className={`text-xs mt-1 ${isSelected ? 'text-gray-700' : 'text-teal-200'}`}>
+                                                <span className="font-semibold">Lab:</span> {report.labNumber}
+                                            </p>
+                                            <p className={`text-xs ${isSelected ? 'text-gray-600' : 'text-teal-300'}`}>
+                                                <span className="font-semibold">Type:</span> {report.medicalType || 'N/A'}
+                                            </p>
+                                            <p className={`text-xs ${isSelected ? 'text-gray-500' : 'text-teal-300'}`}>
+                                                {new Date(report.timestamp || report.timeStamp || report.createdAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
                                     </div>
 
-                                    <div className="w-full space-y-1 text-center">
-                                        <h3 className="text-base font-semibold">
-                                            Name: {report.patientName}
-                                        </h3>
-                                        <p className="text-xs text-gray-600">
-                                            Medical Type: <span className="font-semibold">{report.medicalType || 'N/A'}</span>
-                                        </p>
-                                        <div className={`text-xs ${selectedReport?._id === report._id ? "text-teal-100" : "text-gray-600 dark:text-gray-400"}`}>
-                                            <p>Lab Number: {report.labNumber}</p>
-                                            <p>Date: {new Date(report.timestamp || report.timeStamp || report.createdAt).toLocaleString()}</p>
+                                    {/* Ready Badge */}
+                                    {!isSelected && (
+                                        <div className="flex items-center justify-center mt-3 pt-3 border-t border-teal-600">
+                                            <span className="inline-flex items-center gap-2 text-xs font-medium text-teal-200">
+                                                <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></span>
+                                                Ready for Clinical
+                                            </span>
                                         </div>
-                                        <div className="flex items-center justify-center space-x-2 mt-2">
-                                            <span className="inline-block w-2 h-2 bg-blue-400 rounded-full"></span>
-                                            <span className="text-xs font-medium">Ready for Clinical</span>
+                                    )}
+
+                                    {isSelected && (
+                                        <div className="flex items-center justify-center mt-3 pt-3 border-t border-teal-200">
+                                            <span className="inline-flex items-center gap-2 text-xs font-bold text-teal-700">
+                                                <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
+                                                Currently Viewing
+                                            </span>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         );
                     })}
-                </>
+                </div>
             ) : (
-                <div className="text-center text-gray-500">
-                    <p>No patients ready for clinical assessment.</p>
-                    <p className="text-sm mt-2">All reports have been processed by clinical.</p>
+                <div className="text-center py-12">
+                    <div className="w-20 h-20 mx-auto bg-teal-800 rounded-full flex items-center justify-center mb-4">
+                        <span className="text-4xl">✅</span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-white mb-2">All Clear!</h3>
+                    <p className="text-teal-200 text-sm">No patients waiting for clinical assessment.</p>
+                    <p className="text-teal-300 text-xs mt-2">All reports have been processed.</p>
                 </div>
             )}
 
             {/* Pagination */}
-            <div className="flex justify-between items-center mt-4">
-                <button
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage((prev) => prev - 1)}
-                    className={`px-3 py-1.5 bg-blue-500 text-white rounded-lg transition-opacity ${currentPage === 1 ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-600"}`}
-                >
-                    <FaChevronCircleLeft className="size-5" />
-                </button>
-                <span className="text-sm">
-                    Page {currentPage} of {Math.ceil(filteredReports.length / itemsPerPage)}
-                </span>
-                <button
-                    disabled={currentPage === Math.ceil(filteredReports.length / itemsPerPage)}
-                    onClick={() => setCurrentPage((prev) => prev + 1)}
-                    className={`px-3 py-1.5 bg-blue-500 text-white rounded-lg transition-opacity ${currentPage === Math.ceil(filteredReports.length / itemsPerPage) ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-600"}`}
-                >
-                    <FaChevronCircleRight className="size-5" />
-                </button>
+            {filteredReports.length > itemsPerPage && (
+                <div className="border-t border-teal-700 pt-6 mt-6">
+                    <div className="flex justify-between items-center">
+                        <button
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage((prev) => prev - 1)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                currentPage === 1 
+                                    ? "bg-teal-800 text-teal-500 cursor-not-allowed opacity-50" 
+                                    : "bg-white text-teal-900 hover:bg-teal-50 hover:scale-105 shadow-md"
+                            }`}
+                        >
+                            <FaChevronCircleLeft />
+                            <span className="hidden sm:inline">Previous</span>
+                        </button>
+                        
+                        <div className="flex flex-col items-center">
+                            <span className="text-sm font-medium text-white">
+                                Page {currentPage} of {Math.ceil(filteredReports.length / itemsPerPage)}
+                            </span>
+                            <span className="text-xs text-teal-300 mt-1">
+                                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredReports.length)}-{Math.min(currentPage * itemsPerPage, filteredReports.length)} of {filteredReports.length}
+                            </span>
+                        </div>
+                        
+                        <button
+                            disabled={currentPage === Math.ceil(filteredReports.length / itemsPerPage)}
+                            onClick={() => setCurrentPage((prev) => prev + 1)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                currentPage === Math.ceil(filteredReports.length / itemsPerPage)
+                                    ? "bg-teal-800 text-teal-500 cursor-not-allowed opacity-50" 
+                                    : "bg-white text-teal-900 hover:bg-teal-50 hover:scale-105 shadow-md"
+                            }`}
+                        >
+                            <span className="hidden sm:inline">Next</span>
+                            <FaChevronCircleRight />
+                        </button>
+                    </div>
+                </div>
+            )}
             </div>
         </div>
     );

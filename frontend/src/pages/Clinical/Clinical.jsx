@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { FaXRay, FaCheckCircle, FaArrowRight, FaInfoCircle, FaExclamationTriangle, FaFlask } from "react-icons/fa";
 import ReportSection from "../Admin/ReportSection";
 import "react-toastify/dist/ReactToastify.css";
 import { TESTS_BY_UNIT } from '../Lab/LabFunctions';
@@ -15,6 +16,7 @@ const Clinical = () => {
     const [selectedReport, setSelectedReport] = useState(null);
     const [selectedPatientDetails, setSelectedPatientDetails] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingPatientDetails, setIsLoadingPatientDetails] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [testTypeFilter, setTestTypeFilter] = useState("All");
     const [sourceFilter, setSourceFilter] = useState("All"); // New filter for report source
@@ -28,6 +30,7 @@ const Clinical = () => {
     const [selectedUnits, setSelectedUnits] = useState({});
     const [selectedTests, setSelectedTests] = useState({});
     const [selectAll, setSelectAll] = useState({});
+    const [radiologyReferral, setRadiologyReferral] = useState(""); // "no" or "yes"
 
     const [formData, setFormData] = useState({
         generalExamination: {},
@@ -49,27 +52,47 @@ const Clinical = () => {
         const fetchReports = async () => {
             try {
                 // Fetch lab reports, radiology reports, clinical reports, lab numbers from phlebotomy, and patients
+                // Exclude photo field from patients to reduce payload size
                 const [labResponse, radiologyResponse, clinicalResponse, labNumbersResponse, patientsResponse] = await Promise.all([
                     axios.get(`${API_BASE_URL}/api/lab`),
                     axios.get(`${API_BASE_URL}/api/radiology`),
                     axios.get(`${API_BASE_URL}/api/clinical`),
                     axios.get(`${API_BASE_URL}/api/number`),
-                    axios.get(`${API_BASE_URL}/api/patient`)
+                    axios.get(`${API_BASE_URL}/api/patient?excludePhoto=false&fields=name,_id,medicalType,photo`)
                 ]);
 
                 const labReports = labResponse.data.data || [];
                 const radiologyReports = radiologyResponse.data || [];
                 const clinicalReports = clinicalResponse.data || [];
                 const labNumbers = labNumbersResponse.data.labNumbers || [];
-                const patients = patientsResponse.data || [];
+                const patients = patientsResponse.data.patients || patientsResponse.data || [];
 
-                // Create a map of patient names to patient photos
+                console.log('📊 Fetched data counts:', {
+                    labReports: labReports.length,
+                    radiologyReports: radiologyReports.length,
+                    clinicalReports: clinicalReports.length,
+                    labNumbers: labNumbers.length,
+                    patients: patients.length,
+                    patientsWithPhotos: patients.filter(p => p.photo).length
+                });
+
+                // Create a map of patient names to patient IDs (photos will be loaded on demand)
+                const patientIdMap = new Map();
+                const patientMedicalTypeMap = new Map();
                 const patientPhotoMap = new Map();
                 patients.forEach(patient => {
-                    if (patient.name && patient.photo) {
-                        patientPhotoMap.set(patient.name.toLowerCase(), patient.photo);
+                    if (patient.name && patient._id) {
+                        patientIdMap.set(patient.name.toLowerCase(), patient._id);
+                        if (patient.medicalType) {
+                            patientMedicalTypeMap.set(patient.name.toLowerCase(), patient.medicalType);
+                        }
+                        if (patient.photo) {
+                            patientPhotoMap.set(patient.name.toLowerCase(), patient.photo);
+                        }
                     }
                 });
+
+                console.log('📸 Photo map created with', patientPhotoMap.size, 'patient photos');
 
                 // Get lab numbers that have already been processed by clinical
                 const processedByClinical = new Set(
@@ -97,6 +120,8 @@ const Clinical = () => {
                         _id: `phlebotomy-${labNum._id}`, // Unique identifier for phlebotomy reports
                         labNumber: labNum.number,
                         patientName: labNum.patient,
+                        patientId: patientIdMap.get(labNum.patient?.toLowerCase()) || null,
+                        medicalType: patientMedicalTypeMap.get(labNum.patient?.toLowerCase()) || 'N/A',
                         timestamp: labNum.createdAt || labNum.timestamp || new Date(),
                         testType: 'F-Series Medical',
                         source: 'phlebotomy',
@@ -122,8 +147,10 @@ const Clinical = () => {
                         
                         return {
                             ...report,
+                            medicalType: report.medicalType || patientMedicalTypeMap.get(report.patientName?.toLowerCase()) || 'N/A',
                             source: radiologyData ? 'radiology' : 'lab',
-                            photo: patientPhotoMap.get(report.patientName?.toLowerCase()) || report.patientImage || null,
+                            patientId: patientIdMap.get(report.patientName?.toLowerCase()) || report.patientId || null,
+                            photo: patientPhotoMap.get(report.patientName?.toLowerCase()) || null,
                             radiologyData: radiologyData || {
                                 heafMantouxTest: null,
                                 chestXRayTest: null
@@ -292,6 +319,12 @@ const Clinical = () => {
                 return;
             }
 
+            // Validate radiology referral selection
+            if (!radiologyReferral) {
+                toast.error("Please select radiology referral option");
+                return;
+            }
+
             // Filter out unselected tests
             const filteredData = {
                 generalExamination: {},
@@ -308,7 +341,10 @@ const Clinical = () => {
             });
 
             const clinicalReport = {
-                selectedReport,
+                selectedReport: {
+                    ...selectedReport,
+                    patientImage: selectedReport?.patientImage || selectedReport?.photo || selectedPatientDetails?.photo
+                },
                 passportNumber: selectedPatientDetails?.passportNumber,
                 gender: selectedPatientDetails?.gender,
                 age: selectedPatientDetails?.age,
@@ -323,21 +359,75 @@ const Clinical = () => {
                 allergy: formData.allergy,
                 radiologyData: selectedReport?.radiologyData,
                 // Add flag to indicate if this is from phlebotomy (F-series routing)
-                isFromPhlebotomy: selectedReport?.isFromPhlebotomy || false
+                isFromPhlebotomy: selectedReport?.isFromPhlebotomy || false,
+                // Add radiology referral information
+                radiologyReferral: radiologyReferral,
+                requiresRadiology: radiologyReferral === "yes",
+                radiologyStatus: radiologyReferral === "yes" ? "pending" : "not-required"
             };
-            console.log(clinicalReport);
-
-            await axios.post(`${API_BASE_URL}/api/clinical`, clinicalReport);
             
-            // Enhanced notification for FM patients about next steps
-            if (selectedPatientDetails?.medicalType === 'FM' || selectedReport?.medicalType === 'FM') {
-              toast.success("FM Clinical Assessment completed successfully!");
-              toast.info('✅ Patient now available for Lab Testing - Check LeftBar Lab Reports', {
-                autoClose: 8000,
-                position: "top-center"
-              });
+            console.log('📋 Clinical Report Submission Data:', clinicalReport);
+            console.log('🔍 Lab Number:', selectedReport?.labNumber);
+            console.log('🏥 Medical Type:', selectedPatientDetails?.medicalType || selectedReport?.medicalType);
+            console.log('📸 Photo Status:', {
+                hasReportPatientImage: !!selectedReport?.patientImage,
+                hasReportPhoto: !!selectedReport?.photo,
+                hasPatientDetailsPhoto: !!selectedPatientDetails?.photo,
+                finalPhotoPresent: !!clinicalReport.selectedReport.patientImage,
+                finalPhotoLength: clinicalReport.selectedReport.patientImage?.length
+            });
+            console.log('🩻 Radiology Referral:', radiologyReferral);
+            
+            // Determine routing based on radiology referral
+            if (radiologyReferral === "yes") {
+                console.log('📍 Routing: Clinical → Radiology → Lab Department');
             } else {
-              toast.success("Clinical Report successfully created");
+                console.log('📍 Routing: Clinical → Lab Department');
+            }
+
+            const response = await axios.post(`${API_BASE_URL}/api/clinical`, clinicalReport);
+            console.log('✅ Clinical Report Created Successfully:', response.data);
+            
+            // Determine the series type for routing information
+            const labNumber = selectedReport?.labNumber || '';
+            const isFSeries = labNumber.includes('-F');
+            const isSeries = labNumber.includes('-S');
+            
+            // Enhanced notification based on radiology referral
+            if (radiologyReferral === "yes") {
+                toast.success("✅ Clinical Assessment Completed!");
+                toast.info('🩻 Patient referred to Radiology Department → Then Lab', {
+                    autoClose: 8000,
+                    position: "top-center",
+                    icon: "🏥"
+                });
+                console.log('📌 Patient routed: Clinical → Radiology → Lab');
+            } else {
+                // No radiology - direct to lab
+                if (selectedPatientDetails?.medicalType === 'FM' || selectedReport?.medicalType === 'FM') {
+                  toast.success("✅ FM Clinical Assessment Completed!");
+                  toast.info('🔬 Patient sent directly to Lab Testing', {
+                    autoClose: 8000,
+                    position: "top-center"
+                  });
+                  console.log('📌 FM Patient routed directly to Lab Department');
+                } else if (isFSeries) {
+                  toast.success("✅ Clinical Assessment Completed!");
+                  toast.info('🧪 F-Series patient sent to Lab Testing', {
+                    autoClose: 6000,
+                    position: "top-center"
+                  });
+                  console.log('📌 F-Series patient routed to Lab Department');
+                } else if (isSeries) {
+                  toast.success("Clinical Report successfully created");
+                  console.log('📌 S-Series test (auto-processed) - already in final reports');
+                } else {
+                  toast.success("✅ Clinical Report Successfully Created");
+                  toast.info('📊 Patient sent to Lab for processing', {
+                    autoClose: 5000
+                  });
+                }
+                console.log('📌 Patient routed directly: Clinical → Lab');
             }
 
             // Remove the processed report from the list
@@ -369,6 +459,7 @@ const Clinical = () => {
             setSelectedTests({});
             setSelectAll({});
             setSelectedUnits({});
+            setRadiologyReferral("");
             setSelectedReport(null);
             setSelectedPatientDetails(null);
         } catch (error) {
@@ -379,16 +470,26 @@ const Clinical = () => {
 
     // Function to fetch patient details based on patient name
     const fetchPatientDetails = async (patientName) => {
+        setIsLoadingPatientDetails(true);
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/patient`);
-            const patients = response.data;
+            console.log('Fetching patient details for:', patientName);
+            const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=false&fields=name,passportNumber,sex,age,agent,medicalType,photo`);
+            
+            // Handle different response structures
+            const patients = Array.isArray(response.data) ? response.data : (response.data.patients || []);
+            console.log('Fetched patients count:', patients.length);
             
             // Find patient by name (case-insensitive)
             const patient = patients.find(p => 
-                p.name.toLowerCase() === patientName.toLowerCase()
+                p.name && p.name.toLowerCase() === patientName.toLowerCase()
             );
             
             if (patient) {
+                console.log('Patient found:', patient.name);
+                console.log('Patient photo present:', !!patient.photo);
+                if (patient.photo) {
+                    console.log('Photo length:', patient.photo.length, 'characters');
+                }
                 setSelectedPatientDetails({
                     passportNumber: patient.passportNumber,
                     gender: patient.sex, // Patient model uses 'sex' field
@@ -398,21 +499,30 @@ const Clinical = () => {
                     photo: patient.photo // Add photo field
                 });
             } else {
+                console.warn('Patient not found in database:', patientName);
                 setSelectedPatientDetails(null);
                 toast.warning(`Patient details not found for: ${patientName}`);
             }
         } catch (error) {
-            console.error('Error fetching patient details:', error);
+            console.error('Error fetching patient details:', error.response?.data || error.message);
             setSelectedPatientDetails(null);
-            toast.error('Failed to fetch patient details');
+            toast.error('Failed to fetch patient details: ' + (error.response?.data?.message || error.message));
+        } finally {
+            setIsLoadingPatientDetails(false);
         }
     };
 
     // Function to handle report selection with patient details fetching
     const handleReportSelection = async (report) => {
+        console.log('Report selected:', report);
         setSelectedReport(report);
+        setSelectedPatientDetails(null); // Reset previous patient details
+        
         if (report && report.patientName) {
             await fetchPatientDetails(report.patientName);
+        } else {
+            console.warn('Report missing patient name:', report);
+            toast.warning('Cannot load patient details: Patient name is missing');
         }
     };
 
@@ -511,7 +621,13 @@ const Clinical = () => {
 
                     {/* Detailed Report View */}
                     <div className="col-span-3 bg-white dark:bg-gray-50 rounded-2xl shadow-2xl p-8 min-h-screen">
-                        {selectedReport ? (
+                        {isLoadingPatientDetails ? (
+                            <div className="flex flex-col items-center justify-center h-full py-20">
+                                <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-teal-600 mb-4"></div>
+                                <h3 className="text-xl font-semibold text-gray-700">Loading Patient Details...</h3>
+                                <p className="text-gray-500 mt-2">Please wait while we fetch the patient information</p>
+                            </div>
+                        ) : selectedReport ? (
                             <div className="space-y-8">
                                 {/* Report Header */}
                                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-100">
@@ -533,10 +649,10 @@ const Clinical = () => {
                                             {/* Patient Basic Information */}
                                             <div className="mt-3 space-y-1">
                                                 <p className="text-gray-600">
-                                                    Passport: <span className="font-semibold">{selectedPatientDetails?.passportNumber || 'N/A'}</span>
+                                                    Passport: <span className="font-semibold">{selectedPatientDetails?.passportNumber || 'Loading...'}</span>
                                                 </p>
                                                 <p className="text-gray-600">
-                                                    Gender: <span className="font-semibold">{selectedPatientDetails?.gender || 'N/A'}</span>
+                                                    Gender: <span className="font-semibold">{selectedPatientDetails?.gender || 'Loading...'}</span>
                                                 </p>
                                                 <p className="text-gray-600">
                                                     Age: <span className="font-semibold">{selectedPatientDetails?.age || 'N/A'}</span>
@@ -580,7 +696,7 @@ const Clinical = () => {
                                                 <h3 className="text-purple-800 font-semibold mb-2">F-Series Test from Phlebotomy</h3>
                                                 <p className="text-purple-700 text-sm mb-2">
                                                     This patient is coming directly from the Phlebotomy department. Complete the clinical examination below, 
-                                                    and the patient will then proceed to the Lab department for blood/urine tests.
+                                                    and the patient will then proceed either to the Lab department for blood/urine tests or to the Radiology department if referred.
                                                 </p>
                                                 <p className="text-purple-600 text-xs">
                                                     ℹ️ Lab test results will be available after clinical assessment is submitted and lab work is completed.
@@ -588,7 +704,7 @@ const Clinical = () => {
                                                 {(selectedPatientDetails?.medicalType === 'FM' || selectedReport?.medicalType === 'FM') && (
                                                     <div className="bg-blue-50 border border-blue-200 rounded p-2 mt-2">
                                                         <span className="text-blue-800 text-xs font-medium">
-                                                            🔄 FM Workflow: Complete Clinical → Patient proceeds to Lab → Final Results
+                                                            🔄 FM Workflow: Complete Clinical → Patient proceeds to Lab/Radiology → Final Results
                                                         </span>
                                                     </div>
                                                 )}
@@ -1248,6 +1364,101 @@ const Clinical = () => {
                                         </div>
                                     </div>
 
+                                    {/* Radiology Referral Section */}
+                                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-6 shadow-lg border-2 border-orange-200">
+                                        <h3 className="text-lg font-semibold text-orange-800 mb-4 flex items-center gap-2">
+                                            <FaXRay className="text-2xl text-orange-600" />
+                                            Radiology Referral <span className="text-red-500">*</span>
+                                        </h3>
+                                        <div className="space-y-4">
+                                            <p className="text-sm text-orange-700 mb-4">
+                                                Does this patient require radiology tests (X-Ray, Ultrasound, etc.) before lab processing?
+                                            </p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {/* No Radiology Option */}
+                                                <label 
+                                                    className={`relative flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                                                        radiologyReferral === "no" 
+                                                            ? "bg-green-100 border-green-500 shadow-md" 
+                                                            : "bg-white border-gray-300 hover:border-green-400 hover:bg-green-50"
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="radiologyReferral"
+                                                        value="no"
+                                                        checked={radiologyReferral === "no"}
+                                                        onChange={(e) => setRadiologyReferral(e.target.value)}
+                                                        className="w-5 h-5 text-green-600 focus:ring-2 focus:ring-green-500"
+                                                    />
+                                                    <div className="ml-3 flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <FaCheckCircle className="text-xl text-green-600" />
+                                                            <span className="font-semibold text-gray-800">No Radiology Test</span>
+                                                        </div>
+                                                        <p className="text-sm text-gray-600 mt-1">
+                                                            Send directly to Lab for processing
+                                                        </p>
+                                                        <div className="mt-2 flex items-center gap-2 text-xs text-green-700 font-medium">
+                                                            <FaFlask className="text-sm" />
+                                                            <FaArrowRight className="text-xs" />
+                                                            <span>Clinical → Lab</span>
+                                                        </div>
+                                                    </div>
+                                                </label>
+
+                                                {/* Yes Radiology Option */}
+                                                <label 
+                                                    className={`relative flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                                                        radiologyReferral === "yes" 
+                                                            ? "bg-blue-100 border-blue-500 shadow-md" 
+                                                            : "bg-white border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="radiologyReferral"
+                                                        value="yes"
+                                                        checked={radiologyReferral === "yes"}
+                                                        onChange={(e) => setRadiologyReferral(e.target.value)}
+                                                        className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                                                    />
+                                                    <div className="ml-3 flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <FaXRay className="text-xl text-blue-600" />
+                                                            <span className="font-semibold text-gray-800">Yes Radiology Test</span>
+                                                        </div>
+                                                        <p className="text-sm text-gray-600 mt-1">
+                                                            Refer to Radiology, then to Lab
+                                                        </p>
+                                                        <div className="mt-2 flex items-center gap-2 text-xs text-blue-700 font-medium">
+                                                            <FaXRay className="text-sm" />
+                                                            <FaArrowRight className="text-xs" />
+                                                            <FaFlask className="text-sm" />
+                                                            <span>Clinical → Radiology → Lab</span>
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                            {radiologyReferral && (
+                                                <div className={`mt-4 p-4 rounded-lg ${
+                                                    radiologyReferral === "yes" 
+                                                        ? "bg-blue-50 border border-blue-200" 
+                                                        : "bg-green-50 border border-green-200"
+                                                }`}>
+                                                    <p className={`text-sm font-medium flex items-center gap-2 ${
+                                                        radiologyReferral === "yes" ? "text-blue-700" : "text-green-700"
+                                                    }`}>
+                                                        <FaInfoCircle className="text-lg flex-shrink-0" />
+                                                        {radiologyReferral === "yes" 
+                                                            ? "Patient will be sent to Radiology Department first, then to Lab for final processing" 
+                                                            : "Patient will be sent directly to Lab Department for processing"}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
                                     {/* Officer Information & Submit */}
                                     <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
                                         <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
@@ -1273,15 +1484,15 @@ const Clinical = () => {
                                                 <button
                                                     type="button"
                                                     onClick={handleSubmit}
-                                                    disabled={!formData.clinicalOfficerName}
+                                                    disabled={!formData.clinicalOfficerName || !radiologyReferral}
                                                     className={`flex-1 py-3 px-6 rounded-xl text-base font-medium shadow-md transition-all duration-200 flex items-center justify-center gap-2 ${
-                                                        formData.clinicalOfficerName 
+                                                        formData.clinicalOfficerName && radiologyReferral
                                                             ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg transform hover:-translate-y-0.5' 
                                                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                                     }`}
                                                 >
                                                     <span>✅</span>
-                                                    Submit Clinical Report
+                                                    {radiologyReferral === "yes" ? "Submit & Refer to Radiology" : "Submit to Lab"}
                                                 </button>
                                                 <button
                                                     type="button"
@@ -1307,6 +1518,14 @@ const Clinical = () => {
                                                     Reset Form
                                                 </button>
                                             </div>
+                                            {!radiologyReferral && (
+                                                <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                                    <p className="text-sm text-yellow-800 flex items-center gap-2">
+                                                        <FaExclamationTriangle className="text-lg flex-shrink-0" />
+                                                        Please select a radiology referral option before submitting
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

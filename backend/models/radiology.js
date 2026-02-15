@@ -236,4 +236,10 @@ const radiologySchema = new mongoose.Schema({
   },
 });
 
+// Add indexes for frequently queried fields to improve query performance
+radiologySchema.index({ labNumber: 1 });
+radiologySchema.index({ patientName: 1 });
+radiologySchema.index({ timeStamp: -1 });
+radiologySchema.index({ patientId: 1 });
+
 module.exports = mongoose.model("RadiologyTest", radiologySchema);

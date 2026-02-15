@@ -91,7 +91,7 @@ const AllPatients = () => {
         }
         
         // Fetch patient data with photos
-        const response = await axios.get(`${API_BASE_URL}/api/patient`);
+        const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=false`);
         const data = response.data.patients || response.data; // Handle both old and new response format
         
         // Update cache

@@ -435,7 +435,7 @@ const Lab = () => {
   const selectedPatientData = Array.isArray(patientData?.patients) 
     ? patientData.patients.find((patient) => patient.name === selectedPatient)
     : null;
-  const patientImage = selectedPatientData?.image;
+  const patientImage = selectedPatientData?.photo;
 
   const handleSubmit = async (values, { resetForm }) => {
     try {

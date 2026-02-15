@@ -112,6 +112,9 @@ exports.createReport = async (req, res) => {
             gender,
             age,
             agent,
+            radiologyReferral,
+            requiresRadiology,
+            radiologyStatus,
         } = req.body;
 
         const newReport = new clinical({
@@ -135,7 +138,20 @@ exports.createReport = async (req, res) => {
             radiologyData,
             // Track if this report is from phlebotomy F-series routing
             isFromPhlebotomy: req.body.isFromPhlebotomy || false,
+            // Radiology referral fields
+            radiologyReferral: radiologyReferral,
+            requiresRadiology: requiresRadiology || false,
+            radiologyStatus: radiologyStatus || 'not-required',
         });
+
+        // Log radiology referral information
+        if (requiresRadiology) {
+            console.log(`🩻 Radiology Referral: Patient ${selectedReport?.patientName} (Lab #${selectedReport?.labNumber}) referred to Radiology`);
+            console.log(`📋 Routing: Clinical → Radiology → Lab`);
+        } else {
+            console.log(`🔬 Direct to Lab: Patient ${selectedReport?.patientName} (Lab #${selectedReport?.labNumber}) sent directly to Lab`);
+            console.log(`📋 Routing: Clinical → Lab`);
+        }
 
         const savedReport = await newReport.save();
         res.status(201).json(savedReport);

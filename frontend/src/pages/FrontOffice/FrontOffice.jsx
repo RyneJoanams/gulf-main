@@ -260,7 +260,7 @@ const FrontOffice = () => {
     try {
       console.log('Fetching patients...');
       // Fetch patient data with photos
-      const response = await axios.get(`${API_BASE_URL}/api/patient`);
+      const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=false`);
       console.log('Fetched patients response:', response.data);
       
       // Handle different response structures - backend may return { patients: [...] } or array directly

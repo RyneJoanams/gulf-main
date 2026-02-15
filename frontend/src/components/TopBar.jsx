@@ -81,23 +81,23 @@ const TopBar = () => {
                     <BadgeDollarSign className="w-4 h-4" />
                     <span>Accounts</span>
                   </Link>
-                  <Link to="/phlebotomy" className="flex items-center gap-2 px-4 py-2 hover:bg-teal-700/80 transition duration-300">
+                  <Link to="/phlebotomy-login" className="flex items-center gap-2 px-4 py-2 hover:bg-teal-700/80 transition duration-300">
                     <Users className="w-4 h-4" />
                     <span>Phlebotomy</span>
                   </Link>
-                  <Link to="/lab" className="flex items-center gap-2 px-4 py-2 hover:bg-teal-700/80 transition duration-300">
+                  <Link to="/lab-login" className="flex items-center gap-2 px-4 py-2 hover:bg-teal-700/80 transition duration-300">
                     <Microscope className="w-4 h-4" />
                     <span>Laboratory</span>
                   </Link>
-                  <Link to="/clinical" className="flex items-center gap-2 px-4 py-2 hover:bg-teal-700/80 transition duration-300">
+                  <Link to="/clinical-login" className="flex items-center gap-2 px-4 py-2 hover:bg-teal-700/80 transition duration-300">
                     <Stethoscope className="w-4 h-4" />
                     <span>Clinical</span>
                   </Link>
-                  <Link to="/radiology" className="flex items-center gap-2 px-4 py-2 hover:bg-teal-700/80 transition duration-300">
+                  <Link to="/radiology-login" className="flex items-center gap-2 px-4 py-2 hover:bg-teal-700/80 transition duration-300">
                     <Radio className="w-4 h-4" />
                     <span>Radiology</span>
                   </Link>
-                  <Link to="/agent" className="flex items-center gap-2 px-4 py-2 hover:bg-teal-700/80 transition duration-300 rounded-b-xl">
+                  <Link to="/agent-login" className="flex items-center gap-2 px-4 py-2 hover:bg-teal-700/80 transition duration-300 rounded-b-xl">
                     <Users className="w-4 h-4" />
                     <span>Agent</span>
                   </Link>

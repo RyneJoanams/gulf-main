@@ -29,4 +29,11 @@ const labNumberSchema = new mongoose.Schema({
   },
 });
 
+// Add indexes for frequently queried fields to improve query performance
+labNumberSchema.index({ number: 1 });
+labNumberSchema.index({ patient: 1 });
+labNumberSchema.index({ status: 1 });
+labNumberSchema.index({ createdAt: -1 });
+labNumberSchema.index({ medicalType: 1 });
+
 module.exports = mongoose.model('LabNumber', labNumberSchema);

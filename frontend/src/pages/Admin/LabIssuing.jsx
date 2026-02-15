@@ -1,107 +1,278 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import {toast, ToastContainer} from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
 import { usePatient } from '../../context/patientContext';
-import { API_BASE_URL } from '../../config/api.config';
+import 'react-toastify/dist/ReactToastify.css';
 
-const LabNumber = () => {
+const LabIssuing = () => {
   const { patientData } = usePatient();
-  const [selectedPatient, setSelectedPatient] = useState('Select Patient');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredPatients, setFilteredPatients] = useState(patientData?.patients || []);
+  const [selectedPatient, setSelectedPatient] = useState('');
   const [labNumber, setLabNumber] = useState('');
   const [submissionStatus, setSubmissionStatus] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [labCounter, setLabCounter] = useState(1);
+  const [submittedLabNumbers, setSubmittedLabNumbers] = useState([]);
+
+  useEffect(() => {
+    fetchLabNumbers();
+  }, []);
+
+  const fetchLabNumbers = async () => {
+    try {
+      const res = await axios.get('https://ghck.co.ke/api/number');
+      setSubmittedLabNumbers(res.data.labNumbers);
+      setLabCounter(res.data.labNumbers.length + 1);
+    } catch (error) {
+      toast.error('Error fetching lab numbers');
+    }
+  };
+
+  const handleSearch = (e) => {
+    const query = e.target.value.toLowerCase();
+    setSearchQuery(query);
+    setFilteredPatients(
+      patientData.patients.filter((patient) =>
+        patient.name.toLowerCase().includes(query)
+      )
+    );
+  };
+
+  const selectedPatientData = selectedPatient
+    ? patientData.patients.find((p) => p.name === selectedPatient)
+    : null;
 
   const generateLabNumber = () => {
-    const uniqueNumber = `LAB-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    if (!selectedPatientData) {
+      toast.warning('Please select a patient first.');
+      return;
+    }
+    const formattedCounter = String(labCounter).padStart(3, '0');
+    const uniqueNumber = `LAB-${selectedPatientData.passportNumber}-${formattedCounter}`;
     setLabNumber(uniqueNumber);
-    setSubmissionStatus(''); // Reset submission status when a new number is generated
+    setSubmissionStatus('');
+    toast.success('Lab number generated successfully.');
   };
 
   const submitLabNumber = async () => {
-    if (!labNumber) {
-      setSubmissionStatus('Generate a lab number first.');
+    if (!labNumber || !selectedPatientData) {
+      toast.error('Please generate a lab number and select a patient first.');
       return;
     }
 
+    setIsLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/lab/generate`, {
+      const response = await axios.post('https://ghck.co.ke/api/number', {
         number: labNumber,
-        patient: selectedPatient,
+        patient: selectedPatientData.name,
       });
+
       setSubmissionStatus(`Lab number submitted successfully: ${response.data.labNumber}`);
-      toast.success(`Lab number submitted successfully: ${response.data.labNumber}`);
+      toast.success(`Lab number submitted successfully`);
+      setLabCounter((prev) => prev + 1);
+      setLabNumber('');
+      fetchLabNumbers();
     } catch (error) {
-      setSubmissionStatus('Failed to submit lab number. Please try again.');
       toast.error('Failed to submit lab number. Please try again.');
-      console.error('Error submitting lab number:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-6">
-      {patientData && patientData.patients && patientData.patients.length > 0 ? (
-        <>
-          <div className="mb-6 text-center">
-            <h1 className="text-4xl font-extrabold text-blue-700 mb-2">Lab Number Generator</h1>
-            <p className="text-lg text-gray-700">
-              Patient Name: <span className="font-semibold">{selectedPatient !== 'Select Patient' ? selectedPatient : 'No patient selected'}</span>
-            </p>
-          </div>
+  const deleteLabNumber = async (id) => {
+    try {
+      await axios.delete(`https://ghck.co.ke/api/number/${id}`);
+      toast.success('Lab number deleted successfully');
+      fetchLabNumbers();
+    } catch (err) {
+      toast.error('Failed to delete lab number');
+    }
+  };
 
-          <div className="mb-6 w-full max-w-md">
-            <label className="block text-gray-600 font-semibold mb-2" htmlFor="patientSelect">
-              Select Patient
-            </label>
+  const resetForm = () => {
+    setSearchQuery('');
+    setFilteredPatients(patientData?.patients || []);
+    setSelectedPatient('');
+    setLabNumber('');
+    setSubmissionStatus('');
+  };
+
+  const copyToClipboard = () => {
+    if (labNumber) {
+      navigator.clipboard.writeText(labNumber);
+      toast.info('Lab number copied to clipboard.');
+    }
+  };
+
+  const BarcodeComponent = ({ value }) => (
+    <svg className="w-64 h-24 mt-2">
+      {value.split('').map((char, index) => (
+        <rect
+          key={index}
+          x={index * 2}
+          y={0}
+          width={1}
+          height={40}
+          fill={char.charCodeAt(0) % 2 === 0 ? 'black' : 'white'}
+        />
+      ))}
+      <text x="0" y="60" className="text-xs font-mono">{value}</text>
+    </svg>
+  );
+
+  const PatientDetailsCard = ({ patient, labNumber }) => (
+    <div className="p-8 bg-gray-900 rounded-xl shadow-2xl border-2 border-teal-500/30">
+      <h3 className="text-2xl font-bold text-teal-400 mb-6">Patient Details</h3>
+      <div className="flex items-start space-x-6">
+        {patient.photo && (
+          <img
+            src={`data:image/jpeg;base64,${patient.photo}`}
+            alt="Patient"
+            className="w-32 h-32 rounded-lg border-2 border-teal-500/30 object-cover"
+          />
+        )}
+        <div className="flex-1">
+          <p className="text-gray-300 mb-2">
+            <strong className="text-teal-400">Name:</strong> {patient.name}
+          </p>
+          <p className="text-gray-300 mb-2">
+            <strong className="text-teal-400">ID:</strong> {patient.passportNumber}
+          </p>
+          {labNumber && (
+            <>
+              <p className="text-teal-300 mt-4 font-mono">Lab Number: {labNumber}</p>
+              <BarcodeComponent value={labNumber} />
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-black text-gray-200 p-8">
+      <ToastContainer />
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-10">
+          <h1 className="text-5xl font-bold text-teal-400">Lab Issuing</h1>
+          <p className="text-gray-400">Generate and manage lab numbers</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div>
+            <input
+              type="text"
+              placeholder="Search patients..."
+              value={searchQuery}
+              onChange={handleSearch}
+              className="w-full px-4 py-3 mb-4 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none"
+            />
             <select
-              id="patientSelect"
-              className="w-full px-4 py-3 border-2 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700 transition duration-150 ease-in-out"
               value={selectedPatient}
               onChange={(e) => setSelectedPatient(e.target.value)}
+              className="w-full px-4 py-3 mb-6 rounded-lg bg-gray-800 border border-gray-700"
             >
-              <option disabled>Select Patient</option>
-              {patientData.patients.map((patient) => (
-                <option key={patient.id} value={patient.name}>
-                  {patient.name}
+              <option value="">Select Patient</option>
+              {filteredPatients.map((p) => (
+                <option key={p.id} value={p.name}>
+                  {p.name}
                 </option>
               ))}
             </select>
+
+            {selectedPatientData && (
+              <PatientDetailsCard
+                patient={selectedPatientData}
+                labNumber={labNumber}
+              />
+            )}
           </div>
 
-          <button
-            onClick={generateLabNumber}
-            className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold px-6 py-3 rounded-lg shadow-lg hover:from-blue-600 hover:to-blue-700 transform hover:scale-105 transition duration-300 mb-4"
-          >
-            Generate Lab Number
-          </button>
-
-          {labNumber && (
-            <div className="mt-4 p-6 bg-white rounded-xl shadow-lg border border-gray-200 text-center">
-              <p className="text-2xl font-bold text-blue-700 mb-2">Generated Lab Number:</p>
-              <p className="text-xl text-blue-600 font-mono">{labNumber}</p>
-              <button
-                onClick={submitLabNumber}
-                className="mt-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold px-5 py-3 rounded-lg shadow-lg hover:from-green-600 hover:to-green-700 transform hover:scale-105 transition duration-300"
-              >
-                Submit Lab Number
-              </button>
-            </div>
-          )}
-
-          {submissionStatus && (
-            <p
-              className={`mt-4 text-lg font-semibold ${
-                submissionStatus.includes('successfully') ? 'text-green-600' : 'text-red-600'
-              }`}
+          <div className="space-y-6">
+            <button
+              onClick={generateLabNumber}
+              className="w-full bg-teal-600 hover:bg-teal-500 text-white py-3 rounded-lg font-semibold"
             >
-              {submissionStatus}
-            </p>
-          )}
-          <ToastContainer />
-        </>
-      ) : (
-        <h1 className="text-3xl font-bold text-red-600">No patients available.</h1>
-      )}
+              Generate Lab Number
+            </button>
+
+            {labNumber && (
+              <div className="p-4 bg-gray-800 rounded-lg text-center space-y-4">
+                <p className="text-xl font-bold text-teal-300">Lab Number:</p>
+                <p className="text-lg font-mono">{labNumber}</p>
+                <div className="flex gap-4 justify-center">
+                  <button
+                    onClick={copyToClipboard}
+                    className="bg-gray-700 px-4 py-2 rounded hover:bg-gray-600"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    className="bg-gray-700 px-4 py-2 rounded hover:bg-gray-600"
+                  >
+                    Print
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={submitLabNumber}
+              disabled={isLoading}
+              className="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded-lg font-semibold disabled:opacity-50"
+            >
+              {isLoading ? 'Submitting...' : 'Submit Lab Number'}
+            </button>
+
+            <button
+              onClick={resetForm}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+
+        {submittedLabNumbers.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold text-teal-300 mb-4">Submitted Lab Numbers</h2>
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-auto border border-gray-700">
+                <thead>
+                  <tr className="bg-gray-800 text-left text-teal-400">
+                    <th className="px-4 py-2 border-b border-gray-600">#</th>
+                    <th className="px-4 py-2 border-b border-gray-600">Patient</th>
+                    <th className="px-4 py-2 border-b border-gray-600">Lab Number</th>
+                    <th className="px-4 py-2 border-b border-gray-600">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {submittedLabNumbers.map((entry, index) => (
+                    <tr key={entry._id || index} className="hover:bg-gray-800/50">
+                      <td className="px-4 py-2 border-b border-gray-700">{index + 1}</td>
+                      <td className="px-4 py-2 border-b border-gray-700">{entry.patient}</td>
+                      <td className="px-4 py-2 border-b border-gray-700 font-mono">{entry.number}</td>
+                      <td className="px-4 py-2 border-b border-gray-700">
+                        <button
+                          onClick={() => deleteLabNumber(entry._id)}
+                          className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
-export default LabNumber;
+export default LabIssuing;

@@ -82,7 +82,7 @@ const Phlebotomy = () => {
   const fetchAllPatients = async () => {
     try {
       console.log('Fetching patients for Phlebotomy...');
-      const response = await axios.get(`${API_BASE_URL}/api/patient`);
+      const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=false`);
       console.log('Fetched patients response:', response.data);
       
       // Handle different response structures - backend returns array directly

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { FaChevronCircleLeft, FaPrint, FaChevronCircleRight, FaUser, FaClipboardList, FaFlask, FaFileMedical } from "react-icons/fa";
+import { FaPrint, FaUser, FaClipboardList, FaFlask, FaFileMedical } from "react-icons/fa";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import TopBar from "../../components/TopBar";
+import AgentSidebar from "./AgentSidebar";
 import logo from '../../assets/GULF HEALTHCARE KENYA LTD.png';
 import { API_BASE_URL, FRONTEND_URL } from '../../config/api.config';
 
@@ -969,119 +970,24 @@ const Agent = () => {
                     <h1 className="text-2xl font-bold">Agent Portal - Patient Summary</h1>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-6">
                     {/* Sidebar */}
-                    <div className="bg-white dark:bg-gray-200 rounded-lg shadow-lg p-4 overflow-y-auto">
-                        <input
-                            type="text"
-                            placeholder="Search by passport number or ID only"
-                            className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-
-                        {isLoading ? (
-                            <div className="text-center py-8">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto mb-2"></div>
-                                <p className="text-gray-600">Searching for patients...</p>
-                            </div>
-                        ) : !hasSearched ? (
-                            <div className="text-center py-12">
-                                <FaUser className="mx-auto text-4xl text-gray-400 mb-4" />
-                                <h3 className="text-lg font-medium text-gray-600 mb-2">
-                                    Search for Patients
-                                </h3>
-                                <p className="text-sm text-gray-500">
-                                    Enter a passport number or ID to find patient records
-                                </p>
-                            </div>
-                        ) : filteredReports.length > 0 ? (
-                            paginatedReports.map((report) => (
-                                <div
-                                    key={report._id}
-                                    onClick={() => enhanceReportWithPatientData(report)}
-                                    className={`
-                                        relative p-6 rounded-xl mb-4 transition-all duration-300 ease-in-out 
-                                        hover:scale-105 border shadow-lg hover:shadow-xl cursor-pointer
-                                        ${selectedReport?._id === report._id
-                                            ? "bg-gradient-to-br from-teal-600 to-teal-700 text-white border-teal-400"
-                                            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-teal-50 dark:hover:bg-teal-900"
-                                        }`}
-                                >
-                                    <div className="flex flex-col items-center space-y-4">
-                                        <div className="relative group">
-                                            <div className="w-20 h-20 border-4 border-gray-200 dark:border-gray-600 rounded-full overflow-hidden bg-gray-50 dark:bg-gray-700 shadow-inner">
-                                                {report.selectedReport.patientImage ? (
-                                                    <img
-                                                        src={`data:image/jpeg;base64,${report.selectedReport.patientImage}`}
-                                                        alt="Patient"
-                                                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <FaUser className="text-gray-400 dark:text-gray-500 text-2xl" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="w-full space-y-2 text-center">
-                                            <h3 className="text-lg font-semibold tracking-wide">
-                                                {report.selectedReport.patientName}
-                                            </h3>
-                                            <p className="text-sm">
-                                                Lab #: <span className="font-semibold">{report.selectedReport.labNumber}</span>
-                                            </p>
-                                            {report.selectedReport.passportNumber && (
-                                                <p className="text-sm">
-                                                    Passport: <span className="font-semibold">{report.selectedReport.passportNumber}</span>
-                                                </p>
-                                            )}
-                                            <p className="text-xs">
-                                                {new Date(report.selectedReport.timeStamp).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="text-center py-12">
-                                <FaUser className="mx-auto text-4xl text-gray-400 mb-4" />
-                                <h3 className="text-lg font-medium text-gray-600 mb-2">
-                                    No Patients Found
-                                </h3>
-                                <p className="text-sm text-gray-500">
-                                    No patients match your search criteria. Try searching with a different passport number or ID.
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Pagination - only show when there are search results */}
-                        {hasSearched && filteredReports.length > 0 && (
-                            <div className="flex justify-between items-center mt-4">
-                                <button
-                                    disabled={currentPage === 1}
-                                    onClick={() => setCurrentPage(currentPage - 1)}
-                                    className="bg-teal-500 text-white p-2 rounded-md hover:bg-teal-600 disabled:opacity-50"
-                                >
-                                    <FaChevronCircleLeft />
-                                </button>
-                                <div className="text-center text-sm">
-                                    Page {currentPage} of {Math.ceil(filteredReports.length / itemsPerPage)}
-                                </div>
-                                <button
-                                    disabled={currentPage === Math.ceil(filteredReports.length / itemsPerPage)}
-                                    onClick={() => setCurrentPage(currentPage + 1)}
-                                    className="bg-teal-500 text-white p-2 rounded-md hover:bg-teal-600 disabled:opacity-50"
-                                >
-                                    <FaChevronCircleRight />
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                    <AgentSidebar
+                        searchTerm={searchTerm}
+                        setSearchTerm={setSearchTerm}
+                        isLoading={isLoading}
+                        hasSearched={hasSearched}
+                        paginatedReports={paginatedReports}
+                        filteredReports={filteredReports}
+                        selectedReport={selectedReport}
+                        handleReportSelection={enhanceReportWithPatientData}
+                        currentPage={currentPage}
+                        setCurrentPage={setCurrentPage}
+                        itemsPerPage={itemsPerPage}
+                    />
 
                     {/* Patient Summary */}
-                    <div className="col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8">
+                    <div className="col-span-3 bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8">
                         {selectedReport ? (
                             <div className="space-y-6">
                                 {/* Header with View Toggle and Print Buttons */}

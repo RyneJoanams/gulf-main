@@ -180,7 +180,11 @@ exports.createLabReport = async (req, res) => {
 
 exports.getLabReports = async (req, res) => {
   try {
-    const labReports = await Lab.find().sort({ timeStamp: -1 });
+    // Exclude heavy patientImage field by default, use lean() for better performance
+    const labReports = await Lab.find()
+      .select('-patientImage') // Exclude patientImage to reduce payload
+      .sort({ timeStamp: -1 })
+      .lean(); // Use lean() for faster read-only queries
     res.status(200).json({
       success: true,
       data: labReports,
@@ -196,7 +200,8 @@ exports.getLabReports = async (req, res) => {
 exports.getLabReportsByPatient = async (req, res) => {
   try {
     const labReports = await Lab.find({ patientId: req.params.patientId })
-      .sort({ timeStamp: -1 });
+      .sort({ timeStamp: -1 })
+      .lean(); // Use lean() for faster read-only queries
 
     res.status(200).json({
       success: true,
