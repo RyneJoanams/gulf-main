@@ -119,7 +119,7 @@ const LeftBar = () => {
         
         // Only fetch if cache is stale or doesn't exist
         if (!patientsCacheRef.current || (now - patientsCacheTimeRef.current) >= CACHE_DURATION) {
-          const response = await axios.get(API_ENDPOINTS.patients);
+          const response = await axios.get(`${API_ENDPOINTS.patients}?excludePhoto=false&fields=name,passportNumber,sex,age,agent,photo`);
           patientsCacheRef.current = response.data;
           patientsCacheTimeRef.current = now;
           
@@ -346,7 +346,7 @@ const LeftBar = () => {
         
         // Fetch fresh data
         if (!patients) {
-          const response = await axios.get(API_ENDPOINTS.patients);
+          const response = await axios.get(`${API_ENDPOINTS.patients}?excludePhoto=false&fields=name,passportNumber,sex,age,agent,photo`);
           patients = response.data;
         }
         
