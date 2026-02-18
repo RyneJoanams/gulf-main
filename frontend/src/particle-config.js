@@ -1,6 +1,6 @@
 export const particlesConfig = {
     fullScreen: {
-      enable: true,
+      enable: false,  // Disable fullscreen mode — the particle canvas is scoped to the Hero div
       zIndex: 1
     },
     particles: {

@@ -258,14 +258,12 @@ const FrontOffice = () => {
   const fetchAllPatients = async () => {
     setLoadingPatients(true);
     try {
-      console.log('Fetching patients...');
-      // Fetch patient data with photos
-      const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=false`);
-      console.log('Fetched patients response:', response.data);
+      // Photos are Cloudinary URLs — they load on-demand in <img> tags.
+      // Skipping bulk photo embedding cuts payload for large patient lists.
+      const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=true`);
       
       // Handle different response structures - backend may return { patients: [...] } or array directly
       const patientsData = response.data.patients || (Array.isArray(response.data) ? response.data : []);
-      console.log('Processed patients data:', patientsData);
       
       setPatients(patientsData);
       toast.success(`Loaded ${patientsData.length} patients`);
@@ -1903,29 +1901,31 @@ const FrontOffice = () => {
 
                 <div className="mb-6 flex flex-wrap justify-end gap-3">
                   <Tooltip title="Refresh patient data to see latest changes" arrow>
-                    <Button
-                      onClick={fetchAllPatients}
-                      variant="contained"
-                      startIcon={loadingPatients ? <FaSpinner className="animate-spin" /> : <FaSyncAlt />}
-                      disabled={loadingPatients}
-                      sx={{
-                        background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-                        borderRadius: '12px',
-                        textTransform: 'none',
-                        fontWeight: '600',
-                        padding: '12px 24px',
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-                          transform: 'translateY(-2px)',
-                          boxShadow: '0 8px 25px rgba(139, 92, 246, 0.3)',
-                        },
-                        '&:disabled': {
-                          background: 'linear-gradient(135deg, #d1d5db, #9ca3af)',
-                        },
-                      }}
-                    >
-                      {loadingPatients ? 'Refreshing...' : 'Refresh Data'}
-                    </Button>
+                    <span>
+                      <Button
+                        onClick={fetchAllPatients}
+                        variant="contained"
+                        startIcon={loadingPatients ? <FaSpinner className="animate-spin" /> : <FaSyncAlt />}
+                        disabled={loadingPatients}
+                        sx={{
+                          background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                          borderRadius: '12px',
+                          textTransform: 'none',
+                          fontWeight: '600',
+                          padding: '12px 24px',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 8px 25px rgba(139, 92, 246, 0.3)',
+                          },
+                          '&:disabled': {
+                            background: 'linear-gradient(135deg, #d1d5db, #9ca3af)',
+                          },
+                        }}
+                      >
+                        {loadingPatients ? 'Refreshing...' : 'Refresh Data'}
+                      </Button>
+                    </span>
                   </Tooltip>
                   
                   <Tooltip title="Export data to Excel spreadsheet" arrow>

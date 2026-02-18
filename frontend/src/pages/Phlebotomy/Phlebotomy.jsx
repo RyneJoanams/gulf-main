@@ -5,6 +5,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import img from '../../assets/logo1-removebg-preview.png';
 import TopBar from '../../components/TopBar';
 import { API_BASE_URL } from '../../config/api.config';
+import PhlebotomySidebar from './PhlebotomySidebar';
+import { getImageUrl } from '../../utils/cloudinaryHelper';
 
 // Helper function to calculate relative time
 const getRelativeTime = (dateString) => {
@@ -67,6 +69,10 @@ const Phlebotomy = () => {
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateModalData, setDuplicateModalData] = useState(null);
 
+  // Patient photo state (fetched individually — list excludes photos to reduce payload)
+  const [selectedPatientPhoto, setSelectedPatientPhoto] = useState(null);
+  const [isLoadingPhoto, setIsLoadingPhoto] = useState(false);
+
   const fetchLabNumbers = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/number`);
@@ -81,13 +87,12 @@ const Phlebotomy = () => {
 
   const fetchAllPatients = async () => {
     try {
-      console.log('Fetching patients for Phlebotomy...');
-      const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=false`);
-      console.log('Fetched patients response:', response.data);
+      // Exclude photos — they are now Cloudinary URLs that load on-demand.
+      // Fetching photo data for every patient upfront adds unnecessary payload.
+      const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=true`);
       
       // Handle different response structures - backend returns array directly
       const patientsData = Array.isArray(response.data) ? response.data : (response.data.patients || []);
-      console.log('Processed patients data:', patientsData);
       
       setPatients(patientsData);
       toast.success(`Loaded ${patientsData.length} patients for lab work`);
@@ -134,8 +139,14 @@ const Phlebotomy = () => {
     
     const term = value.trim().toLowerCase();
     
-    // Filter patients by name or passport number
-    const matches = patients.filter((p) => 
+    // Search both the main patients list and the pending (newly added) patients list
+    const allPatients = [
+      ...patients,
+      // Include pending patients not already in main list
+      ...pendingPatients.filter((pp) => !patients.some((p) => p._id === pp._id)),
+    ];
+
+    const matches = allPatients.filter((p) => 
       (p.name || '').toLowerCase().includes(term) ||
       (p.passportNumber || '').toLowerCase().includes(term)
     );
@@ -187,8 +198,14 @@ const Phlebotomy = () => {
       );
     };
     
+    // Search both main patients list and pending patients (newly added may only be in pending)
+    const allPatients = [
+      ...patients,
+      ...pendingPatients.filter((pp) => !patients.some((p) => p._id === pp._id)),
+    ];
+
     // Prefer exact passport match
-    const exactPassport = patients.find(
+    const exactPassport = allPatients.find(
       (p) => (p.passportNumber || '').toLowerCase() === term
     );
     if (exactPassport) {
@@ -214,7 +231,7 @@ const Phlebotomy = () => {
     }
     
     // Fallback to name contains
-    const nameMatches = patients.filter((p) => (p.name || '').toLowerCase().includes(term));
+    const nameMatches = allPatients.filter((p) => (p.name || '').toLowerCase().includes(term));
     if (nameMatches.length === 1) {
       setSelectedPatient(nameMatches[0].name);
       
@@ -276,9 +293,33 @@ const Phlebotomy = () => {
   }, [showSuggestions]);
 
 
+  // Also check pendingPatients as fallback — newly added patients may not be in the
+  // main `patients` list yet (it's only fetched on mount / after lab submission).
   const selectedPatientData = selectedPatient
-    ? patients.find((p) => p.name === selectedPatient)
+    ? patients.find((p) => p.name === selectedPatient) ||
+      pendingPatients.find((p) => p.name === selectedPatient)
     : null;
+
+  // Fetch the selected patient's photo whenever the selection changes
+  useEffect(() => {
+    const fetchPatientPhoto = async () => {
+      if (!selectedPatientData?._id) {
+        setSelectedPatientPhoto(null);
+        return;
+      }
+      setIsLoadingPhoto(true);
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/patient/${selectedPatientData._id}`);
+        setSelectedPatientPhoto(response.data?.photo || null);
+      } catch (err) {
+        console.error('Failed to fetch patient photo:', err);
+        setSelectedPatientPhoto(null);
+      } finally {
+        setIsLoadingPhoto(false);
+      }
+    };
+    fetchPatientPhoto();
+  }, [selectedPatientData?._id]);
 
   const generateLabNumber = async () => {
     if (!selectedPatientData) {
@@ -502,14 +543,46 @@ const Phlebotomy = () => {
   const PatientDetailsCard = ({ patient, labNumber }) => (
     <div className="p-8 bg-gray-900 rounded-xl shadow-2xl border-2 border-teal-500/30">
       <h3 className="text-2xl font-bold text-teal-400 mb-6">Patient Details</h3>
-      <div className="flex items-start space-x-6">
-        {patient.photo && (
-          <img
-            src={`data:image/jpeg;base64,${patient.photo}`}
-            alt="Patient"
-            className="w-32 h-32 rounded-lg border-2 border-teal-500/30 object-cover"
-          />
-        )}
+      <div className="flex items-start gap-6">
+        {/* Photo block */}
+        <div className="flex flex-col items-center gap-3 flex-shrink-0">
+          {isLoadingPhoto ? (
+            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-teal-800 to-teal-900 flex items-center justify-center shadow-xl border-4 border-teal-600">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-300" />
+            </div>
+          ) : selectedPatientPhoto ? (
+            <div className="relative">
+              <img
+                src={getImageUrl(selectedPatientPhoto, { width: 128, height: 128, crop: 'fill' })}
+                alt={patient.name}
+                className="w-32 h-32 rounded-full shadow-xl object-cover border-4 border-teal-400 transition-transform hover:scale-105"
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+              />
+              <div className="absolute bottom-0 right-0 w-8 h-8 bg-green-500 rounded-full border-4 border-gray-900 flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+              {/* hidden fallback placeholder */}
+              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-teal-700 to-teal-900 items-center justify-center shadow-xl border-4 border-teal-600" style={{ display: 'none' }}>
+                <svg className="w-14 h-14 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+            </div>
+          ) : (
+            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-teal-700 to-teal-900 flex items-center justify-center shadow-xl border-4 border-teal-600">
+              <svg className="w-14 h-14 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+          )}
+          <span className="text-xs text-teal-400 font-medium">
+            {isLoadingPhoto ? 'Loading photo...' : selectedPatientPhoto ? 'Photo on file' : 'No photo'}
+          </span>
+        </div>
+
+        {/* Details block */}
         <div className="flex-1">
           <p className="text-gray-300 mb-2">
             <strong className="text-teal-400">Name:</strong> {patient.name}
@@ -521,7 +594,7 @@ const Phlebotomy = () => {
             <strong className="text-teal-400">Medical Type:</strong> {patient.medicalType}
           </p>
           <p className="text-gray-300 mb-2 text-sm">
-            <strong className="text-teal-400">Series:</strong> 
+            <strong className="text-teal-400">Series:</strong>
             {patient.medicalType === 'SM-VDRL' ? ' S Series (SMVDRL)' : ' F Series (Mauritius/Normal/Medical/FM)'}
           </p>
           {labNumber && (
@@ -549,468 +622,28 @@ const Phlebotomy = () => {
       {/* Main Container with Flex Layout */}
       <div className="flex min-h-screen bg-black text-gray-200">
         {/* Pending Patients Sidebar */}
-        {pendingPatients.length > 0 && (
-          <div className={`bg-gray-900 border-r border-orange-500/30 transition-all duration-300 shadow-2xl flex-shrink-0 ${
-            pendingSidebarCollapsed ? 'w-16' : 'w-96'
-          }`}>
-            {/* Sidebar Header */}
-            <div className="p-4 border-b border-orange-500/30 bg-gray-900 sticky top-0 z-10">
-              <div className="flex items-center justify-between">
-              {!pendingSidebarCollapsed && (
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <div>
-                    <h3 className="text-sm font-bold text-orange-300">Pending Lab Numbers</h3>
-                    <p className="text-xs text-orange-400/70">
-                      {(() => {
-                        // Calculate filtered count
-                        let filtered = pendingPatients
-                          .filter(patient => activePendingTab === 'ALL' || patient.medicalType === activePendingTab);
-                        
-                        if (pendingSearchQuery) {
-                          const query = pendingSearchQuery.toLowerCase();
-                          filtered = filtered.filter(patient => 
-                            patient.name?.toLowerCase().includes(query) ||
-                            patient.passportNumber?.toLowerCase().includes(query)
-                          );
-                        }
-                        
-                        if (pendingStartDate) {
-                          const startDate = new Date(pendingStartDate);
-                          startDate.setHours(0, 0, 0, 0);
-                          filtered = filtered.filter(patient => 
-                            new Date(patient.createdAt) >= startDate
-                          );
-                        }
-                        
-                        if (pendingEndDate) {
-                          const endDate = new Date(pendingEndDate);
-                          endDate.setHours(23, 59, 59, 999);
-                          filtered = filtered.filter(patient => 
-                            new Date(patient.createdAt) <= endDate
-                          );
-                        }
-                        
-                        const hasFilters = pendingSearchQuery || pendingStartDate || pendingEndDate || activePendingTab !== 'ALL';
-                        const totalCount = pendingPatients.length;
-                        const filteredCount = filtered.length;
-                        
-                        if (hasFilters && filteredCount !== totalCount) {
-                          return `${filteredCount} of ${totalCount} patient${totalCount !== 1 ? 's' : ''}`;
-                        }
-                        return `${totalCount} patient${totalCount !== 1 ? 's' : ''} waiting`;
-                      })()}
-                    </p>
-                    {lastRefreshTime && (
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Last updated: {lastRefreshTime.toLocaleTimeString()}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-              <button
-                onClick={() => setPendingSidebarCollapsed(!pendingSidebarCollapsed)}
-                className="text-orange-400 hover:text-orange-300 transition-colors p-1"
-                title={pendingSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              >
-                {pendingSidebarCollapsed ? (
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                ) : (
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {!pendingSidebarCollapsed && (
-            <>
-              {/* Search and Date Filter */}
-              <div className="p-3 border-b border-orange-500/20 bg-gray-900/50 space-y-3">
-                {/* Search Input */}
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search by name or passport..."
-                    value={pendingSearchQuery}
-                    onChange={(e) => setPendingSearchQuery(e.target.value)}
-                    className="w-full px-3 py-2 pl-9 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 transition-colors"
-                  />
-                  <svg className="w-4 h-4 absolute right-3 top-3 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  {pendingSearchQuery && (
-                    <button
-                      onClick={() => setPendingSearchQuery('')}
-                      className="absolute right-2 top-2 text-gray-400 hover:text-white transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-                
-                {/* Date Range Filter */}
-                <div className="space-y-2">
-                  {/* Quick Filter Buttons */}
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => {
-                        const today = new Date();
-                        setPendingStartDate(today.toISOString().split('T')[0]);
-                        setPendingEndDate(today.toISOString().split('T')[0]);
-                        toast.info('Showing today\'s patients');
-                      }}
-                      className="flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
-                    >
-                      Today
-                    </button>
-                    <button
-                      onClick={() => {
-                        const today = new Date();
-                        const weekAgo = new Date(today);
-                        weekAgo.setDate(today.getDate() - 7);
-                        setPendingStartDate(weekAgo.toISOString().split('T')[0]);
-                        setPendingEndDate(today.toISOString().split('T')[0]);
-                        toast.info('Showing this week\'s patients');
-                      }}
-                      className="flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
-                    >
-                      Week
-                    </button>
-                    <button
-                      onClick={() => {
-                        const today = new Date();
-                        const monthAgo = new Date(today);
-                        monthAgo.setDate(today.getDate() - 30);
-                        setPendingStartDate(monthAgo.toISOString().split('T')[0]);
-                        setPendingEndDate(today.toISOString().split('T')[0]);
-                        toast.info('Showing this month\'s patients');
-                      }}
-                      className="flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
-                    >
-                      Month
-                    </button>
-                  </div>
-                  
-                  {/* Date Inputs */}
-                  <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs text-orange-300 mb-1">From</label>
-                    <input
-                      type="date"
-                      value={pendingStartDate || ''}
-                      onChange={(e) => setPendingStartDate(e.target.value)}
-                      className="w-full px-2 py-1.5 bg-gray-800 border border-gray-600 rounded text-xs text-white focus:outline-none focus:border-orange-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-orange-300 mb-1">To</label>
-                    <input
-                      type="date"
-                      value={pendingEndDate || ''}
-                      onChange={(e) => setPendingEndDate(e.target.value)}
-                      className="w-full px-2 py-1.5 bg-gray-800 border border-gray-600 rounded text-xs text-white focus:outline-none focus:border-orange-500"
-                    />
-                  </div>
-                </div>
-                </div>
-                
-                {/* Clear Filters Button */}
-                {(pendingSearchQuery || pendingStartDate || pendingEndDate) && (
-                  <button
-                    onClick={() => {
-                      setPendingSearchQuery('');
-                      setPendingStartDate(null);
-                      setPendingEndDate(null);
-                      toast.info('Filters cleared');
-                    }}
-                    className="w-full px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors flex items-center justify-center gap-1"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Clear Filters
-                  </button>
-                )}
-              </div>
-              
-              {/* Medical Type Tabs */}
-              <div className="p-3 border-b border-orange-500/20 bg-gray-900/50">
-                <div className="flex flex-wrap gap-2">
-                  {(() => {
-                    const medicalTypes = [...new Set(pendingPatients.map(p => p.medicalType))].sort();
-                    const tabs = ['ALL', ...medicalTypes];
-                    return tabs.map((type) => {
-                      const count = type === 'ALL' 
-                        ? pendingPatients.length 
-                        : pendingPatients.filter(p => p.medicalType === type).length;
-                      const isActive = activePendingTab === type;
-                      return (
-                        <button
-                          key={type}
-                          onClick={() => setActivePendingTab(type)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                            isActive
-                              ? type === 'SM-VDRL'
-                                ? 'bg-red-600 text-white shadow-lg ring-2 ring-red-400/50'
-                                : type === 'ALL'
-                                ? 'bg-orange-600 text-white shadow-lg ring-2 ring-orange-400/50'
-                                : 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-400/50'
-                              : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
-                          }`}
-                        >
-                          {type} <span className="font-bold">({count})</span>
-                        </button>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-
-              {/* Refresh Button */}
-              <div className="px-3 py-2 border-b border-gray-700/50">
-                <button
-                  onClick={() => {
-                    console.log('🔄 Manual refresh triggered by user');
-                    fetchPendingPatients();
-                  }}
-                  className="w-full px-3 py-2.5 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 text-white text-sm font-semibold rounded-lg transition-all shadow-lg hover:shadow-orange-500/50 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={loadingPending}
-                >
-                  <svg className={`w-5 h-5 ${loadingPending ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  {loadingPending ? 'Refreshing...' : 'Refresh Pending List'}
-                </button>
-              </div>
-
-              {/* Vertical Scrollable Patient List */}
-              <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
-                {loadingPending ? (
-                  <div className="text-center text-gray-400 py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-400 mx-auto"></div>
-                    <p className="mt-2 text-sm">Loading patients...</p>
-                  </div>
-                ) : (
-                  <div className="p-3 space-y-3">
-                    {(() => {
-                      // Apply all filters
-                      let filtered = pendingPatients
-                        .filter(patient => activePendingTab === 'ALL' || patient.medicalType === activePendingTab);
-                      
-                      // Search filter
-                      if (pendingSearchQuery) {
-                        const query = pendingSearchQuery.toLowerCase();
-                        filtered = filtered.filter(patient => 
-                          patient.name?.toLowerCase().includes(query) ||
-                          patient.passportNumber?.toLowerCase().includes(query)
-                        );
-                      }
-                      
-                      // Date range filter
-                      if (pendingStartDate) {
-                        const startDate = new Date(pendingStartDate);
-                        startDate.setHours(0, 0, 0, 0);
-                        filtered = filtered.filter(patient => 
-                          new Date(patient.createdAt) >= startDate
-                        );
-                      }
-                      
-                      if (pendingEndDate) {
-                        const endDate = new Date(pendingEndDate);
-                        endDate.setHours(23, 59, 59, 999);
-                        filtered = filtered.filter(patient => 
-                          new Date(patient.createdAt) <= endDate
-                        );
-                      }
-                      
-                      // Sort by newest first
-                      const sorted = filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                      
-                      return sorted.map((patient) => {
-                        const isNew = isNewPatient(patient.createdAt);
-                        const relativeTime = getRelativeTime(patient.createdAt);
-                        const exactDateTime = new Date(patient.createdAt).toLocaleString();
-                        
-                        return (
-                      <div
-                        key={patient._id}
-                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] ${ 
-                          selectedPatient === patient.name
-                            ? 'bg-orange-900/40 border-orange-500 ring-2 ring-orange-500/50 shadow-orange-500/20'
-                            : isNew
-                            ? 'bg-gradient-to-r from-green-900/30 to-gray-800/50 border-green-500/50 hover:border-green-400/70 ring-1 ring-green-500/30'
-                            : 'bg-gray-800/50 border-orange-600/30 hover:border-orange-500/60'
-                        }`}
-                        onClick={() => {
-                          setSelectedPatient(patient.name);
-                          setSearchTerm(patient.passportNumber);
-                          
-                          // Check if patient already has lab number
-                          const normalizedName = patient.name.trim().toLowerCase();
-                          const hasLabNumber = submittedLabNumbers.some(
-                            lab => lab.patient.trim().toLowerCase() === normalizedName
-                          );
-                          
-                          if (hasLabNumber) {
-                            const existingLab = submittedLabNumbers.find(
-                              lab => lab.patient.trim().toLowerCase() === normalizedName
-                            );
-                            setDuplicateModalData({
-                              patientName: patient.name,
-                              passportNumber: patient.passportNumber,
-                              medicalType: patient.medicalType,
-                              existingLabNumber: existingLab?.number || 'Unknown',
-                              status: existingLab?.status || 'pending'
-                            });
-                            setShowDuplicateModal(true);
-                          } else {
-                            toast.success(`Selected: ${patient.name}`);
-                          }
-                        }}
-                      >
-                        <div className="flex items-start space-x-3">
-                          {patient.photo ? (
-                            <img
-                              src={`data:image/jpeg;base64,${patient.photo}`}
-                              alt="Patient"
-                              className="w-12 h-12 rounded-full object-cover border-2 border-orange-400/50 flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-full bg-orange-700/30 border-2 border-orange-500/50 flex items-center justify-center flex-shrink-0">
-                              <svg className="w-6 h-6 text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                              </svg>
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                              <p className="font-semibold text-white text-sm truncate flex-1">{patient.name}</p>
-                              {isNew && (
-                                <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full animate-pulse flex-shrink-0">
-                                  NEW
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-400 truncate font-mono">{patient.passportNumber}</p>
-                            <div className="flex items-center gap-1 mt-2">
-                              <span className={`px-2 py-1 rounded text-xs font-medium ${ 
-                                patient.medicalType === 'SM-VDRL' 
-                                  ? 'bg-red-900/60 text-red-200 border border-red-600/50' 
-                                  : 'bg-blue-900/60 text-blue-200 border border-blue-600/50'
-                              }`}>
-                                {patient.medicalType}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 mt-2">
-                              <div className="text-xs text-gray-400" title={exactDateTime}>
-                                🕐 <span className={isNew ? 'text-green-400 font-semibold' : ''}>{relativeTime}</span>
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                📅 {new Date(patient.createdAt).toLocaleDateString()}
-                              </div>
-                            </div>
-                            {selectedPatient === patient.name && (
-                              <div className="mt-2 flex items-center gap-1">
-                                <svg className="w-3 h-3 text-orange-300" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                                <p className="text-xs text-orange-300 font-semibold">Selected - Ready for Lab Number</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                        );
-                      });
-                    })()}
-                    {(() => {
-                      // Calculate filtered count for empty state
-                      let filtered = pendingPatients
-                        .filter(patient => activePendingTab === 'ALL' || patient.medicalType === activePendingTab);
-                      
-                      if (pendingSearchQuery) {
-                        const query = pendingSearchQuery.toLowerCase();
-                        filtered = filtered.filter(patient => 
-                          patient.name?.toLowerCase().includes(query) ||
-                          patient.passportNumber?.toLowerCase().includes(query)
-                        );
-                      }
-                      
-                      if (pendingStartDate) {
-                        const startDate = new Date(pendingStartDate);
-                        startDate.setHours(0, 0, 0, 0);
-                        filtered = filtered.filter(patient => 
-                          new Date(patient.createdAt) >= startDate
-                        );
-                      }
-                      
-                      if (pendingEndDate) {
-                        const endDate = new Date(pendingEndDate);
-                        endDate.setHours(23, 59, 59, 999);
-                        filtered = filtered.filter(patient => 
-                          new Date(patient.createdAt) <= endDate
-                        );
-                      }
-                      
-                      if (filtered.length === 0) {
-                        return (
-                          <div className="text-center text-gray-400 py-8">
-                            <svg className="w-12 h-12 mx-auto mb-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <p className="text-sm">
-                              {pendingSearchQuery || pendingStartDate || pendingEndDate 
-                                ? 'No patients match your filters'
-                                : 'No patients in this category'
-                              }
-                            </p>
-                            {(pendingSearchQuery || pendingStartDate || pendingEndDate) && (
-                              <button
-                                onClick={() => {
-                                  setPendingSearchQuery('');
-                                  setPendingStartDate(null);
-                                  setPendingEndDate(null);
-                                }}
-                                className="mt-2 text-xs text-orange-400 hover:text-orange-300 underline"
-                              >
-                                Clear filters
-                              </button>
-                            )}
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* Collapsed Sidebar - Icon Only */}
-          {pendingSidebarCollapsed && (
-            <div className="flex flex-col items-center pt-4 space-y-4">
-              <div className="relative">
-                <svg className="w-8 h-8 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                  {pendingPatients.length}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+        <PhlebotomySidebar
+          pendingPatients={pendingPatients}
+          loadingPending={loadingPending}
+          selectedPatient={selectedPatient}
+          setSelectedPatient={setSelectedPatient}
+          setSearchTerm={setSearchTerm}
+          submittedLabNumbers={submittedLabNumbers}
+          setDuplicateModalData={setDuplicateModalData}
+          setShowDuplicateModal={setShowDuplicateModal}
+          pendingSidebarCollapsed={pendingSidebarCollapsed}
+          setPendingSidebarCollapsed={setPendingSidebarCollapsed}
+          lastRefreshTime={lastRefreshTime}
+          fetchPendingPatients={fetchPendingPatients}
+          pendingSearchQuery={pendingSearchQuery}
+          setPendingSearchQuery={setPendingSearchQuery}
+          pendingStartDate={pendingStartDate}
+          setPendingStartDate={setPendingStartDate}
+          pendingEndDate={pendingEndDate}
+          setPendingEndDate={setPendingEndDate}
+          activePendingTab={activePendingTab}
+          setActivePendingTab={setActivePendingTab}
+        />
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-x-hidden">

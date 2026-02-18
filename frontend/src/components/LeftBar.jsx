@@ -16,6 +16,7 @@ import {
 import { toast } from 'react-toastify';
 import logo from '../assets/GULF HEALTHCARE KENYA LTD.png';
 import { API_ENDPOINTS, FRONTEND_URL } from '../config/api.config';
+import { getImageUrl } from '../utils/cloudinaryHelper';
 
 // Pre-load and cache logo as base64 with persistent localStorage
 const LOGO_CACHE_KEY = 'gulf_healthcare_logo_base64_v1';
@@ -119,13 +120,13 @@ const LeftBar = () => {
         
         // Only fetch if cache is stale or doesn't exist
         if (!patientsCacheRef.current || (now - patientsCacheTimeRef.current) >= CACHE_DURATION) {
-          const response = await axios.get(`${API_ENDPOINTS.patients}?excludePhoto=false&fields=name,passportNumber,sex,age,agent,photo`);
-          patientsCacheRef.current = response.data;
+          const response = await axios.get(`${API_ENDPOINTS.patients}?excludePhoto=true&fields=name,passportNumber,sex,age,agent`);
+          patientsCacheRef.current = response.data.patients || response.data;
           patientsCacheTimeRef.current = now;
           
           // Store in localStorage for persistence
           try {
-            localStorage.setItem('patients_cache', JSON.stringify(response.data));
+            localStorage.setItem('patients_cache', JSON.stringify(patientsCacheRef.current));
             localStorage.setItem('patients_cache_time', now.toString());
           } catch (e) {
             console.warn('Could not store patients in localStorage:', e);
@@ -346,8 +347,8 @@ const LeftBar = () => {
         
         // Fetch fresh data
         if (!patients) {
-          const response = await axios.get(`${API_ENDPOINTS.patients}?excludePhoto=false&fields=name,passportNumber,sex,age,agent,photo`);
-          patients = response.data;
+          const response = await axios.get(`${API_ENDPOINTS.patients}?excludePhoto=true&fields=name,passportNumber,sex,age,agent`);
+          patients = response.data.patients || response.data;
         }
         
         // Update both memory and localStorage cache
@@ -375,7 +376,7 @@ const LeftBar = () => {
           agent: report.agent || patient.agent,
           selectedReport: {
             ...report.selectedReport,
-            patientImage: report.selectedReport?.patientImage || patient.photo
+            patientImage: report.selectedReport?.patientImage || null
           }
         };
       }
@@ -492,10 +493,52 @@ const LeftBar = () => {
     
     try {
       // Run all async operations in parallel for faster loading
-      const [enhancedReport, logoBase64] = await Promise.all([
+      let [enhancedReport, logoBase64] = await Promise.all([
         enhanceReportWithPatientData(report),
         preloadLogo() // Uses cached version if available
       ]);
+
+      // Fetch patient photo if not already present (backend excludes it by default)
+      if (!enhancedReport.selectedReport?.patientImage) {
+        try {
+          const patientName = enhancedReport.selectedReport?.patientName;
+          const patients = patientsCacheRef.current || [];
+          const matchedPatient = patients.find(
+            p => p.name?.toLowerCase() === patientName?.toLowerCase()
+          );
+          if (matchedPatient?._id) {
+            const photoRes = await axios.get(`${API_ENDPOINTS.patients}/${matchedPatient._id}`);
+            const photoUrl = photoRes.data?.photo || null;
+            if (photoUrl) {
+              enhancedReport = {
+                ...enhancedReport,
+                selectedReport: {
+                  ...enhancedReport.selectedReport,
+                  patientImage: photoUrl
+                }
+              };
+            }
+          }
+        } catch (err) {
+          console.warn('Could not fetch patient photo for print:', err);
+        }
+      }
+
+      // Convert Cloudinary photo URL to base64 for reliable embedding in print iframe
+      let patientPhotoBase64 = '';
+      if (enhancedReport.selectedReport?.patientImage) {
+        try {
+          const photoResponse = await fetch(enhancedReport.selectedReport.patientImage);
+          const photoBlob = await photoResponse.blob();
+          patientPhotoBase64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(photoBlob);
+          });
+        } catch (err) {
+          console.warn('Could not convert patient photo to base64:', err);
+        }
+      }
 
       // Generate QR code data for lab result access
       const reportId = enhancedReport.selectedReport?.labNumber || 
@@ -1250,7 +1293,7 @@ const LeftBar = () => {
     const printContent = `
       <html>
         <head>
-          <title>Clinical Report - ${formatData(enhancedReport.selectedReport?.patientName)}</title>
+          <title>${(enhancedReport.selectedReport?.patientName || 'Patient').replace(/\s+/g, '_')}_${enhancedReport.selectedReport?.labNumber || ''}_Clinical_Report</title>
           ${printStyles}
         </head>
         <body>
@@ -1281,9 +1324,9 @@ const LeftBar = () => {
                 </table>
                 
                 <div class="patient-image-container">
-                  ${enhancedReport.selectedReport?.patientImage ? `
+                  ${patientPhotoBase64 ? `
                     <img 
-                      src="data:image/jpeg;base64,${enhancedReport.selectedReport.patientImage}" 
+                      src="${patientPhotoBase64}" 
                       alt="Patient Photo" 
                       class="patient-image">
                   ` : `
@@ -1427,14 +1470,14 @@ const LeftBar = () => {
     printDocument.write(printContent);
     printDocument.close();
     
-    // Set document title for auto-naming when saving as PDF
     const patientName = enhancedReport.selectedReport?.patientName || 'Patient';
     const labNumber = enhancedReport.selectedReport?.labNumber || '';
     const fileName = `${patientName.replace(/\s+/g, '_')}_${labNumber}_Clinical_Report`;
-    printDocument.title = fileName;
     
     // Wait for content to load then print
     printFrame.contentWindow.onload = () => {
+      // Set document title inside onload so it overrides reliably before the print dialog
+      printFrame.contentWindow.document.title = fileName;
       setTimeout(() => {
         try {
           printFrame.contentWindow.focus();
@@ -1486,7 +1529,32 @@ const LeftBar = () => {
       preloadLogo(),
       preloadQRCode(),
       enhanceReportWithPatientData(report)
-    ]).then(([, , enhancedReport]) => {
+    ]).then(async ([, , enhancedReport]) => {
+      // Fetch the patient photo separately since clinical reports exclude it by default
+      if (!enhancedReport.selectedReport?.patientImage) {
+        try {
+          const patientName = enhancedReport.selectedReport?.patientName;
+          const patients = patientsCacheRef.current || [];
+          const matchedPatient = patients.find(
+            p => p.name?.toLowerCase() === patientName?.toLowerCase()
+          );
+          if (matchedPatient?._id) {
+            const photoRes = await axios.get(`${API_ENDPOINTS.patients}/${matchedPatient._id}`);
+            const photoUrl = photoRes.data?.photo || null;
+            if (photoUrl) {
+              enhancedReport = {
+                ...enhancedReport,
+                selectedReport: {
+                  ...enhancedReport.selectedReport,
+                  patientImage: photoUrl
+                }
+              };
+            }
+          }
+        } catch (err) {
+          console.warn('Could not fetch patient photo for modal:', err);
+        }
+      }
       setSelectedReport(enhancedReport);
       setShowReportModal(true);
     }).catch(error => {
@@ -1935,26 +2003,54 @@ const LeftBar = () => {
                       Patient Information
                     </h3>
                   </div>
-                  <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {[
-                      { label: 'Name', value: selectedReport.selectedReport?.patientName, icon: '👤' },
-                      { label: 'Gender', value: selectedReport.gender, icon: '⚥' },
-                      { label: 'Age', value: selectedReport.age, icon: '🎂' },
-                      { label: 'Passport', value: selectedReport.passportNumber, icon: '🛂' },
-                      { label: 'Lab Number', value: selectedReport.selectedReport?.labNumber, icon: '🔬' },
-                      { label: 'Agent', value: selectedReport.agent, icon: '🏢' },
-                      { label: 'Date', value: new Date(selectedReport.selectedReport?.timeStamp).toLocaleDateString(), icon: '📅' },
-                      { label: 'Time', value: new Date(selectedReport.selectedReport?.timeStamp).toLocaleTimeString(), icon: '⏰' },
-                      { label: 'Medical Type', value: selectedReport.selectedReport?.medicalType || 'Standard', icon: '🏥' }
-                    ].map((item, idx) => (
-                      <div key={idx} className="bg-white p-3 rounded-lg border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-lg">{item.icon}</span>
-                          <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">{item.label}</span>
+                  <div className="p-5 flex flex-col md:flex-row gap-6 items-start">
+                    {/* Patient Photo */}
+                    <div className="flex-shrink-0 flex flex-col items-center gap-2">
+                      {selectedReport.selectedReport?.patientImage ? (
+                        <div className="relative">
+                          <img
+                            src={getImageUrl(selectedReport.selectedReport.patientImage, { width: 120, height: 120, crop: 'fill' })}
+                            alt={selectedReport.selectedReport?.patientName || 'Patient'}
+                            className="w-28 h-28 rounded-xl shadow-lg object-cover border-4 border-blue-400"
+                            onError={(e) => { e.target.onerror = null; e.target.parentNode.innerHTML = '<div class="w-28 h-28 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-400 border-4 border-blue-200"><svg xmlns=\'http://www.w3.org/2000/svg\' class=\'w-12 h-12\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z\' /></svg></div>'; }}
+                          />
+                          <div className="absolute bottom-0 right-0 w-7 h-7 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
                         </div>
-                        <p className="text-sm font-bold text-gray-900 ml-7">{item.value || 'N/A'}</p>
-                      </div>
-                    ))}
+                      ) : (
+                        <div className="w-28 h-28 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-400 border-4 border-blue-200">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                      )}
+                      <span className="text-xs text-gray-500 font-medium">Patient Photo</span>
+                    </div>
+                    {/* Info grid */}
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[
+                        { label: 'Name', value: selectedReport.selectedReport?.patientName, icon: '👤' },
+                        { label: 'Gender', value: selectedReport.gender, icon: '⚥' },
+                        { label: 'Age', value: selectedReport.age, icon: '🎂' },
+                        { label: 'Passport', value: selectedReport.passportNumber, icon: '🛂' },
+                        { label: 'Lab Number', value: selectedReport.selectedReport?.labNumber, icon: '🔬' },
+                        { label: 'Agent', value: selectedReport.agent, icon: '🏢' },
+                        { label: 'Date', value: new Date(selectedReport.selectedReport?.timeStamp).toLocaleDateString(), icon: '📅' },
+                        { label: 'Time', value: new Date(selectedReport.selectedReport?.timeStamp).toLocaleTimeString(), icon: '⏰' },
+                        { label: 'Medical Type', value: selectedReport.selectedReport?.medicalType || 'Standard', icon: '🏥' }
+                      ].map((item, idx) => (
+                        <div key={idx} className="bg-white p-3 rounded-lg border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-lg">{item.icon}</span>
+                            <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">{item.label}</span>
+                          </div>
+                          <p className="text-sm font-bold text-gray-900 ml-7">{item.value || 'N/A'}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

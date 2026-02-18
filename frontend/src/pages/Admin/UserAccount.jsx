@@ -14,6 +14,7 @@ import {
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import img from '../../assets/undraw_medical-care_7m9g.svg'
+import { API_BASE_URL } from '../../config/api.config';
 
 // Department definitions (same as AllUsers)
 const DEPARTMENTS = {
@@ -153,7 +154,7 @@ const Signup = () => {
     };
 
     try {
-      const response = await axios.post('https://ghck.co.ke/api/user/register', dataToSend);
+      const response = await axios.post(`${API_BASE_URL}/api/user/register`, dataToSend);
       toast.success('Registration successful! User account created with department access.');
       navigate('/admin', { state: { fromSignup: true, newUser: response.data } });
     } catch (error) {

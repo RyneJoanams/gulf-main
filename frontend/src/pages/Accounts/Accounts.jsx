@@ -7,6 +7,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import * as XLSX from 'xlsx';
 import 'react-toastify/dist/ReactToastify.css';
 import TopBar from '../../components/TopBar';
+import AccountsSidebar from './AccountsSidebar';
 import logo from '../../assets/GULF HEALTHCARE KENYA LTD.png';
 import Footer from '../../components/Footer';
 import DatePicker from 'react-datepicker';
@@ -173,7 +174,8 @@ const Accounts = () => {
   const fetchExpenses = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/expenses`);
-      setExpenses(response.data);
+      // expenses controller now returns { expenses: [], pagination: {} }
+      setExpenses(response.data.expenses || response.data || []);
     } catch (error) {
       console.error('Error fetching expenses:', error);
       toast.error('Error fetching expenses. Please try again.');
@@ -202,26 +204,33 @@ const Accounts = () => {
       const response = await axios.post(`${API_BASE_URL}/api/patient/account`, newPayment);
       const savedPayment = response.data;
 
-      // Mark patient payment as recorded
-      await axios.put(`${API_BASE_URL}/api/patient/mark-payment-recorded`, {
-        patientName: selectedPatient
-      });
+      // Mark patient payment as recorded — isolated so a failure here
+      // does not falsely report the payment itself as having failed.
+      try {
+        await axios.put(`${API_BASE_URL}/api/patient/mark-payment-recorded`, {
+          patientName: selectedPatient
+        });
+      } catch (markError) {
+        console.warn('Could not mark payment as recorded on patient record:', markError?.response?.data || markError.message);
+      }
 
-      toast.success(`Payment recorded: Due - ${amountDue}, Paid - ${amountPaid}, Account - ${accountNumber},
-         Mode - ${modeOfPayment}, Commission - ${commission}, Xray - ${xrayPayment}`);
+      toast.success(`Payment recorded: Due - ${amountDue}, Paid - ${amountPaid}, Account - ${accountNumber}, Mode - ${modeOfPayment}, Commission - ${commission}, Xray - ${xrayPayment}`);
       setPaymentRecords([...paymentRecords, savedPayment]);
       updatePatientData({
         amountDue: parseFloat(amountDue),
         amountPaid: parseFloat(amountPaid),
         paymentStatus: savedPayment.paymentStatus,
       });
-      
-      // Remove patient from pending list
-      setPendingPatients(pendingPatients.filter(patient => patient.name !== selectedPatient));
-      
+
+      // Remove patient from pending list immediately, then sync with backend
+      const paidName = selectedPatient;
+      setPendingPatients(prev => prev.filter(patient => patient.name !== paidName));
+      fetchPendingPatients();
+
       resetForm();
     } catch (error) {
-      toast.error('Error recording payment. Please try again.');
+      console.error('Error recording payment:', error?.response?.data || error.message);
+      toast.error(error?.response?.data?.message || 'Error recording payment. Please try again.');
     }
   };
 
@@ -742,7 +751,15 @@ const Accounts = () => {
       <TopBar />
       <div className="flex flex-1">
         {/* Sidebar */}
-        <aside className="w-80 bg-teal-900 text-white flex flex-col py-8 px-4 overflow-y-auto">
+        <AccountsSidebar
+          activeSection={activeSection}
+          setActiveSection={setActiveSection}
+          pendingPatients={pendingPatients}
+          loadingPendingPatients={loadingPendingPatients}
+          fetchPendingPatients={fetchPendingPatients}
+          setSelectedPatient={setSelectedPatient}
+        />
+        {false && <aside className="w-80 bg-teal-900 text-white flex flex-col py-8 px-4 overflow-y-auto">
           <h2 className="text-2xl font-bold mb-8 text-center">Accounts Menu</h2>
           
           {/* Navigation Menu */}
@@ -830,7 +847,7 @@ const Accounts = () => {
               </div>
             )}
           </div>
-        </aside>
+        </aside>}
         
         {/* Main Content Container */}
         <div className="flex-1 flex flex-col">

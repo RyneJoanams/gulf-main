@@ -18,6 +18,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { motion } from 'framer-motion';
 import debounce from 'lodash.debounce';
 import * as XLSX from 'xlsx';
+import { getImageUrl } from '../../utils/cloudinaryHelper';
 
 // Add custom animations
 const customStyles = `
@@ -90,8 +91,8 @@ const AllPatients = () => {
           return;
         }
         
-        // Fetch patient data with photos
-        const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=false`);
+        // Fetch patient data without photos to avoid large payload timeouts
+        const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=true`);
         const data = response.data.patients || response.data; // Handle both old and new response format
         
         // Update cache
@@ -165,13 +166,13 @@ const AllPatients = () => {
     setPhotoPreview(null);
     setPhotoToDelete(false);
     
-    // Fetch patient with photo if not already loaded
-    if (editMode && !patient.photo) {
+    // Fetch patient with full photo data if not already loaded (both view and edit modes)
+    if (!patient.photo) {
       try {
         const response = await axios.get(`${API_BASE_URL}/api/patient/${patient._id}`);
         if (response.data.photo) {
-          setEditablePatient(response.data);
-          setSelectedPatient(response.data);
+          setEditablePatient(prev => ({ ...prev, ...response.data }));
+          setSelectedPatient(prev => ({ ...prev, ...response.data }));
         }
       } catch (error) {
         console.error('Error fetching patient photo:', error);
@@ -790,12 +791,10 @@ const AllPatients = () => {
                               </div>
                             ) : editablePatient?.photo ? (
                               <img 
-                                src={editablePatient.photo.startsWith('data:') 
-                                  ? editablePatient.photo 
-                                  : `data:image/jpeg;base64,${editablePatient.photo}`
-                                } 
+                                src={getImageUrl(editablePatient.photo, { width: 160, height: 160, crop: 'fill' })}
                                 alt="Patient" 
-                                className="w-full h-full object-cover" 
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
                               />
                             ) : (
                               <div className="text-center text-gray-400">

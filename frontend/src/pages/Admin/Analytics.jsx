@@ -60,17 +60,18 @@ const Analytics = () => {
     try {
       setLoading(true);
       const [patientsRes, labRes, clinicalRes, radiologyRes, usersRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/patient`),
-        axios.get(`${API_BASE_URL}/api/lab`),
-        axios.get(`${API_BASE_URL}/api/clinical`),
-        axios.get(`${API_BASE_URL}/api/radiology`),
+        axios.get(`${API_BASE_URL}/api/patient?limit=500`),
+        axios.get(`${API_BASE_URL}/api/lab?limit=500`),
+        axios.get(`${API_BASE_URL}/api/clinical?limit=500`),
+        axios.get(`${API_BASE_URL}/api/radiology?limit=500`),
         axios.get(`${API_BASE_URL}/api/user/all`)
       ]);
 
-      setPatients(patientsRes.data);
+      setPatients(patientsRes.data.patients || patientsRes.data || []);
       setLabReports(labRes.data.data || []);
-      setClinicalReports(clinicalRes.data || []);
-      setRadiologyReports(radiologyRes.data || []);
+      setClinicalReports(clinicalRes.data.reports || clinicalRes.data || []);
+      // radiology controller now returns { data: [], pagination: {} }
+      setRadiologyReports(radiologyRes.data.data || radiologyRes.data || []);
       setUsers(usersRes.data || []);
     } catch (error) {
       console.error('Error fetching analytics data:', error);

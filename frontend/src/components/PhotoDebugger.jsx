@@ -19,9 +19,14 @@ const PhotoDebugger = ({ patientName, reportPhoto, patientDetailsPhoto }) => {
   useEffect(() => {
     const fetchDebugInfo = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/patient?excludePhoto=false&fields=name,photo`
-        );
+        const response = await axios.get(`${API_BASE_URL}/api/patient`, {
+          params: {
+            name: patientName || '',
+            excludePhoto: patientName ? 'false' : 'true',
+            fields: patientName ? 'name,photo' : 'name',
+            limit: patientName ? 5 : 10
+          }
+        });
         const patients = response.data.patients || response.data || [];
         
         const patient = patientName 

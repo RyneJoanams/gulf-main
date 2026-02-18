@@ -89,6 +89,7 @@ const clinicalSchema = new mongoose.Schema(
 // Add indexes for frequently queried fields to improve performance
 clinicalSchema.index({ 'selectedReport.labNumber': 1 });
 clinicalSchema.index({ 'selectedReport.patientName': 'text', passportNumber: 'text' });
+clinicalSchema.index({ passportNumber: 1 }); // Plain index for regex/equality searches
 clinicalSchema.index({ createdAt: -1 });
 clinicalSchema.index({ 'selectedReport.timeStamp': -1 });
 

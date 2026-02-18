@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import { usePatient } from '../../context/patientContext';
+import { API_BASE_URL } from '../../config/api.config';
 import 'react-toastify/dist/ReactToastify.css';
 
 const LabIssuing = () => {
@@ -21,7 +22,7 @@ const LabIssuing = () => {
 
   const fetchLabNumbers = async () => {
     try {
-      const res = await axios.get('https://ghck.co.ke/api/number');
+      const res = await axios.get(`${API_BASE_URL}/api/number`);
       setSubmittedLabNumbers(res.data.labNumbers);
       setLabCounter(res.data.labNumbers.length + 1);
     } catch (error) {
@@ -63,7 +64,7 @@ const LabIssuing = () => {
 
     setIsLoading(true);
     try {
-      const response = await axios.post('https://ghck.co.ke/api/number', {
+      const response = await axios.post(`${API_BASE_URL}/api/number`, {
         number: labNumber,
         patient: selectedPatientData.name,
       });
@@ -82,7 +83,7 @@ const LabIssuing = () => {
 
   const deleteLabNumber = async (id) => {
     try {
-      await axios.delete(`https://ghck.co.ke/api/number/${id}`);
+      await axios.delete(`${API_BASE_URL}/api/number/${id}`);
       toast.success('Lab number deleted successfully');
       fetchLabNumbers();
     } catch (err) {

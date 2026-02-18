@@ -52,18 +52,20 @@ const Clinical = () => {
         const fetchReports = async () => {
             try {
                 // Fetch lab reports, radiology reports, clinical reports, lab numbers from phlebotomy, and patients
-                // Exclude photo field from patients to reduce payload size
+                // Limit each collection to the most recent 150 records to stay well within gateway timeout budgets.
+                // Patient photos are Cloudinary URLs — they self-load; no need to embed them in this bulk call.
                 const [labResponse, radiologyResponse, clinicalResponse, labNumbersResponse, patientsResponse] = await Promise.all([
-                    axios.get(`${API_BASE_URL}/api/lab`),
-                    axios.get(`${API_BASE_URL}/api/radiology`),
-                    axios.get(`${API_BASE_URL}/api/clinical`),
-                    axios.get(`${API_BASE_URL}/api/number`),
-                    axios.get(`${API_BASE_URL}/api/patient?excludePhoto=false&fields=name,_id,medicalType,photo`)
+                    axios.get(`${API_BASE_URL}/api/lab?limit=150`),
+                    axios.get(`${API_BASE_URL}/api/radiology?limit=150`),
+                    axios.get(`${API_BASE_URL}/api/clinical?limit=150`),
+                    axios.get(`${API_BASE_URL}/api/number?limit=150`),
+                    axios.get(`${API_BASE_URL}/api/patient?excludePhoto=true&fields=name,_id,medicalType`)
                 ]);
 
                 const labReports = labResponse.data.data || [];
-                const radiologyReports = radiologyResponse.data || [];
-                const clinicalReports = clinicalResponse.data || [];
+                // radiology controller now returns { data: [], pagination: {} }
+                const radiologyReports = radiologyResponse.data.data || radiologyResponse.data || [];
+                const clinicalReports = clinicalResponse.data.reports || clinicalResponse.data || [];
                 const labNumbers = labNumbersResponse.data.labNumbers || [];
                 const patients = patientsResponse.data.patients || patientsResponse.data || [];
 
@@ -76,7 +78,7 @@ const Clinical = () => {
                     patientsWithPhotos: patients.filter(p => p.photo).length
                 });
 
-                // Create a map of patient names to patient IDs (photos will be loaded on demand)
+                // Create a map of patient names to patient IDs (photos loaded on demand)
                 const patientIdMap = new Map();
                 const patientMedicalTypeMap = new Map();
                 const patientPhotoMap = new Map();
@@ -85,9 +87,6 @@ const Clinical = () => {
                         patientIdMap.set(patient.name.toLowerCase(), patient._id);
                         if (patient.medicalType) {
                             patientMedicalTypeMap.set(patient.name.toLowerCase(), patient.medicalType);
-                        }
-                        if (patient.photo) {
-                            patientPhotoMap.set(patient.name.toLowerCase(), patient.photo);
                         }
                     }
                 });
@@ -473,7 +472,14 @@ const Clinical = () => {
         setIsLoadingPatientDetails(true);
         try {
             console.log('Fetching patient details for:', patientName);
-            const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=false&fields=name,passportNumber,sex,age,agent,medicalType,photo`);
+            const response = await axios.get(`${API_BASE_URL}/api/patient`, {
+                params: {
+                    name: patientName,
+                    excludePhoto: 'false',
+                    fields: 'name,passportNumber,sex,age,agent,medicalType,photo',
+                    limit: 5
+                }
+            });
             
             // Handle different response structures
             const patients = Array.isArray(response.data) ? response.data : (response.data.patients || []);

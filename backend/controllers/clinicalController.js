@@ -5,9 +5,13 @@ const { validationResult } = require("express-validator");
 exports.getAllReports = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 500; // Increased default to 500
+        const requestedLimit = parseInt(req.query.limit || process.env.DEFAULT_CLINICAL_LIMIT || '300', 10);
+        const maxLimit = parseInt(process.env.MAX_CLINICAL_LIMIT || '1000', 10);
+        const limit = Math.min(Math.max(requestedLimit, 1), maxLimit);
         const skip = (page - 1) * limit;
         const { startDate, endDate } = req.query;
+        const includePatientImage = req.query.includePatientImage === 'true';
+        const projection = includePatientImage ? {} : { 'selectedReport.patientImage': 0 };
         
         // Build date filter
         let dateFilter = {};
@@ -24,16 +28,20 @@ exports.getAllReports = async (req, res) => {
             }
         }
         
-        // If no pagination params, return filtered results (no limit for backward compatibility)
+        // If no pagination params are provided, still apply a safe default limit to avoid gateway timeouts
         if (!req.query.page && !req.query.limit) {
             const reports = await clinical.find(dateFilter)
+                .select(projection)
                 .sort({ createdAt: -1 })
+                .limit(limit)
                 .lean(); // Use lean() for faster read-only queries
+            if (res.headersSent) return;
             return res.status(200).json(reports);
         }
         
         const [reports, total] = await Promise.all([
             clinical.find(dateFilter)
+                .select(projection)
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit)
@@ -41,6 +49,7 @@ exports.getAllReports = async (req, res) => {
             clinical.countDocuments(dateFilter)
         ]);
         
+        if (res.headersSent) return;
         res.status(200).json({
             reports,
             pagination: {
@@ -52,6 +61,7 @@ exports.getAllReports = async (req, res) => {
         });
     } catch (error) {
         console.error(error);
+        if (res.headersSent) return;
         res.status(500).json({ error: "Error fetching clinical reports." });
     }
 };

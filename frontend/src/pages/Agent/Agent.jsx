@@ -7,6 +7,7 @@ import TopBar from "../../components/TopBar";
 import AgentSidebar from "./AgentSidebar";
 import logo from '../../assets/GULF HEALTHCARE KENYA LTD.png';
 import { API_BASE_URL, FRONTEND_URL } from '../../config/api.config';
+import { getImageUrl } from '../../utils/cloudinaryHelper';
 
 const Agent = () => {
     const [reports, setReports] = useState([]);
@@ -32,18 +33,14 @@ const Agent = () => {
         setIsLoading(true);
         setHasSearched(true);
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/clinical`);
-            const allReports = response.data;
+            // Use the dedicated search endpoint instead of fetching all clinical records.
+            // This runs an indexed DB query and returns only matching records.
+            const response = await axios.get(`${API_BASE_URL}/api/clinical/search`, {
+                params: { query: searchValue.trim(), limit: 50 }
+            });
+            const filtered = response.data || [];
             
-            // Filter by search term (passport number or ID only for identity confirmation)
-            const filtered = allReports.filter((report) =>
-                (report?.passportNumber &&
-                    report?.passportNumber?.toLowerCase().includes(searchValue.toLowerCase())) ||
-                (report?.selectedReport?.labNumber &&
-                    report?.selectedReport?.labNumber?.toString().includes(searchValue.toLowerCase()))
-            );
-            
-            setReports(allReports);
+            setReports(filtered);
             setFilteredReports(filtered);
             setCurrentPage(1); // Reset to first page when searching
             
@@ -96,12 +93,16 @@ const Agent = () => {
     // Function to fetch complete patient details and enhance report data
     const enhanceReportWithPatientData = async (report) => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/patient`);
-            const patients = response.data;
+            // Fetch only the specific patient by name via query to avoid loading all patients
+            const patientName = report.selectedReport?.patientName;
+            const response = await axios.get(`${API_BASE_URL}/api/patient`, {
+                params: { name: patientName, excludePhoto: false, limit: 5 }
+            });
+            const patients = response.data.patients || (Array.isArray(response.data) ? response.data : []);
             
             // Find patient by name (case-insensitive)
             const patient = patients.find(p => 
-                p.name.toLowerCase() === report.selectedReport.patientName.toLowerCase()
+                p.name.toLowerCase() === (patientName || '').toLowerCase()
             );
             
             if (patient) {
@@ -112,7 +113,8 @@ const Agent = () => {
                     gender: patient.sex, // Patient model uses 'sex' field  
                     age: patient.age,
                     agent: patient.agent,
-                    medicalType: patient.medicalType || report.selectedReport?.medicalType
+                    medicalType: patient.medicalType || report.selectedReport?.medicalType,
+                    patientPhoto: patient.photo || null, // Cloudinary URL
                 };
                 setSelectedReport(enhancedReport);
             } else {
@@ -853,9 +855,9 @@ const Agent = () => {
                                 </table>
                                 
                                 <div class="patient-image-container">
-                                    ${selectedReport.selectedReport.patientImage ? `
+                                    ${selectedReport.patientPhoto ? `
                                         <img 
-                                            src="data:image/jpeg;base64,${selectedReport.selectedReport.patientImage}" 
+                                            src="${getImageUrl(selectedReport.patientPhoto, { width: 70, height: 70, crop: 'fill' })}" 
                                             alt="Patient Photo" 
                                             class="patient-image">
                                     ` : `
@@ -1038,9 +1040,9 @@ const Agent = () => {
                                     <div className="flex items-center space-x-6">
                                         <div className="flex-shrink-0">
                                             <div className="w-24 h-24 border-4 border-teal-300 rounded-full overflow-hidden bg-white shadow-lg">
-                                                {selectedReport.selectedReport.patientImage ? (
+                                                {selectedReport.patientPhoto ? (
                                                     <img
-                                                        src={`data:image/jpeg;base64,${selectedReport.selectedReport.patientImage}`}
+                                                        src={getImageUrl(selectedReport.patientPhoto, { width: 96, height: 96, crop: 'fill' })}
                                                         alt="Patient"
                                                         className="w-full h-full object-cover"
                                                     />

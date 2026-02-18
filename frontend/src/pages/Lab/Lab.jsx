@@ -10,6 +10,7 @@ import LeftBar from '../../components/LeftBar';
 import { FaSave, FaEye, FaEdit, FaArrowLeft } from 'react-icons/fa';
 import Footer from '../../components/Footer';
 import { API_BASE_URL } from '../../config/api.config';
+import { getImageUrl } from '../../utils/cloudinaryHelper';
 
 
 
@@ -39,6 +40,39 @@ const Lab = () => {
   
   // Notepad state
   const [notepadContent, setNotepadContent] = useState('');
+
+  // Patient photo fetched individually (context excludes photo to reduce payload)
+  const [selectedPatientPhoto, setSelectedPatientPhoto] = useState(null);
+  const [isLoadingPhoto, setIsLoadingPhoto] = useState(false);
+
+  // Fetch the selected patient's photo from Cloudinary whenever the patient changes
+  useEffect(() => {
+    const fetchPatientPhoto = async () => {
+      if (!selectedPatient || selectedPatient === 'Select Patient') {
+        setSelectedPatientPhoto(null);
+        return;
+      }
+      const patient = Array.isArray(patientData?.patients)
+        ? patientData.patients.find((p) => p.name === selectedPatient)
+        : null;
+      if (!patient?._id) {
+        setSelectedPatientPhoto(null);
+        return;
+      }
+      setIsLoadingPhoto(true);
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/patient/${patient._id}`);
+        const photoUrl = response.data?.photo || null;
+        setSelectedPatientPhoto(photoUrl);
+      } catch (err) {
+        console.error('Failed to fetch patient photo:', err);
+        setSelectedPatientPhoto(null);
+      } finally {
+        setIsLoadingPhoto(false);
+      }
+    };
+    fetchPatientPhoto();
+  }, [selectedPatient, patientData]);
 
   useEffect(() => {
     const fetchLabNumbers = async () => {
@@ -534,6 +568,7 @@ const Lab = () => {
         setOtherAspectsFit("");
         setLabSuperintendent("");
         setSelectedPatient('Select Patient');
+        setSelectedPatientPhoto(null);
         setSelectedLabNumber('');
         setExistingLabData(null);
         setIsViewMode(false);
@@ -627,12 +662,17 @@ const Lab = () => {
                             .map((patient) => (
                               <div key={patient.labNumber} className="flex flex-col items-center space-y-4">
                                 {/* Patient Image */}
-                                {patient.photo ? (
+                                {isLoadingPhoto ? (
+                                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shadow-xl border-4 border-blue-200">
+                                    <i className="fas fa-spinner fa-spin text-blue-500 text-2xl"></i>
+                                  </div>
+                                ) : selectedPatientPhoto ? (
                                   <div className="relative">
                                     <img
-                                      src={`data:image/jpeg;base64,${patient.photo}`}
+                                      src={getImageUrl(selectedPatientPhoto, { width: 128, height: 128, crop: 'fill' })}
                                       alt={`${patient.name}`}
-                                      className="w-32 h-32 rounded-full shadow-xl object-cover border-4 border-gradient-to-r from-blue-400 to-purple-500 transition-transform transform hover:scale-105"
+                                      className="w-32 h-32 rounded-full shadow-xl object-cover border-4 border-blue-400 transition-transform transform hover:scale-105"
+                                      onError={(e) => { e.target.onerror = null; e.target.src = ''; e.target.style.display = 'none'; }}
                                     />
                                     <div className="absolute bottom-0 right-0 w-8 h-8 bg-green-500 rounded-full border-4 border-white flex items-center justify-center">
                                       <i className="fas fa-check text-white text-xs"></i>
@@ -833,34 +873,62 @@ const Lab = () => {
                         <i className="fas fa-user-circle"></i>
                         Patient Information
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg shadow-sm border border-blue-200">
-                          <div className="flex items-center gap-2 mb-2">
-                            <i className="fas fa-user text-blue-600"></i>
-                            <span className="font-medium text-gray-700">Patient Name</span>
-                          </div>
-                          <span className="text-gray-900 font-bold text-lg">{selectedPatient}</span>
+                      <div className="flex flex-col md:flex-row gap-6 items-start">
+                        {/* Patient Photo */}
+                        <div className="flex-shrink-0 flex flex-col items-center gap-2">
+                          {isLoadingPhoto ? (
+                            <div className="w-28 h-28 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shadow-lg border-4 border-blue-200">
+                              <i className="fas fa-spinner fa-spin text-blue-500 text-2xl"></i>
+                            </div>
+                          ) : selectedPatientPhoto ? (
+                            <div className="relative">
+                              <img
+                                src={getImageUrl(selectedPatientPhoto, { width: 112, height: 112, crop: 'fill' })}
+                                alt={selectedPatient}
+                                className="w-28 h-28 rounded-xl shadow-lg object-cover border-4 border-blue-400"
+                                onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
+                              />
+                              <div className="absolute bottom-0 right-0 w-7 h-7 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                                <i className="fas fa-check text-white text-xs"></i>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-28 h-28 rounded-xl bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-gray-500 shadow-lg border-4 border-gray-200">
+                              <i className="fas fa-user text-4xl"></i>
+                            </div>
+                          )}
+                          <span className="text-xs text-gray-500 font-medium">Patient Photo</span>
                         </div>
-                        <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg shadow-sm border border-green-200">
-                          <div className="flex items-center gap-2 mb-2">
-                            <i className="fas fa-hashtag text-green-600"></i>
-                            <span className="font-medium text-gray-700">Lab Number</span>
+                        {/* Info Grid */}
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg shadow-sm border border-blue-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <i className="fas fa-user text-blue-600"></i>
+                              <span className="font-medium text-gray-700">Patient Name</span>
+                            </div>
+                            <span className="text-gray-900 font-bold text-lg">{selectedPatient}</span>
                           </div>
-                          <span className="text-gray-900 font-bold text-lg">{selectedLabNumber}</span>
-                        </div>
-                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg shadow-sm border border-purple-200">
-                          <div className="flex items-center gap-2 mb-2">
-                            <i className="fas fa-calendar text-purple-600"></i>
-                            <span className="font-medium text-gray-700">Report Date</span>
+                          <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg shadow-sm border border-green-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <i className="fas fa-hashtag text-green-600"></i>
+                              <span className="font-medium text-gray-700">Lab Number</span>
+                            </div>
+                            <span className="text-gray-900 font-bold text-lg">{selectedLabNumber}</span>
                           </div>
-                          <span className="text-gray-900 font-bold">{new Date().toLocaleDateString()}</span>
-                        </div>
-                        <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg shadow-sm border border-orange-200">
-                          <div className="flex items-center gap-2 mb-2">
-                            <i className="fas fa-clock text-orange-600"></i>
-                            <span className="font-medium text-gray-700">Report Time</span>
+                          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg shadow-sm border border-purple-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <i className="fas fa-calendar text-purple-600"></i>
+                              <span className="font-medium text-gray-700">Report Date</span>
+                            </div>
+                            <span className="text-gray-900 font-bold">{new Date().toLocaleDateString()}</span>
                           </div>
-                          <span className="text-gray-900 font-bold">{new Date().toLocaleTimeString()}</span>
+                          <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg shadow-sm border border-orange-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <i className="fas fa-clock text-orange-600"></i>
+                              <span className="font-medium text-gray-700">Report Time</span>
+                            </div>
+                            <span className="text-gray-900 font-bold">{new Date().toLocaleTimeString()}</span>
+                          </div>
                         </div>
                       </div>
                     </div>

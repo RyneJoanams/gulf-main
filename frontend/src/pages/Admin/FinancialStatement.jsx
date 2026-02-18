@@ -145,7 +145,8 @@ const FinancialStatements = () => {
   const fetchExpenses = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/expenses`);
-      setExpenses(response.data);
+      // expenses controller now returns { expenses: [], pagination: {} }
+      setExpenses(response.data.expenses || response.data || []);
     } catch (error) {
       toast.error('Error fetching expenses.');
     }

@@ -30,6 +30,18 @@ const isBase64 = (str) => {
   return str.startsWith('data:') || (str.length > 100 && !str.startsWith('http'));
 };
 
+const getStringSizeBytes = (value) => {
+  if (!value || typeof value !== 'string') return 0;
+  return Buffer.byteLength(value, 'utf8');
+};
+
+const formatBytes = (bytes) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+};
+
 // Helper function to upload base64 to Cloudinary
 const uploadBase64ToCloudinary = async (base64String, folder, publicIdPrefix) => {
   try {
@@ -223,7 +235,10 @@ const migrateClinicalImages = async () => {
   
   try {
     const clinicalReports = await Clinical.find({
-      'selectedReport.patientPhoto': { $exists: true, $ne: '' }
+      $or: [
+        { 'selectedReport.patientImage': { $exists: true, $ne: '' } },
+        { 'selectedReport.patientPhoto': { $exists: true, $ne: '' } }
+      ]
     });
 
     console.log(`Found ${clinicalReports.length} clinical reports with images`);
@@ -233,9 +248,10 @@ const migrateClinicalImages = async () => {
     let failed = 0;
 
     for (const clinReport of clinicalReports) {
-      if (!clinReport.selectedReport.patientPhoto) continue;
+      const imageSource = clinReport.selectedReport?.patientImage || clinReport.selectedReport?.patientPhoto;
+      if (!imageSource) continue;
 
-      if (!isBase64(clinReport.selectedReport.patientPhoto)) {
+      if (!isBase64(imageSource)) {
         console.log(`⏭️  Skipping Clinical report - already has URL`);
         skipped++;
         continue;
@@ -244,13 +260,17 @@ const migrateClinicalImages = async () => {
       console.log(`🔄 Migrating clinical image for Patient: ${clinReport.selectedReport.patientName}`);
 
       const cloudinaryUrl = await uploadBase64ToCloudinary(
-        clinReport.selectedReport.patientPhoto,
+        imageSource,
         'gulf-medical/clinical',
         `clinical-${clinReport._id}`
       );
 
       if (cloudinaryUrl) {
-        clinReport.selectedReport.patientPhoto = cloudinaryUrl;
+        clinReport.selectedReport.patientImage = cloudinaryUrl;
+        if (clinReport.selectedReport.patientPhoto) {
+          delete clinReport.selectedReport.patientPhoto;
+        }
+        clinReport.markModified('selectedReport');
         await clinReport.save();
         console.log(`✅ Successfully migrated clinical report`);
         migrated++;
@@ -272,6 +292,74 @@ const migrateClinicalImages = async () => {
   }
 };
 
+const collectMigrationStats = async (label) => {
+  const patients = await Patient.find({ photo: { $exists: true, $ne: '' } }).select('photo').lean();
+  const labs = await Lab.find({ patientImage: { $exists: true, $ne: '' } }).select('patientImage').lean();
+  const radiology = await Radiology.find({ patientImage: { $exists: true, $ne: '' } }).select('patientImage').lean();
+  const clinical = await Clinical.find({
+    $or: [
+      { 'selectedReport.patientImage': { $exists: true, $ne: '' } },
+      { 'selectedReport.patientPhoto': { $exists: true, $ne: '' } }
+    ]
+  }).select('selectedReport.patientImage selectedReport.patientPhoto').lean();
+
+  const counters = {
+    patients: { base64: 0, urls: 0, bytes: 0 },
+    lab: { base64: 0, urls: 0, bytes: 0 },
+    radiology: { base64: 0, urls: 0, bytes: 0 },
+    clinical: { base64: 0, urls: 0, bytes: 0 }
+  };
+
+  patients.forEach((doc) => {
+    if (isBase64(doc.photo)) {
+      counters.patients.base64++;
+      counters.patients.bytes += getStringSizeBytes(doc.photo);
+    } else {
+      counters.patients.urls++;
+    }
+  });
+
+  labs.forEach((doc) => {
+    if (isBase64(doc.patientImage)) {
+      counters.lab.base64++;
+      counters.lab.bytes += getStringSizeBytes(doc.patientImage);
+    } else {
+      counters.lab.urls++;
+    }
+  });
+
+  radiology.forEach((doc) => {
+    if (isBase64(doc.patientImage)) {
+      counters.radiology.base64++;
+      counters.radiology.bytes += getStringSizeBytes(doc.patientImage);
+    } else {
+      counters.radiology.urls++;
+    }
+  });
+
+  clinical.forEach((doc) => {
+    const image = doc.selectedReport?.patientImage || doc.selectedReport?.patientPhoto;
+    if (!image) return;
+    if (isBase64(image)) {
+      counters.clinical.base64++;
+      counters.clinical.bytes += getStringSizeBytes(image);
+    } else {
+      counters.clinical.urls++;
+    }
+  });
+
+  const totalBytes = counters.patients.bytes + counters.lab.bytes + counters.radiology.bytes + counters.clinical.bytes;
+
+  console.log(`\n📦 ${label} migration stats:`);
+  console.log(`   Patients   - base64: ${counters.patients.base64}, urls: ${counters.patients.urls}, est. base64 size: ${formatBytes(counters.patients.bytes)}`);
+  console.log(`   Lab        - base64: ${counters.lab.base64}, urls: ${counters.lab.urls}, est. base64 size: ${formatBytes(counters.lab.bytes)}`);
+  console.log(`   Radiology  - base64: ${counters.radiology.base64}, urls: ${counters.radiology.urls}, est. base64 size: ${formatBytes(counters.radiology.bytes)}`);
+  console.log(`   Clinical   - base64: ${counters.clinical.base64}, urls: ${counters.clinical.urls}, est. base64 size: ${formatBytes(counters.clinical.bytes)}`);
+  console.log(`   Total estimated base64 still in MongoDB: ${formatBytes(totalBytes)}`);
+
+  return { counters, totalBytes };
+};
+
 // Main migration function
 const runMigration = async () => {
   console.log('=================================================');
@@ -290,11 +378,15 @@ const runMigration = async () => {
     const pingResult = await cloudinary.api.ping();
     console.log('✅ Cloudinary connection successful');
 
+    await collectMigrationStats('Before');
+
     // Run migrations
     await migratePatientPhotos();
     await migrateLabReportImages();
     await migrateRadiologyImages();
     await migrateClinicalImages();
+
+    await collectMigrationStats('After');
 
     console.log('\n=================================================');
     console.log('   ✅ Migration Completed Successfully!');

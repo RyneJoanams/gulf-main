@@ -6,12 +6,21 @@ exports.getAllPatients = async (req, res) => {
   try {
     const { 
       page = 1, 
-      limit = 0,  // 0 means no limit (backward compatible)
+      limit,
       fields = '',
-      excludePhoto = 'true' // Exclude photo by default to reduce payload
+      excludePhoto = 'true', // Exclude photo by default to reduce payload
+      name = ''              // Optional: filter by patient name (partial, case-insensitive)
     } = req.query;
+
+    const defaultLimit = parseInt(process.env.DEFAULT_PATIENT_LIMIT || '300', 10);
+    const maxLimit = parseInt(process.env.MAX_PATIENT_LIMIT || '1000', 10);
+    const hasCustomLimit = limit !== undefined;
+    const parsedLimit = parseInt(limit, 10);
+    const effectiveLimit = hasCustomLimit
+      ? (Number.isNaN(parsedLimit) ? defaultLimit : Math.min(Math.max(parsedLimit, 0), maxLimit))
+      : defaultLimit;
     
-    const skip = limit > 0 ? (parseInt(page) - 1) * parseInt(limit) : 0;
+    const skip = effectiveLimit > 0 ? (parseInt(page) - 1) * effectiveLimit : 0;
     
     // Build field selection - exclude heavy photo field by default
     let selectFields = {};
@@ -23,33 +32,45 @@ exports.getAllPatients = async (req, res) => {
       selectFields = { photo: 0 };
     }
     
-    let query = Patient.find().select(selectFields).lean(); // Use lean() for better performance
-    
-    if (limit > 0) {
-      query = query.skip(skip).limit(parseInt(limit));
+    // Build base filter — support optional name search
+    const baseFilter = name
+      ? { name: { $regex: name.trim(), $options: 'i' } }
+      : {};
+
+    // When specific fields are requested (e.g. ?fields=name,photo), the caller
+    // just wants a lightweight projection — skip countDocuments entirely so we
+    // avoid an extra full-collection scan on every department page load.
+    const needsPaginationMeta = !fields && effectiveLimit > 0;
+
+    const findQuery = Patient.find(baseFilter)
+      .select(selectFields)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (effectiveLimit > 0) {
+      findQuery.skip(skip).limit(effectiveLimit);
     }
-    
-    // Sort by most recent first for better UX
-    query = query.sort({ createdAt: -1 });
-    
-    const patients = await query.exec();
-    
-    // Get total count for pagination (only if limit is set)
-    let totalCount = 0;
-    if (limit > 0) {
-      totalCount = await Patient.countDocuments();
-    }
-    
+
+    // Run find and (optionally) countDocuments in parallel
+    const [patients, totalCount] = await Promise.all([
+      findQuery.exec(),
+      needsPaginationMeta ? Patient.countDocuments(baseFilter) : Promise.resolve(0)
+    ]);
+
+    // Guard against double-response when the timeout middleware fired first
+    if (res.headersSent) return;
+
     res.status(200).json({
       patients,
-      pagination: limit > 0 ? {
+      pagination: needsPaginationMeta ? {
         currentPage: parseInt(page),
-        totalPages: Math.ceil(totalCount / parseInt(limit)),
+        totalPages: Math.ceil(totalCount / effectiveLimit),
         totalCount,
         hasMore: skip + patients.length < totalCount
       } : null
     });
   } catch (error) {
+    if (res.headersSent) return;
     res.status(500).json({ message: error.message });
   }
 };
@@ -171,75 +192,57 @@ exports.deletePatient = async (req, res) => {
 exports.getPatientsPendingPayment = async (req, res) => {
   try {
     const accounts = require('../models/accounts');
-    
-    // Get all patients who don't have paymentRecorded flag set to true
-    const allPendingPatients = await Patient.find({ paymentRecorded: { $ne: true } }).sort({ createdAt: -1 });
-    
-    // Get all patients who have payment records with "Paid" status
-    const paidPatients = await accounts.find({ paymentStatus: 'Paid' }).distinct('patientName');
-    
-    // Filter out patients who already have paid status
-    const actuallyPendingPatients = allPendingPatients.filter(patient => 
-      !paidPatients.includes(patient.name)
-    );
-    
-    res.status(200).json(actuallyPendingPatients);
+
+    // Get names of patients that already have a "Paid" account record.
+    const paidPatientNames = await accounts.distinct('patientName', { paymentStatus: 'Paid' });
+
+    // Single query: patients not marked paid AND not in the paid-accounts list.
+    const pendingPatients = await Patient.find({
+      paymentRecorded: { $ne: true },
+      name: { $nin: paidPatientNames }
+    })
+      .select('-photo') // exclude heavy photo field
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.status(200).json(pendingPatients);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 // Get patients without lab numbers assigned
+// Uses a DB-level aggregation instead of fetching all documents into JS memory.
 exports.getPatientsWithoutLabNumbers = async (req, res) => {
   try {
-    const LabNumber = require('../models/labNumber');
-    
-    console.log('🔍 Fetching patients without lab numbers...');
-    
-    // Get total counts for debugging
-    const totalPatients = await Patient.countDocuments();
-    const totalLabNumbers = await LabNumber.countDocuments();
-    console.log(`📊 Total patients in DB: ${totalPatients}`);
-    console.log(`📊 Total lab numbers in DB: ${totalLabNumbers}`);
-    
-    // Get all patients sorted by creation date
-    const allPatients = await Patient.find().sort({ createdAt: -1 });
-    
-    // Get all lab numbers with patient names
-    const assignedLabNumbers = await LabNumber.find().select('patient');
-    
-    // Create a Set of normalized patient names that have lab numbers
-    const assignedNamesSet = new Set(
-      assignedLabNumbers.map(lab => lab.patient.trim().toLowerCase())
-    );
-    
-    console.log(`📋 Patients with lab numbers: ${assignedNamesSet.size}`);
-    console.log(`📋 Sample names with labs:`, Array.from(assignedNamesSet).slice(0, 3));
-    
-    // Filter patients who don't have lab numbers (case-insensitive, trimmed comparison)
-    const patientsWithoutLabNumbers = allPatients.filter(patient => {
-      const normalizedPatientName = patient.name.trim().toLowerCase();
-      const hasLabNumber = assignedNamesSet.has(normalizedPatientName);
-      
-      if (!hasLabNumber) {
-        console.log(`   ✓ Pending: "${patient.name}" (${patient.medicalType})`);
-      }
-      
-      return !hasLabNumber;
-    });
-    
-    console.log(`✅ Found ${patientsWithoutLabNumbers.length} patients without lab numbers`);
-    
-    if (patientsWithoutLabNumbers.length > 0) {
-      console.log(`📝 First pending patient: ${patientsWithoutLabNumbers[0].name} (${patientsWithoutLabNumbers[0].medicalType})`);
-    } else {
-      console.log(`ℹ️  All patients have lab numbers assigned`);
-    }
-    
+    const patientsWithoutLabNumbers = await Patient.aggregate([
+      {
+        $lookup: {
+          from: 'labnumbers',
+          localField: 'name',
+          foreignField: 'patient',
+          as: 'labNumbers'
+        }
+      },
+      { $match: { labNumbers: { $size: 0 } } },
+      {
+        $project: {
+          photo: 0,
+          labNumbers: 0
+        }
+      },
+      { $sort: { createdAt: -1 } }
+    ]);
+
+    if (res.headersSent) return;
+
+    console.log(`✅ Patients without lab numbers: ${patientsWithoutLabNumbers.length}`);
     res.status(200).json(patientsWithoutLabNumbers);
   } catch (error) {
     console.error('❌ Error in getPatientsWithoutLabNumbers:', error);
-    res.status(500).json({ message: error.message });
+    if (!res.headersSent) {
+      res.status(500).json({ message: error.message });
+    }
   }
 };
 

@@ -159,16 +159,35 @@ exports.createLabReport = async (req, res) => {
 
 exports.getLabReports = async (req, res) => {
   try {
+    const page = parseInt(req.query.page || '1', 10);
+    const requestedLimit = parseInt(req.query.limit || process.env.DEFAULT_LAB_LIMIT || '300', 10);
+    const maxLimit = parseInt(process.env.MAX_LAB_LIMIT || '1000', 10);
+    const limit = Math.min(Math.max(requestedLimit, 1), maxLimit);
+    const skip = (page - 1) * limit;
+
     // Exclude heavy patientImage field by default, use lean() for better performance
-    const labReports = await Lab.find()
-      .select('-patientImage') // Exclude patientImage to reduce payload
-      .sort({ timeStamp: -1 })
-      .lean(); // Use lean() for faster read-only queries
+    const [labReports, total] = await Promise.all([
+      Lab.find()
+        .select('-patientImage') // Exclude patientImage to reduce payload
+        .sort({ timeStamp: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(), // Use lean() for faster read-only queries
+      Lab.countDocuments()
+    ]);
+    if (res.headersSent) return;
     res.status(200).json({
       success: true,
       data: labReports,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
     });
   } catch (error) {
+    if (res.headersSent) return;
     res.status(400).json({
       success: false,
       error: error.message,

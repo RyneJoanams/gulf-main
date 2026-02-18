@@ -46,7 +46,7 @@ const LabReports = () => {
   useEffect(() => {
     const fetchReports = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/lab`);
+        const response = await axios.get(`${API_BASE_URL}/api/lab?limit=150`);
         setReports(response.data.data);
         setFilteredReports(response.data.data);
         // Initialize all reports as collapsed

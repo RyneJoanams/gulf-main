@@ -5,6 +5,7 @@ import axios from 'axios';
 import html2canvas from 'html2canvas';
 import logo from '../../assets/GULF HEALTHCARE KENYA LTD.png';
 import { API_BASE_URL } from '../../config/api.config';
+import { getImageUrl, isCloudinaryUrl } from '../../utils/cloudinaryHelper';
 
 const LabResultViewer = () => {
   const { reportId } = useParams();
@@ -18,6 +19,26 @@ const LabResultViewer = () => {
     if (typeof data === 'string') return data.trim() || 'N/A';
     if (typeof data === 'number') return data.toString();
     return 'N/A';
+  };
+
+  // Resolve patient photo from either Cloudinary URL or raw base64 string
+  const resolvePhoto = (raw) => {
+    if (!raw) return null;
+    if (raw.startsWith('http') || raw.startsWith('data:')) return raw;
+    // Bare base64 — prefix it
+    return `data:image/jpeg;base64,${raw}`;
+  };
+
+  // Extract photo from whatever data-source shape is present
+  const getPatientPhoto = (data) => {
+    if (!data) return null;
+    // Snapshot path: data.data.selectedReport.patientImage
+    const fromSnapshot = data?.data?.data?.selectedReport?.patientImage
+      || data?.data?.data?.patientImage;
+    // Lab-collection path: data.data.patientImage
+    const fromLabCollection = data?.data?.patientImage;
+    const raw = fromSnapshot || fromLabCollection || null;
+    return resolvePhoto(raw);
   };
 
   const generateReportImage = useCallback(async (data) => {
@@ -196,10 +217,10 @@ const LabResultViewer = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-teal-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading lab result...</p>
+      <div className="min-h-screen bg-gradient-to-b from-teal-50 to-gray-100 flex flex-col items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-lg p-10 flex flex-col items-center gap-4 w-full max-w-xs">
+          <div className="animate-spin rounded-full h-14 w-14 border-4 border-teal-100 border-t-teal-500"></div>
+          <p className="text-gray-500 text-sm font-medium tracking-wide">Loading lab result…</p>
         </div>
       </div>
     );
@@ -207,14 +228,14 @@ const LabResultViewer = () => {
 
   if (!reportData) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Lab Result Not Found</h1>
-          <p className="text-gray-600 mb-4">The requested lab result could not be found.</p>
-          <button 
-            onClick={() => window.history.back()} 
-            className="bg-teal-500 text-white px-6 py-2 rounded hover:bg-teal-600"
+      <div className="min-h-screen bg-gradient-to-b from-teal-50 to-gray-100 flex flex-col items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-lg p-8 flex flex-col items-center gap-4 w-full max-w-sm text-center">
+          <span className="text-5xl">⚠️</span>
+          <h1 className="text-xl font-bold text-gray-800">Lab Result Not Found</h1>
+          <p className="text-gray-500 text-sm">The requested lab result could not be found or may have expired.</p>
+          <button
+            onClick={() => window.history.back()}
+            className="mt-2 w-full bg-teal-500 text-white py-2.5 rounded-xl font-semibold hover:bg-teal-600 active:scale-95 transition-all"
           >
             Go Back
           </button>
@@ -224,105 +245,146 @@ const LabResultViewer = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <style>
-        {`
-          @media print {
-            body {
-              margin: 0;
-              padding: 0;
-            }
-            .no-print {
-              display: none !important;
-            }
-            .printable {
-              margin: 0;
-              padding: 20px;
-              background: white;
-              color: black;
-            }
-            .printable img {
-              max-width: 100%;
-              height: auto;
-              display: block;
-              margin: 0 auto;
-            }
-            .printable h1, .printable h2 {
-              text-align: center;
-              margin-bottom: 20px;
-              color: black;
-            }
-            .report-info-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr 1fr;
-              gap: 10px;
-              margin-bottom: 20px;
-            }
-          }
-        `}
-      </style>
-      <div className="container mx-auto px-4 max-w-4xl">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6 no-print">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Digital Lab Result</h1>
-              <p className="text-gray-600">Accessed via QR Code</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={downloadImage}
-                disabled={!imageUrl}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                📥 Download Image
-              </button>
-              <button
-                onClick={shareImage}
-                disabled={!imageUrl}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                📤 Share
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-purple-600 flex items-center gap-2"
-              >
-                🖨️ Print
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-gray-100 pb-28">
+      <style>{`
+        @media print {
+          body { margin: 0; padding: 0; }
+          .no-print { display: none !important; }
+          .printable { margin: 0; padding: 20px; background: white; color: black; }
+          .printable img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+        }
+      `}</style>
 
-          {/* Report Image */}
-          {imageUrl && (
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Lab Report</h2>
-              <div className="text-center">
-                <img
-                  src={imageUrl}
-                  alt="Lab Report"
-                  className="max-w-full h-auto border border-gray-300 rounded-lg shadow-sm"
-                  style={{ maxWidth: '800px' }}
-                />
-              </div>
-            </div>
+      {/* ── Page Header ── */}
+      <div className="no-print bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-xl mx-auto px-4 py-3 flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-bold text-gray-800 truncate">Digital Lab Result</h1>
+            <p className="text-xs text-teal-600 font-medium">Verified via QR Code</p>
+          </div>
+          {dataSource && (
+            <span className="shrink-0 text-xs bg-teal-50 text-teal-700 border border-teal-200 px-2 py-1 rounded-full font-medium">
+              {dataSource === 'localStorage' ? '📦 Cache'
+                : dataSource === 'snapshot' ? '🗄️ Snapshot'
+                : dataSource === 'lab-collection' ? '🔬 Records'
+                : '☁️ Live'}
+            </span>
           )}
-
-          {/* Footer */}
-          <div className="text-center mt-8 text-gray-500 text-sm">
-            <p>© Gulf Healthcare Kenya Ltd. | Official Digital Lab Report</p>
-            <p className="mt-2">For any inquiries, please contact our support team</p>
-            {dataSource && (
-              <p className="mt-2 text-xs text-gray-400">
-                Data source: {dataSource === 'localStorage' ? 'Local Cache' : 
-                            dataSource === 'snapshot' ? 'Database Snapshot' : 
-                            dataSource === 'lab-collection' ? 'Lab Records' : 'Backend'}
-              </p>
-            )}
-          </div>
         </div>
       </div>
+
+      {/* ── Content ── */}
+      <div className="max-w-xl mx-auto px-4 pt-5 flex flex-col gap-4">
+
+        {/* Patient info banner */}
+        {reportData && (() => {
+          const patientPhoto = getPatientPhoto(reportData);
+          return (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-teal-500 px-4 py-3">
+                <p className="text-white font-bold text-sm uppercase tracking-wide">Patient Information</p>
+              </div>
+
+              {/* Photo */}
+          
+              {patientPhoto && (
+                <div className="flex flex-col items-center pt-5 pb-2">
+                  <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-teal-400 shadow-md bg-gray-100">
+                    <img
+                      src={
+                        isCloudinaryUrl(patientPhoto)
+                          ? getImageUrl(patientPhoto, { width: 192, height: 192, crop: 'fill' })
+                          : patientPhoto
+                      }
+                      alt="Patient"
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-gray-400 font-medium">Patient Photo</p>
+                </div>
+              )}
+              
+
+              {/* Info rows */}
+              <div className="divide-y divide-gray-100">
+                {[
+                  { label: 'Name',     value: formatData(reportData.patientName) },
+                  { label: 'Lab No.', value: formatData(reportData.labNumber) },
+                  { label: 'Gender',  value: formatData(reportData.data?.data?.gender) },
+                  { label: 'Age',     value: formatData(reportData.data?.data?.age) },
+                  { label: 'Passport',value: formatData(reportData.data?.data?.passportNumber) },
+                  { label: 'Agent',   value: formatData(reportData.data?.data?.agent) },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide w-24 shrink-0">{label}</span>
+                    <span className="text-sm text-gray-800 font-medium text-right break-all">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Report image */}
+        {imageUrl ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-gray-50 border-b border-gray-100 px-4 py-3 flex items-center gap-2">
+              <span className="text-teal-500 text-lg">🔬</span>
+              <p className="text-sm font-bold text-gray-700">Lab Report Document</p>
+            </div>
+            <div className="p-3 overflow-x-auto">
+              <img
+                src={imageUrl}
+                alt="Lab Report"
+                className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col items-center gap-3 text-center">
+            <div className="animate-pulse text-4xl">📄</div>
+            <p className="text-sm text-gray-500">Generating report document…</p>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="text-center py-4 text-xs text-gray-400 space-y-1">
+          <p className="font-medium text-gray-500">© Gulf Healthcare Kenya Ltd.</p>
+          <p>Official Digital Lab Report</p>
+          <p>For inquiries, contact our support team</p>
+        </div>
+      </div>
+
+      {/* ── Sticky Bottom Action Bar ── */}
+      <div className="no-print fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 shadow-lg px-4 py-3 z-20">
+        <div className="max-w-xl mx-auto grid grid-cols-3 gap-2">
+          <button
+            onClick={downloadImage}
+            disabled={!imageUrl}
+            className="flex flex-col items-center justify-center gap-1 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl py-2.5 transition-all active:scale-95"
+          >
+            <span className="text-lg leading-none">📥</span>
+            <span className="text-xs font-semibold">Download</span>
+          </button>
+          <button
+            onClick={shareImage}
+            disabled={!imageUrl}
+            className="flex flex-col items-center justify-center gap-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl py-2.5 transition-all active:scale-95"
+          >
+            <span className="text-lg leading-none">📤</span>
+            <span className="text-xs font-semibold">Share</span>
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="flex flex-col items-center justify-center gap-1 bg-gray-700 hover:bg-gray-800 text-white rounded-xl py-2.5 transition-all active:scale-95"
+          >
+            <span className="text-lg leading-none">🖨️</span>
+            <span className="text-xs font-semibold">Print</span>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 

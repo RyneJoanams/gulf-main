@@ -2,13 +2,34 @@ const RadiologyTest = require('../models/radiology');
 
 exports.getRadiologyTests = async (req, res) => {
     try {
+        const page = parseInt(req.query.page || '1', 10);
+        const requestedLimit = parseInt(req.query.limit || process.env.DEFAULT_RADIOLOGY_LIMIT || '300', 10);
+        const maxLimit = parseInt(process.env.MAX_RADIOLOGY_LIMIT || '1000', 10);
+        const limit = Math.min(Math.max(requestedLimit, 1), maxLimit);
+        const skip = (page - 1) * limit;
+
         // Exclude heavy patientImage field by default, use lean() for better performance
-        const tests = await RadiologyTest.find()
+        const [tests, total] = await Promise.all([
+          RadiologyTest.find()
             .select('-patientImage') // Exclude patientImage to reduce payload
             .sort({ timeStamp: -1 }) // Sort by newest first
-            .lean(); // Use lean() for faster read-only queries
-        res.status(200).json(tests);
+            .skip(skip)
+            .limit(limit)
+            .lean(), // Use lean() for faster read-only queries
+          RadiologyTest.countDocuments()
+        ]);
+        if (res.headersSent) return;
+        res.status(200).json({
+          data: tests,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+          }
+        });
     } catch (error) {
+        if (res.headersSent) return;
         res.status(500).json({ message: error.message });
         console.error(error);
     }

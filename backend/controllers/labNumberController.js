@@ -88,9 +88,17 @@ exports.createLabNumber = async (req, res) => {
 // Controller to get all lab numbers
 exports.getAllLabNumbers = async (req, res) => {
   try {
+    const page = parseInt(req.query.page || '1', 10);
+    const requestedLimit = parseInt(req.query.limit || process.env.DEFAULT_LAB_NUMBER_LIMIT || '300', 10);
+    const maxLimit = parseInt(process.env.MAX_LAB_NUMBER_LIMIT || '1000', 10);
+    const limit = Math.min(Math.max(requestedLimit, 1), maxLimit);
+    const skip = (page - 1) * limit;
+
     // Use lean() for better performance and sort by newest first
     const labNumbers = await LabNumber.find()
       .sort({ createdAt: -1 }) // Sort by newest first
+      .skip(skip)
+      .limit(limit)
       .lean(); // Use lean() for faster read-only queries
     res.status(200).json({
       success: true,

@@ -1,13 +1,23 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import backgroundImage from '../assets/3.jpg';
 import TypingEffect from 'react-typing-effect';
 import { useInView } from 'react-intersection-observer';
-import Particles from 'react-tsparticles';
+import Particles, { initParticlesEngine } from '@tsparticles/react';
+import { loadSlim } from '@tsparticles/slim';
 import { particlesConfig } from '../particle-config';
 import img1 from "../assets/undraw_medicine_hqqg.svg";
 import { ChevronDown } from 'lucide-react';
 
 const Hero = () => {
+  const [particlesReady, setParticlesReady] = useState(false);
+
+  useEffect(() => {
+    initParticlesEngine(async (engine) => {
+      await loadSlim(engine);
+    }).then(() => {
+      setParticlesReady(true);
+    }).catch(console.error);
+  }, []);
   const { ref: headingRef, inView: isHeadingVisible } = useInView({ 
     triggerOnce: true,
     threshold: 0.2 
@@ -42,7 +52,13 @@ const Hero = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-teal-500/20 to-blue-600/20 animate-gradient" />
       
       {/* Particle Background */}
-      <Particles params={particlesConfig} className="absolute inset-0" />
+      {particlesReady && (
+        <Particles
+          id="tsparticles-hero"
+          options={particlesConfig}
+          className="absolute inset-0"
+        />
+      )}
 
       {/* Main Content Container */}
       <div className="container mx-auto flex flex-col lg:flex-row justify-between items-center px-6 lg:px-16 relative z-10">

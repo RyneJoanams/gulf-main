@@ -25,22 +25,25 @@ const Radiology = () => {
     useEffect(() => {
         const fetchReports = async () => {
             try {
-                // Fetch lab reports, radiology reports, and patient data with photos
+                // Fetch lab reports, radiology reports, and patient data
+                // Limit to 150 most recent records each to avoid gateway timeouts.
+                // Patient photos are Cloudinary URLs — they load independently; skip bulk embedding.
                 const [labResponse, radiologyResponse, patientsResponse] = await Promise.all([
-                    axios.get(`${API_BASE_URL}/api/lab`),
-                    axios.get(`${API_BASE_URL}/api/radiology`),
-                    axios.get(`${API_BASE_URL}/api/patient?excludePhoto=false&fields=name,photo`)
+                    axios.get(`${API_BASE_URL}/api/lab?limit=150`),
+                    axios.get(`${API_BASE_URL}/api/radiology?limit=150`),
+                    axios.get(`${API_BASE_URL}/api/patient?excludePhoto=true&fields=name`)
                 ]);
 
-                const labReports = labResponse.data.data;
-                const radiologyReports = radiologyResponse.data;
+                const labReports = labResponse.data.data || [];
+                // radiology controller now returns { data: [], pagination: {} }
+                const radiologyReports = radiologyResponse.data.data || radiologyResponse.data || [];
                 const patients = patientsResponse.data.patients || patientsResponse.data || [];
 
-                // Create patient photo map
+                // Create patient photo map (photos loaded on demand)
                 const patientPhotoMap = new Map();
                 patients.forEach(p => {
-                    if (p.name && p.photo) {
-                        patientPhotoMap.set(p.name.toLowerCase(), p.photo);
+                    if (p.name) {
+                        patientPhotoMap.set(p.name.toLowerCase(), null);
                     }
                 });
 

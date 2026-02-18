@@ -2,9 +2,22 @@ const Expense = require('../models/expense');
 
 exports.getExpenses = async (req, res) => {
   try {
-    const expenses = await Expense.find().sort({ date: -1 });
-    res.status(200).json(expenses);
+    const page = parseInt(req.query.page || '1', 10);
+    const limit = Math.min(parseInt(req.query.limit || '200', 10), 500);
+    const skip = (page - 1) * limit;
+
+    const [expenses, total] = await Promise.all([
+      Expense.find().sort({ date: -1 }).skip(skip).limit(limit).lean(),
+      Expense.countDocuments()
+    ]);
+
+    if (res.headersSent) return;
+    res.status(200).json({
+      expenses,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+    });
   } catch (error) {
+    if (res.headersSent) return;
     res.status(500).json({ message: error.message });
   }
 };

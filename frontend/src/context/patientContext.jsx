@@ -11,7 +11,7 @@ export const PatientProvider = ({ children }) => {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=false`);
+        const response = await axios.get(`${API_BASE_URL}/api/patient?excludePhoto=true`);
         // Handle both old array format and new object format { patients: [...], pagination: {...} }
         const patientsData = response.data.patients || (Array.isArray(response.data) ? response.data : []);
         setPatientData((prevState) => ({
