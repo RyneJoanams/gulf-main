@@ -21,7 +21,7 @@ const storage = new CloudinaryStorage({
       folder = 'gulf-medical/patients';
     } else if (file.fieldname === 'patientImage') {
       folder = 'gulf-medical/lab-reports';
-    } else if (req.path.includes('radiology')) {
+    } else if (req.path && req.path.includes('radiology')) {
       folder = 'gulf-medical/radiology';
     }
 
@@ -59,7 +59,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Configure Multer with Cloudinary storage
+// Configure Multer with Cloudinary storage with error handling
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
@@ -71,6 +71,7 @@ const upload = multer({
 // Helper function to delete image from Cloudinary
 const deleteFromCloudinary = async (publicId) => {
   try {
+    if (!publicId) return null;
     const result = await cloudinary.uploader.destroy(publicId);
     console.log('Cloudinary deletion result:', result);
     return result;

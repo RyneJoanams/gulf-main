@@ -1,6 +1,7 @@
 const Lab = require('../models/lab');
 const Clinical = require('../models/clinical');
 const Patient = require('../models/Patient');
+const { deleteFromCloudinary, extractPublicId } = require('../config/cloudinary');
 
 exports.createLabReport = async (req, res) => {
   try {
@@ -255,6 +256,16 @@ exports.deleteLabReport = async (req, res) => {
         success: false,
         error: 'Lab report not found',
       });
+    }
+
+    // Delete associated image from Cloudinary if it exists
+    if (labReport.patientImage) {
+      const publicId = extractPublicId(labReport.patientImage);
+      if (publicId) {
+        await deleteFromCloudinary(publicId).catch(err => 
+          console.error('Failed to delete lab image from Cloudinary:', err)
+        );
+      }
     }
 
     res.status(200).json({
