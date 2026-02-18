@@ -1,42 +1,20 @@
 const Lab = require('../models/lab');
 const Clinical = require('../models/clinical');
 const Patient = require('../models/Patient');
-const fs = require('fs');
-
-// Helper function to convert image to base64
-const convertImageToBase64 = (filePath) => {
-  const imageBuffer = fs.readFileSync(filePath);
-  return imageBuffer.toString('base64');
-};
 
 exports.createLabReport = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
-    let patientImageBase64 = '';
-
-    // Check if `patientImage` is provided in the request body (optional)
-    if (req.body.patientImage) {
-      // If it's a file path, convert it to Base64
-      if (fs.existsSync(req.body.patientImage)) {
-        patientImageBase64 = convertImageToBase64(req.body.patientImage);
-      } else {
-        // Assume it's already a Base64 string
-        patientImageBase64 = req.body.patientImage;
-      }
-    }
-
-    // Convert uploaded file (if present) to Base64
-    if (req.file) {
-      patientImageBase64 = convertImageToBase64(req.file.path);
-    }
+    // Get Cloudinary URL if file was uploaded
+    const patientImageUrl = req.file ? req.file.path : (req.body.patientImage || '');
 
     const labData = {
       patientId: req.body.patientId,
       patientName: req.body.patientName,
       labNumber: req.body.labNumber,
       // Only include patientImage if it exists
-      ...(patientImageBase64 && { patientImage: patientImageBase64 }),
+      ...(patientImageUrl && { patientImage: patientImageUrl }),
       timeStamp: req.body.timeStamp || Date.now(),
       medicalType: req.body.medicalType || 'N/A',
       labRemarks: req.body.labRemarks,

@@ -1,5 +1,5 @@
 const Patient = require('../models/Patient');
-const fs = require('fs');
+const { deleteFromCloudinary, extractPublicId } = require('../config/cloudinary');
 
 // Fetch all patients with pagination and optimizations
 exports.getAllPatients = async (req, res) => {
@@ -65,21 +65,12 @@ exports.getPatientById = async (req, res) => {
   }
 };
 
-// Helper function to convert image to base64
-const convertImageToBase64 = (filePath) => {
-  const imageBuffer = fs.readFileSync(filePath);
-  return imageBuffer.toString('base64');
-};
-
 // Create a new patient
 exports.createPatient = async (req, res) => {
   const { name, passportNumber, issuingCountry, occupation, sex, height, weight, age, medicalType, agent } = req.body;
-  let photoBase64 = '';
-
-  // Convert image to base64 and store it in the database
-  if (req.file) {
-    photoBase64 = convertImageToBase64(req.file.path);
-  }
+  
+  // Cloudinary automatically uploads and returns the secure URL
+  const photoUrl = req.file ? req.file.path : ''; // Cloudinary path is in req.file.path
 
   const patient = new Patient({
     name: name ? name.trim() : name, // Trim whitespace from name
@@ -90,7 +81,7 @@ exports.createPatient = async (req, res) => {
     height,
     weight,
     age,
-    photo: photoBase64, // Storing the photo as a base64 string
+    photo: photoUrl, // Store Cloudinary URL instead of base64
     medicalType,
     agent, // Include agent field
   });
@@ -113,11 +104,21 @@ exports.updatePatient = async (req, res) => {
     
     // Handle photo upload if a new file is provided
     if (req.file) {
-      const photoBase64 = convertImageToBase64(req.file.path);
-      updateData.photo = photoBase64;
+      // Get the old patient data to delete old photo from Cloudinary
+      const oldPatient = await Patient.findById(req.params.id);
       
-      // Delete the uploaded file after converting to base64
-      fs.unlinkSync(req.file.path);
+      if (oldPatient && oldPatient.photo) {
+        // Extract public ID from old Cloudinary URL and delete it
+        const oldPublicId = extractPublicId(oldPatient.photo);
+        if (oldPublicId) {
+          await deleteFromCloudinary(oldPublicId).catch(err => 
+            console.error('Failed to delete old photo from Cloudinary:', err)
+          );
+        }
+      }
+      
+      // Store new Cloudinary URL
+      updateData.photo = req.file.path;
     }
     
     const updatedPatient = await Patient.findByIdAndUpdate(
@@ -149,6 +150,17 @@ exports.deletePatient = async (req, res) => {
   try {
     const deletedPatient = await Patient.findByIdAndDelete(req.params.id);
     if (!deletedPatient) return res.status(404).json({ message: 'Patient not found' });
+    
+    // Delete patient photo from Cloudinary if it exists
+    if (deletedPatient.photo) {
+      const publicId = extractPublicId(deletedPatient.photo);
+      if (publicId) {
+        await deleteFromCloudinary(publicId).catch(err => 
+          console.error('Failed to delete photo from Cloudinary:', err)
+        );
+      }
+    }
+    
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ message: error.message });
