@@ -56,20 +56,23 @@ const Agent = () => {
         setIsLoading(false);
     };
 
-    // Handle search input changes with debouncing
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            if (searchTerm.trim()) {
-                searchReports(searchTerm);
-            } else {
-                setFilteredReports([]);
-                setHasSearched(false);
-                setSelectedReport(null);
-            }
-        }, 500); // Debounce search for 500ms
+    // Triggered only when user explicitly submits (Enter or Search button)
+    const handleSearch = () => {
+        if (searchTerm.trim()) {
+            searchReports(searchTerm);
+        } else {
+            setFilteredReports([]);
+            setHasSearched(false);
+            setSelectedReport(null);
+        }
+    };
 
-        return () => clearTimeout(timeoutId);
-    }, [searchTerm]);
+    const handleClearSearch = () => {
+        setSearchTerm("");
+        setFilteredReports([]);
+        setHasSearched(false);
+        setSelectedReport(null);
+    };
 
     // Helper function to check if a test section has valid data
     const hasValidData = (data) => {
@@ -948,15 +951,67 @@ const Agent = () => {
             </html>
         `;
 
-        const printWindow = window.open("", "", "width=800,height=600");
-        printWindow.document.write(printContent);
-        printWindow.document.close();
-        printWindow.onload = () => {
-            printWindow.print();
-            printWindow.onafterprint = () => {
-                printWindow.close();
-            };
+        // Create a hidden iframe for printing (same approach as LeftBar)
+        const printFrame = document.createElement('iframe');
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = 'none';
+        printFrame.style.visibility = 'hidden';
+        document.body.appendChild(printFrame);
+
+        let cleanupDone = false;
+
+        const cleanupPrintFrame = () => {
+            if (cleanupDone) return;
+            cleanupDone = true;
+            try {
+                if (printFrame && printFrame.parentNode) {
+                    printFrame.parentNode.removeChild(printFrame);
+                }
+            } catch (e) {
+                console.error('Cleanup error:', e);
+            }
         };
+
+        const printDocument = printFrame.contentWindow.document;
+        printDocument.open();
+        printDocument.write(printContent);
+        printDocument.close();
+
+        const patientName = selectedReport.selectedReport?.patientName || 'Patient';
+        const labNumber = selectedReport.selectedReport?.labNumber || '';
+        const fileName = `${patientName.replace(/\s+/g, '_')}_${labNumber}_Clinical_Report`;
+
+        printFrame.contentWindow.onload = () => {
+            printFrame.contentWindow.document.title = fileName;
+            setTimeout(() => {
+                try {
+                    printFrame.contentWindow.focus();
+                    printFrame.contentWindow.print();
+
+                    printFrame.contentWindow.addEventListener('afterprint', () => {
+                        cleanupPrintFrame();
+                    });
+
+                    // Fallback cleanup in case afterprint doesn't fire
+                    setTimeout(() => {
+                        cleanupPrintFrame();
+                    }, 1000);
+                } catch (e) {
+                    console.error('Print error:', e);
+                    toast.error('Print failed. Please try again.');
+                    cleanupPrintFrame();
+                }
+            }, 150);
+        };
+
+        // Fallback if onload doesn't fire
+        setTimeout(() => {
+            cleanupPrintFrame();
+        }, 5000);
     };
 
     const paginatedReports = filteredReports.slice(
@@ -977,6 +1032,8 @@ const Agent = () => {
                     <AgentSidebar
                         searchTerm={searchTerm}
                         setSearchTerm={setSearchTerm}
+                        handleSearch={handleSearch}
+                        handleClearSearch={handleClearSearch}
                         isLoading={isLoading}
                         hasSearched={hasSearched}
                         paginatedReports={paginatedReports}

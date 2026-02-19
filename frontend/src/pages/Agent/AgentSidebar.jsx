@@ -4,6 +4,8 @@ import { FaChevronCircleLeft, FaChevronCircleRight, FaSearch, FaTimes, FaUserTie
 const AgentSidebar = ({
     searchTerm,
     setSearchTerm,
+    handleSearch,
+    handleClearSearch,
     isLoading,
     hasSearched,
     paginatedReports,
@@ -34,21 +36,34 @@ const AgentSidebar = ({
                     <div className="relative">
                         <input
                             type="text"
-                            placeholder="Passport number or ID..."
-                            className="w-full px-4 py-3 pl-10 rounded-lg border-0 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-teal-300 transition-all duration-200"
+                            placeholder="Enter Full Passport/ID Number" 
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck="false"
+                            className="w-full px-4 py-3 pl-10 rounded-lg border-0 bg-white text-gray-900 focus:ring-2 focus:ring-teal-300 transition-all duration-200"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
                         />
                         
                         {searchTerm && (
                             <button
-                                onClick={() => setSearchTerm("")}
+                                onClick={handleClearSearch}
                                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
                             >
                                 <FaTimes />
                             </button>
                         )}
                     </div>
+                    <button
+                        onClick={handleSearch}
+                        disabled={isLoading || !searchTerm.trim()}
+                        className="mt-2 w-full py-2 rounded-lg bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors duration-200 flex items-center justify-center gap-2"
+                    >
+                        <FaSearch />
+                        {isLoading ? 'Searching...' : 'Search'}
+                    </button>
                     {hasSearched && searchTerm && (
                         <p className="text-teal-200 text-xs mt-2">
                             Found {filteredReports.length} result{filteredReports.length !== 1 ? 's' : ''}
